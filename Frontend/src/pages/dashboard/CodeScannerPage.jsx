@@ -237,3 +237,148 @@ const CodeScannerPage = () => {
                   </label>
                 </div>
               </div>
+
+               {/* Scan Button */}
+              <motion.button
+                onClick={startScan}
+                disabled={isScanning || (!file && activeTab === "upload") || (!repoUrl.trim() && activeTab === "github")}
+                className="w-full mt-6 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Play className="h-5 w-5" />
+                <span>{isScanning ? "Scanning Code..." : "Start Code Scan"}</span>
+              </motion.button>
+
+              {/* Progress Bar */}
+              {isScanning && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4">
+                  <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-full h-2 overflow-hidden">
+                    <motion.div
+                      className="h-full bg-green-500"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${scanProgress}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                  <p className="text-center text-gray-300 mt-2">Analyzing code... {scanProgress}%</p>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Results with Syntax Highlighting */}
+          {scanComplete && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60"
+            >
+              <h3 className="text-xl font-bold text-white mb-4">Code Analysis Results</h3>
+
+              <div className="flex items-center space-x-3 mb-6">
+                <div className={`p-2 rounded-lg ${
+                  vulnerabilities.length > 0 ? 'bg-red-600' : 'bg-green-600'
+                }`}>
+                  {vulnerabilities.length > 0 ? (
+                    <AlertTriangle className="h-5 w-5 text-white" />
+                  ) : (
+                    <CheckCircle className="h-5 w-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <p className={`text-lg font-semibold ${
+                    vulnerabilities.length > 0 ? 'text-red-400' : 'text-green-400'
+                  }`}>
+                    {vulnerabilities.length > 0 ? 'Vulnerabilities Detected' : 'No Vulnerabilities Found'}
+                  </p>
+                  <p className="text-gray-300">
+                    {vulnerabilities.length > 0 
+                      ? `${vulnerabilities.length} vulnerabilities found in code`
+                      : 'Your code appears to be secure'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Export and Reset Buttons */}
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => exportReport("pdf")}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    onClick={() => exportReport("json")}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-all"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>JSON</span>
+                  </button>
+                  <button
+                    onClick={() => exportReport("csv")}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>CSV</span>
+                  </button>
+                </div>
+                <button
+                  onClick={resetScan}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  New Scan
+                </button>
+              </div>
+
+              {/* Code Issues with Syntax Highlighting */}
+              <div className="space-y-4">
+                {vulnerabilities.length === 0 ? (
+                  <div className="bg-green-900/30 border border-green-700 rounded-lg p-6 text-center">
+                    <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
+                    <h4 className="font-semibold text-green-400 mb-2">Great Job!</h4>
+                    <p className="text-gray-300">No security vulnerabilities were detected in your code.</p>
+                  </div>
+                ) : (
+                  vulnerabilities.map((vulnerability) => {
+                    const severityColors = {
+                      critical: 'bg-red-900/30 border-red-700',
+                      high: 'bg-orange-900/30 border-orange-700',
+                      medium: 'bg-yellow-900/30 border-yellow-700',
+                      low: 'bg-blue-900/30 border-blue-700'
+                    }
+                    const severityTextColors = {
+                      critical: 'text-red-400',
+                      high: 'text-orange-400',
+                      medium: 'text-yellow-400',
+                      low: 'text-blue-400'
+                    }
+                    
+                    return (
+                      <div key={vulnerability.id} className={`${severityColors[vulnerability.severity]} rounded-lg p-4`}>
+                        <h4 className={`font-semibold ${severityTextColors[vulnerability.severity]} mb-2`}>
+                          {vulnerability.type} - {vulnerability.file}:{vulnerability.line}
+                        </h4>
+                        {vulnerability.codeSnippet && (
+                          <div className="bg-gray-900 rounded p-3 mb-2 font-mono text-sm">
+                            <pre className="text-white whitespace-pre-wrap">{vulnerability.codeSnippet}</pre>
+                          </div>
+                        )}
+                        <p className="text-gray-300 text-sm mb-2">{vulnerability.description}</p>
+                        {vulnerability.recommendation && (
+                          <p className="text-gray-400 text-sm italic">
+                            <strong>Recommendation:</strong> {vulnerability.recommendation}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </motion.div>
+          )}
+        </div>
+
