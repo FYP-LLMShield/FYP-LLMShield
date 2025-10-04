@@ -31,3 +31,55 @@ const Footer: React.FC = () => {
               </a>
             </div>
           </div>
+          
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Products</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/scanners/prompt-injection" className="hover:text-accent-teal transition-colors duration-300">
+                  Prompt Injection Scanner
+                </Link>
+              </li>
+              <li>
+                <Link to="/scanners/model-poisoning" className="hover:text-accent-teal transition-colors duration-300">
+                  Model Poisoning Scanner
+                </Link>
+              </li>
+              <li>
+                <Link to="/scanners/vector-embedding" className="hover:text-accent-teal transition-colors duration-300">
+                  Vector Embedding Scanner
+                </Link>
+              </li>
+              <li>
+                <Link to="/scanners/code" className="hover:text-accent-teal transition-colors duration-300">
+                  C/C++ Scanner
+                </Link>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Company</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/about" className="hover:text-accent-teal transition-colors duration-300">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-accent-teal transition-colors duration-300">
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link to="/careers" className="hover:text-accent-teal transition-colors duration-300">
+                  Careers
+                </Link>
+              </li>
+              <li>
+                <Link to="/blog" className="hover:text-accent-teal transition-colors duration-300">
+                  Blog
+                </Link>
+              </li>
+            </ul>
+          </div>
