@@ -99,3 +99,24 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+
+      {/* Mobile Navigation */}
+      <motion.div
+        initial={false}
+        animate={isOpen ? { height: "auto", opacity: 1 } : { height: 0, opacity: 0 }}
+        className="md:hidden overflow-hidden bg-cyber-gray-800/95 backdrop-blur-md"
+      >
+        <div className="px-4 py-4 space-y-4">
+          {navItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              onClick={() => setIsOpen(false)}
+              className={`block px-3 py-2 text-base font-medium transition-colors ${
+                isActive(item.path) ? "text-cyber-green" : "text-gray-300 hover:text-cyber-green"
+              }`}
+            >
+              {item.name}
+            </Link>
+          ))}
