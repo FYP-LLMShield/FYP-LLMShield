@@ -31,3 +31,26 @@ const Navbar = () => {
               LLMShield
             </span>
           </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            {navItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`px-3 py-2 text-sm font-medium transition-colors relative ${
+                  isActive(item.path) ? "text-cyber-green" : "text-gray-300 hover:text-cyber-green"
+                }`}
+              >
+                {item.name}
+                {isActive(item.path) && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyber-green"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+              </Link>
+            ))}
+          </div>          
