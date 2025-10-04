@@ -106,3 +106,95 @@ const MFASettingsPage = () => {
       setIsLoading(false)
     }
   }
+  const copyToClipboard = async (text, item) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedItems(prev => new Set([...prev, item]))
+      setTimeout(() => {
+        setCopiedItems(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(item)
+          return newSet
+        })
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const QRCodeStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold text-white mb-2">Scan QR Code</h3>
+        <p className="text-gray-400 mb-6">
+          Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+        </p>
+      </div>
+
+      <div className="flex justify-center mb-6">
+        <QRCode value={setupData?.qr_code} size={200} />
+      </div>
+
+      <div className="bg-gray-800 p-4 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-400">Manual Entry Key:</span>
+          <button
+            onClick={() => copyToClipboard(setupData?.secret, 'secret')}
+            className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
+          >
+            {copiedItems.has('secret') ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+            <span className="text-xs">{copiedItems.has('secret') ? 'Copied!' : 'Copy'}</span>
+          </button>
+        </div>
+        <code className="text-white font-mono text-sm break-all">
+          {setupData?.secret}
+        </code>
+      </div>
+
+      <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg">
+        <div className="flex items-center space-x-2 mb-2">
+          <AlertTriangle className="w-5 h-5 text-blue-400" />
+          <span className="text-blue-400 font-medium">Backup URL</span>
+        </div>
+        <p className="text-gray-300 text-sm mb-2">
+          Save this URL as a backup way to add the account to your authenticator:
+        </p>
+        <div className="flex items-center justify-between bg-gray-800 p-2 rounded">
+          <code className="text-white font-mono text-xs break-all flex-1 mr-2">
+            {setupData?.backup_url}
+          </code>
+          <button
+            onClick={() => copyToClipboard(setupData?.backup_url, 'backup_url')}
+            className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 flex-shrink-0"
+          >
+            {copiedItems.has('backup_url') ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setSetupStep(2)}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+      >
+        I've Added the Account
+      </button>
+    </div>
+  )
+
+  const VerifyStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold text-white mb-2">Verify Setup</h3>
+        <p className="text-gray-400 mb-6">
+          Enter the 6-digit code from your authenticator app to complete setup
+        </p>
+      </div>
+
