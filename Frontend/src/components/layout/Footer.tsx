@@ -83,3 +83,36 @@ const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
+          
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Legal</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/privacy" className="hover:text-accent-teal transition-colors duration-300">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms" className="hover:text-accent-teal transition-colors duration-300">
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link to="/cookies" className="hover:text-accent-teal transition-colors duration-300">
+                  Cookie Policy
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="border-t border-gray-200 dark:border-gray-800 mt-8 pt-8 text-center">
+          <p>&copy; {new Date().getFullYear()} LLMShield. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+
