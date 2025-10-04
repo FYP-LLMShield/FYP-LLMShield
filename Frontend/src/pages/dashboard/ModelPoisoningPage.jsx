@@ -178,3 +178,50 @@ const ModelPoisoningPage = () => {
             </motion.div>
           )}
         </div>
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-purple-900 to-pink-900 p-6 rounded-lg border border-purple-800">
+            <h3 className="text-lg font-bold text-white mb-4">Detection Methods</h3>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Statistical analysis of training data</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Model behavior consistency checks</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Backdoor trigger detection</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-3 rounded-lg">
+            <h3 className="text-lg font-bold text-white mb-4">AI Assistant</h3>
+            <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-4 mb-4">
+              <p className="text-gray-300 text-sm">
+                I can help explain the poisoning detection results and suggest remediation strategies. What would you
+                like to know?
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                placeholder="Ask about model security..."
+                className="flex-1 bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-500/70 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+              <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-2 rounded-lg transition-all">
+                <MessageCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default ModelPoisoningPage
+
