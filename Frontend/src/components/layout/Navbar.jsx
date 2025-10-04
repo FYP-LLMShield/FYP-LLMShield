@@ -54,3 +54,36 @@ const Navbar = () => {
               </Link>
             ))}
           </div>          
+
+
+          {/* Right side buttons */}
+          <div className="hidden md:flex items-center space-x-4">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-gray-300 hover:text-cyber-green transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </button>
+
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <Link to="/dashboard" className="cyber-button text-sm">
+                  Dashboard
+                </Link>
+                <button onClick={logout} className="text-gray-300 hover:text-red-400 transition-colors">
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Link to="/login" className="text-gray-300 hover:text-cyber-green transition-colors">
+                  Login
+                </Link>
+                <Link to="/signup" className="cyber-button text-sm">
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
