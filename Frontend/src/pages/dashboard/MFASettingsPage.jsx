@@ -197,4 +197,218 @@ const MFASettingsPage = () => {
           Enter the 6-digit code from your authenticator app to complete setup
         </p>
       </div>
+      <div className="space-y-4">
+          <div className="bg-white p-6 rounded-lg">
+            <TOTPInput
+              value={totpCode}
+              onComplete={(code) => {
+                setTotpCode(code)
+                setError("")
+              }}
+              loading={isLoading}
+              error={error}
+            />
+          </div>
+
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setSetupStep(1)}
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleVerifySetup}
+            disabled={isLoading || totpCode.length !== 6}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+          >
+            {isLoading ? "Verifying..." : "Verify & Enable"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const RecoveryCodesStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-white mb-2">MFA Enabled Successfully!</h3>
+        <p className="text-gray-400 mb-6">
+          Save these recovery codes in a safe place. You can use them to access your account if you lose your authenticator device.
+        </p>
+      </div>
+
+      <div className="bg-yellow-900/20 border border-yellow-500/30 p-4 rounded-lg">
+        <div className="flex items-center space-x-2 mb-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-400" />
+          <span className="text-yellow-400 font-medium">Important</span>
+        </div>
+        <ul className="text-gray-300 text-sm space-y-1">
+          <li>• Each recovery code can only be used once</li>
+          <li>• Store them in a secure location (password manager, safe, etc.)</li>
+          <li>• Don't share these codes with anyone</li>
+        </ul>
+      </div>
+
+      <RecoveryCodes 
+        codes={setupData?.recovery_codes}
+        onRegenerate={handleRegenerateRecoveryCodes}
+        loading={isLoading}
+      />
+
+      <button
+        onClick={() => {
+          setSetupData(null)
+          setSetupStep(1)
+          setSuccess("")
+        }}
+        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+      >
+        Complete Setup
+      </button>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+      <div className="max-w-2xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-8"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <Shield className="w-8 h-8 text-blue-400" />
+              <div>
+                <h1 className="text-2xl font-bold text-white">Two-Factor Authentication</h1>
+                <p className="text-gray-400">Secure your account with an additional layer of protection</p>
+              </div>
+            </div>
+            <Link 
+              to="/dashboard/settings"
+              className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Settings</span>
+            </Link>
+          </div>
+
+          {success && (
+            <div className="mb-6 text-green-400 text-sm bg-green-900/20 border border-green-500/30 p-3 rounded-lg">
+              {success}
+            </div>
+          )}
+
+          {(() => {
+            console.log('Render condition check:', {
+              mfaEnabled: mfaStatus.enabled,
+              setupData: !!setupData,
+              shouldShowEnableButton: !mfaStatus.enabled && !setupData
+            })
+            return !mfaStatus.enabled && !setupData
+          })() ? (
+            <div className="space-y-6">
+              <div className="bg-blue-900/20 border border-blue-500/30 p-6 rounded-lg">
+                <div className="flex items-center space-x-3 mb-4">
+                  <Smartphone className="w-6 h-6 text-blue-400" />
+                  <h3 className="text-lg font-semibold text-white">Enable Two-Factor Authentication</h3>
+                </div>
+                <p className="text-gray-300 mb-4">
+                  Add an extra layer of security to your account. You'll need an authenticator app like Google Authenticator or Authy.
+                </p>
+                <ul className="text-gray-400 text-sm space-y-2 mb-6">
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span>Protects against unauthorized access</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span>Works offline with your authenticator app</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span>Includes backup recovery codes</span>
+                  </li>
+                </ul>
+                <button
+                  onClick={handleEnableMFA}
+                  disabled={isLoading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                >
+                  {isLoading ? "Setting up..." : "Enable MFA"}
+                </button>
+              </div>
+            </div>
+          ) : setupData && !mfaStatus.enabled ? (
+            <div>
+              {setupStep === 1 && <QRCodeStep />}
+              {setupStep === 2 && <VerifyStep />}
+              {setupStep === 3 && <RecoveryCodesStep />}
+            </div>
+          ) : mfaStatus.enabled ? (
+            <div className="space-y-6">
+              <div className="bg-green-900/20 border border-green-500/30 p-6 rounded-lg">
+                <div className="flex items-center space-x-3 mb-4">
+                  <CheckCircle className="w-6 h-6 text-green-400" />
+                  <h3 className="text-lg font-semibold text-white">MFA is Enabled</h3>
+                </div>
+                <p className="text-gray-300 mb-4">
+                  Your account is protected with two-factor authentication.
+                </p>
+                <div className="flex items-center space-x-4 text-sm text-gray-400">
+                  <span>Recovery codes remaining: {mfaStatus.recoveryCodesRemaining}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={handleRegenerateRecoveryCodes}
+                  disabled={isLoading}
+                  className="flex items-center justify-center space-x-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>{isLoading ? "Generating..." : "Regenerate Codes"}</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowRecoveryCodes(!showRecoveryCodes)}
+                  className="flex items-center justify-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>{showRecoveryCodes ? "Hide" : "Show"} Recovery Codes</span>
+                </button>
+              </div>
+
+              {showRecoveryCodes && (
+                <div className="space-y-4">
+                  {currentRecoveryCodes.length > 0 ? (
+                    <RecoveryCodes 
+                      codes={currentRecoveryCodes}
+                      onRegenerate={handleRegenerateRecoveryCodes}
+                      loading={isLoading}
+                    />
+                  ) : (
+                    <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6 text-center">
+                      <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-white mb-2">Recovery Codes Not Available</h3>
+                      <p className="text-gray-400 mb-4">
+                        For security reasons, recovery codes cannot be displayed after they've been saved. 
+                        You can regenerate new codes if needed.
+                      </p>
+                      <button
+                        onClick={handleRegenerateRecoveryCodes}
+                        disabled={isLoading}
+                        className="flex items-center justify-center space-x-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-6 rounded-lg font-medium transition-colors mx-auto"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>{isLoading ? "Generating..." : "Regenerate Recovery Codes"}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
 
