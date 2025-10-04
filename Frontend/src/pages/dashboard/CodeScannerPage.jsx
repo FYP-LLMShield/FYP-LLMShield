@@ -404,5 +404,20 @@ const CodeScannerPage = () => {
               </div>
             </div>
           </div>
+           <div className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60">
+            <h3 className="text-lg font-bold text-white mb-4">AI Assistant</h3>
+            <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-4 mb-4">
+              <p className="text-gray-300 text-sm">
+                I can help explain the code vulnerabilities and suggest secure coding practices. What would you like to
+                know about the scan results?
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                placeholder="Ask about code security..."
+                className="flex-1 bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-500/70 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+
 
 
