@@ -120,3 +120,46 @@ const Navbar = () => {
               {item.name}
             </Link>
           ))}
+
+          <div className="flex items-center justify-between pt-4 border-t border-cyber-gray-600">
+            <button onClick={toggleTheme} className="p-2 text-gray-300 hover:text-cyber-green transition-colors">
+              {isDark ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </button>
+
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <Link to="/dashboard" onClick={() => setIsOpen(false)} className="cyber-button text-sm">
+                  Dashboard
+                </Link>
+                <button
+                  onClick={() => {
+                    logout()
+                    setIsOpen(false)
+                  }}
+                  className="text-gray-300 hover:text-red-400 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-300 hover:text-cyber-green transition-colors"
+                >
+                  Login
+                </Link>
+                <Link to="/signup" onClick={() => setIsOpen(false)} className="cyber-button text-sm">
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </nav>
+  )
+}
+
+export default Navbar
