@@ -418,6 +418,19 @@ const CodeScannerPage = () => {
                 placeholder="Ask about code security..."
                 className="flex-1 bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-500/70 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
+              <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-2 rounded-lg transition-all">
+                <MessageCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default CodeScannerPage
+
 
 
 
