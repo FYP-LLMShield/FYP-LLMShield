@@ -309,5 +309,65 @@ const SettingsPage = () => {
                       className="bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-600 rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
+                  <div className="flex space-x-3 mt-4">
+                    <button
+                      onClick={addApiKey}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Add Key
+                    </button>
+                    <button
+                      onClick={() => setShowNewKeyForm(false)}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* API Keys List */}
+              <div className="space-y-3">
+                {apiKeys.map((apiKey) => (
+                  <div key={apiKey.id} className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="text-white font-medium">{apiKey.name}</h4>
+                          <span className="px-2 py-1 bg-gradient-to-r from-purple-600 to-pink-600 text-purple-200 rounded text-xs">{apiKey.type}</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <code className="text-gray-300 text-sm font-mono">
+                            {apiKey.key.substring(0, 8)}...{apiKey.key.slice(-4)}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(apiKey.key, apiKey.id)}
+                            className="text-purple-400 hover:text-purple-300 transition-colors"
+                          >
+                            {copiedKey === apiKey.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <p className="text-gray-400 text-xs mt-1">Created: {apiKey.created}</p>
+                      </div>
+                      <button
+                        onClick={() => removeApiKey(apiKey.id)}
+                        className="text-red-400 hover:text-red-300 p-2 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default SettingsPage
+
 
 
