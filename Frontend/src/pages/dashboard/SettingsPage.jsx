@@ -87,3 +87,63 @@ const SettingsPage = () => {
           </div>
         </div>
       </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar Navigation */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-4 border border-purple-700/60"
+        >
+          <nav className="space-y-2">
+            {sections.map((section) => {
+              const IconComponent = section.icon
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+                    activeSection === section.id
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                : "text-gray-300 hover:bg-gradient-to-r hover:from-purple-800/80 hover:to-pink-800/60 hover:text-white"
+                  }`}
+                >
+                  <IconComponent className="h-5 w-5" />
+                  <span className="font-medium">{section.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+        </motion.div>
+
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+          {/* Profile Settings */}
+          {activeSection === "profile" && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60"
+            >
+              <h3 className="text-xl font-bold text-white mb-6">Update Profile</h3>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Display Name</label>
+                    <input
+                      type="text"
+                      defaultValue="John Doe"
+                      className="w-full bg-gradient-to-r from-purple-800/80 to-pink-800/60 border border-purple-600/70 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Email</label>
+                    <input
+                      type="email"
+                      defaultValue="john.doe@example.com"
+                      className="w-full bg-gradient-to-r from-purple-800/80 to-pink-800/60 border border-purple-700 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
