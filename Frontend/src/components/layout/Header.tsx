@@ -229,3 +229,52 @@ const Header: React.FC = () => {
             >
               Contact Us
             </Link>
+
+            {/* Mobile Auth Buttons with Theme Toggle */}
+            <div className="flex flex-col space-y-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Theme</span>
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal"
+                  aria-label="Toggle theme"
+                >
+                  {theme === 'light' ? (
+                    <MoonIcon className="h-5 w-5 text-accent-blue" />
+                  ) : (
+                    <SunIcon className="h-5 w-5 text-yellow-500" />
+                  )}
+                </button>
+              </div>
+              
+              <Link 
+                to="/auth" 
+                className="px-4 py-2 rounded-md border border-accent-teal text-accent-teal hover:bg-accent-teal/10 transition-colors duration-300 text-center"
+              >
+                Login
+              </Link>
+              <Link 
+                to="/auth?signup=true" 
+                className="px-4 py-2 rounded-md bg-accent-teal text-white hover:bg-accent-teal/90 transition-colors duration-300 text-center"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+      </header>
+    </>
+  );
+};
+
+const HeaderWithSticky: React.FC = () => {
+  return (
+    <>
+      <Header />
+      <StickyNavigation />
+    </>
+  );
+};
+
+export default HeaderWithSticky;
