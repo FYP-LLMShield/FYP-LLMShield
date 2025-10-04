@@ -381,4 +381,28 @@ const CodeScannerPage = () => {
             </motion.div>
           )}
         </div>
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60">
+            <h3 className="text-lg font-bold text-white mb-4">Vulnerability Types</h3>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Buffer overflow detection</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Memory management issues</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Format string vulnerabilities</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                <p className="text-gray-300 text-sm">Integer overflow checks</p>
+              </div>
+            </div>
+          </div>
+
 
