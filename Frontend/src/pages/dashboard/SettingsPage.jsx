@@ -146,4 +146,168 @@ const SettingsPage = () => {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Change Password</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="password"
+                      placeholder="Current Password"
+                      className="w-full bg-gradient-to-r from-purple-800/80 to-pink-800/60 border border-purple-600/70 rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                      type="password"
+                      placeholder="New Password"
+                      className="w-full bg-gradient-to-r from-purple-800/80 to-pink-800/60 border border-purple-700 rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors">
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Billing Settings */}
+          {activeSection === "billing" && (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              <div className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60">
+                <h3 className="text-xl font-bold text-white mb-6">Upgrade Account</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {plans.map((plan) => (
+                    <div
+                      key={plan.name}
+                      className={`border rounded-lg p-6 ${
+                        plan.current ? "border-green-500 bg-green-900/20" : "border-purple-600/70 bg-gradient-to-br from-purple-800/60 to-pink-800/40"
+                      }`}
+                    >
+                      <div className="text-center mb-4">
+                        <h4 className="text-lg font-bold text-white">{plan.name}</h4>
+                        <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mt-2">
+                          {plan.price}
+                          {plan.price !== "$0" && <span className="text-sm text-gray-400">/month</span>}
+                        </div>
+                      </div>
+
+                      <ul className="space-y-2 mb-6">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="text-gray-300 text-sm flex items-center">
+                            <Check className="h-4 w-4 text-green-400 mr-2" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <button
+                        className={`w-full py-2 px-4 rounded-lg transition-colors ${
+                          plan.current
+                            ? "bg-green-600 text-white cursor-default"
+                            : "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                        }`}
+                        disabled={plan.current}
+                      >
+                        {plan.current ? "Current Plan" : "Upgrade"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Security Settings */}
+          {activeSection === "security" && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60"
+            >
+              <h3 className="text-xl font-bold text-white mb-6">Security & MFA</h3>
+
+              <div className="space-y-6">
+                <Link 
+                  to="/dashboard/mfa"
+                  className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg hover:from-purple-700/80 hover:to-pink-700/60 transition-all duration-200 group"
+                >
+                  <div>
+                    <h4 className="text-white font-medium">Two-Factor Authentication</h4>
+                    <p className="text-gray-400 text-sm">Manage MFA settings and recovery codes</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                </Link>
+
+                <div className="space-y-3">
+                  <h4 className="text-white font-medium">Login Sessions</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg">
+                      <div>
+                        <p className="text-white text-sm">Current Session - Chrome on Windows</p>
+                        <p className="text-gray-400 text-xs">San Francisco, CA • Active now</p>
+                      </div>
+                      <span className="text-green-400 text-xs">Current</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg">
+                      <div>
+                        <p className="text-white text-sm">Mobile App - iPhone</p>
+                        <p className="text-gray-400 text-xs">San Francisco, CA • 2 hours ago</p>
+                      </div>
+                      <button className="text-red-400 text-xs hover:text-red-300">Revoke</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* API Keys */}
+          {activeSection === "api" && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">API Key Management</h3>
+                <button
+                  onClick={() => setShowNewKeyForm(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Key</span>
+                </button>
+              </div>
+
+              {/* Add New Key Form */}
+              {showNewKeyForm && (
+                <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-4 mb-6">
+                  <h4 className="text-white font-medium mb-4">Add New API Key</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input
+                      type="text"
+                      placeholder="Key Name"
+                      value={newKeyData.name}
+                      onChange={(e) => setNewKeyData((prev) => ({ ...prev, name: e.target.value }))}
+                      className="bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-600 rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <select
+                      value={newKeyData.type}
+                      onChange={(e) => setNewKeyData((prev) => ({ ...prev, type: e.target.value }))}
+                      className="bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-600 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="OpenAI">OpenAI</option>
+                      <option value="Vector DB">Vector DB</option>
+                      <option value="Hugging Face">Hugging Face</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input
+                      type="password"
+                      placeholder="API Key"
+                      value={newKeyData.key}
+                      onChange={(e) => setNewKeyData((prev) => ({ ...prev, key: e.target.value }))}
+                      className="bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-600 rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
 
