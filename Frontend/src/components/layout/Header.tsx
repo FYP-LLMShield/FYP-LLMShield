@@ -172,3 +172,60 @@ const Header: React.FC = () => {
               <SunIcon className="h-5 w-5 text-yellow-500" />
             )}
           </button>
+
+          {/* Mobile menu button */}
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal"
+            aria-label="Toggle mobile menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <XMarkIcon className="h-6 w-6" />
+            ) : (
+              <Bars3Icon className="h-6 w-6" />
+            )}
+          </button>
+        </div>
+      </div>
+      
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-16 bg-light-primary dark:bg-dark-primary border-t border-gray-200 dark:border-gray-800 z-40 overflow-y-auto">
+          <div className="container mx-auto px-4 py-4 flex flex-col space-y-3 min-h-full">
+            <Link 
+              to="/" 
+              className={`px-4 py-2 rounded-md ${isActive('/') ? 'bg-gray-100 dark:bg-gray-800 text-accent-teal' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              Home
+            </Link>
+            <Link 
+              to="/services" 
+              className={`px-4 py-2 rounded-md ${isActive('/services') ? 'bg-gray-100 dark:bg-gray-800 text-accent-teal' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              Services
+            </Link>
+            <Link 
+              to="/use-cases" 
+              className={`px-4 py-2 rounded-md ${isActive('/use-cases') ? 'bg-gray-100 dark:bg-gray-800 text-accent-teal' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              Use Cases
+            </Link>
+            <Link 
+              to="/pricing" 
+              className={`px-4 py-2 rounded-md ${isActive('/pricing') ? 'bg-gray-100 dark:bg-gray-800 text-accent-teal' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              Pricing
+            </Link>
+            <Link 
+              to="/about" 
+              className={`px-4 py-2 rounded-md ${isActive('/about') ? 'bg-gray-100 dark:bg-gray-800 text-accent-teal' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              About Us
+            </Link>
+            <Link 
+              to="/contact" 
+              className={`px-4 py-2 rounded-md ${isActive('/contact') ? 'bg-gray-100 dark:bg-gray-800 text-accent-teal' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              Contact Us
+            </Link>
