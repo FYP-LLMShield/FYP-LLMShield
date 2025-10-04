@@ -97,3 +97,44 @@ const Header: React.FC = () => {
           </Link>
         </div>
 
+        {/* Main Navigation - Centered Pill */}
+        <div className="absolute left-1/2 transform -translate-x-1/2">
+          <nav className="hidden md:flex items-center justify-center rounded-full border border-white/15 backdrop-blur bg-black shadow-[0_0_30px_rgba(20,184,166,0.2)] px-4 py-2 space-x-6">
+            <Link 
+              to="/" 
+              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+            >
+              Home
+            </Link>
+            <Link 
+              to="/services" 
+              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/services') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+            >
+              Services
+            </Link>
+            <Link 
+              to="/use-cases" 
+              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/use-cases') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+            >
+              Use Cases
+            </Link>
+            <Link 
+              to="/pricing" 
+              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/pricing') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+            >
+              Pricing
+            </Link>
+            <Link 
+              to="/about" 
+              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/about') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+            >
+              About Us
+            </Link>
+            <Link 
+              to="/contact" 
+              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/contact') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+            >
+              Contact Us
+            </Link>
+          </nav>
+        </div>
