@@ -409,6 +409,122 @@ const MFASettingsPage = () => {
                   )}
                 </div>
               )}
+              <div className="border-t border-gray-700 pt-6">
+                 <button
+                   onClick={() => setShowDisableMFA(true)}
+                   className="text-red-400 hover:text-red-300 font-medium transition-colors"
+                 >
+                   Disable Two-Factor Authentication
+                 </button>
+               </div>
+ 
+               {showDisableMFA && (
+                 <DisableMFAForm
+                   showPassword={showPassword}
+                   setShowPassword={setShowPassword}
+                   currentPassword={currentPassword}
+                   setCurrentPassword={setCurrentPassword}
+                   totpCode={totpCode}
+                   setTotpCode={setTotpCode}
+                   error={error}
+                   setError={setError}
+                   isLoading={isLoading}
+                   handleDisableMFA={handleDisableMFA}
+                 />
+               )}
+            </div>
+          ) : null}
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
+// Separate memoized component for DisableMFAForm
+const DisableMFAForm = memo(({ 
+  showPassword, 
+  setShowPassword, 
+  currentPassword, 
+  setCurrentPassword, 
+  totpCode, 
+  setTotpCode, 
+  error, 
+  setError, 
+  isLoading, 
+  handleDisableMFA 
+}) => (
+  <div className="space-y-6">
+    <div className="text-center">
+      <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+      <h3 className="text-xl font-semibold text-white mb-2">Disable Two-Factor Authentication</h3>
+      <p className="text-gray-400 mb-6">
+        This will make your account less secure. Please enter your password and a verification code to confirm.
+      </p>
+    </div>
+
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Current Password
+        </label>
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={currentPassword}
+            onChange={(e) => {
+              setCurrentPassword(e.target.value)
+              setError("")
+            }}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none pr-12"
+            placeholder="Enter your current password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+          >
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Verification Code
+        </label>
+        <input
+          type="text"
+          value={totpCode}
+          onChange={(e) => {
+            const value = e.target.value.replace(/\D/g, '').slice(0, 6)
+            setTotpCode(value)
+            setError("")
+          }}
+          placeholder="000000"
+          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white text-center text-xl font-mono tracking-widest focus:border-blue-500 focus:outline-none"
+          maxLength={6}
+        />
+      </div>
+
+      {error && (
+        <div className="text-red-400 text-sm bg-red-900/20 border border-red-500/30 p-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleDisableMFA}
+        disabled={isLoading || !currentPassword || totpCode.length !== 6}
+        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+      >
+        {isLoading ? "Disabling..." : "Disable MFA"}
+      </button>
+    </div>
+  </div>
+))
+
+export default MFASettingsPage
+
 
 
 
