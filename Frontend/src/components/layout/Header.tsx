@@ -65,3 +65,35 @@ const StickyNavigation: React.FC = () => {
     </div>
   );
 };
+
+const Header: React.FC = () => {
+  const { theme, toggleTheme } = useTheme();
+
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Check if current route is active
+  const isActive = (path: string) => location.pathname === path;
+  
+  // Transparent fixed header; no scroll background handling
+  
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location]);
+
+  return (
+    <>
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-transparent translate-y-[10px]">
+        <div className="max-w-screen-2xl mx-auto px-3 h-full flex justify-between items-center">
+        {/* Logo - Left Zone */}
+        <div className="w-40 h-10 flex items-center">
+          <Link to="/" className="flex items-center ml-2 mt-2">
+            <img 
+              src="/images/logo.svg" 
+              alt="LLMShield" 
+              className="h-64 w-64"
+            />
+          </Link>
+        </div>
+
