@@ -139,3 +139,101 @@ const CodeScannerPage = () => {
                 )
               })}
             </div>
+
+             <div className="p-6">
+              <AnimatePresence mode="wait">
+                {activeTab === "upload" && (
+                  <motion.div
+                    key="upload"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-4"
+                  >
+                    <div className="border-2 border-dashed border-purple-700 rounded-lg p-8 text-center">
+                      <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-300 mb-2">Upload your C/C++ source files</p>
+                      <p className="text-gray-500 text-sm">Supports .c, .cpp, .h, .hpp files</p>
+                      <input
+                        type="file"
+                        multiple
+                        onChange={(e) => setFile(e.target.files[0])}
+                        className="hidden"
+                        accept=".c,.cpp,.h,.hpp,.cc,.cxx"
+                        id="file-upload-scanner"
+                      />
+                      <button 
+                        onClick={() => document.getElementById('file-upload-scanner')?.click()}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
+                      >
+                        Choose Files
+                      </button>
+                    </div>
+                    {file && (
+                      <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-3 flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-purple-400" />
+                        <span className="text-white">{file.name}</span>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {activeTab === "github" && (
+                  <motion.div
+                    key="github"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-4"
+                  >
+                    <label className="block text-white font-medium mb-2">GitHub Repository URL:</label>
+                    <input
+                      type="url"
+                      value={repoUrl}
+                      onChange={(e) => setRepoUrl(e.target.value)}
+                      placeholder="https://github.com/username/repository"
+                      className="w-full bg-gradient-to-r from-purple-700/80 to-pink-700/60 border border-purple-500/70 rounded-lg p-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-4">
+                      <p className="text-gray-300 text-sm">
+                        <strong>Note:</strong> Make sure the repository is public or provide access credentials for
+                        private repositories.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Error Display */}
+              {error && (
+                <div className="mt-4 bg-red-900/30 border border-red-700 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-red-400" />
+                    <span className="text-red-400 font-medium">Error</span>
+                  </div>
+                  <p className="text-gray-300 mt-2">{error}</p>
+                </div>
+              )}
+
+              {/* Scan Options */}
+              <div className="mt-6 border-t border-purple-800 pt-4">
+                <h4 className="text-white font-medium mb-3">Scan Options</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center space-x-2">
+                    <input type="checkbox" defaultChecked className="rounded" />
+                    <span className="text-gray-300 text-sm">Buffer Overflow Detection</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input type="checkbox" defaultChecked className="rounded" />
+                    <span className="text-gray-300 text-sm">Memory Leak Analysis</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input type="checkbox" defaultChecked className="rounded" />
+                    <span className="text-gray-300 text-sm">SQL Injection Patterns</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input type="checkbox" defaultChecked className="rounded" />
+                    <span className="text-gray-300 text-sm">Format String Vulnerabilities</span>
+                  </label>
+                </div>
+              </div>
