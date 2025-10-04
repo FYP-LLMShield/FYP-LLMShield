@@ -13,7 +13,7 @@ const AuthPage: React.FC = memo(() => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  // Add error state to store backend error messages
+  // Add error state to store backend errors
   const [loginError, setLoginError] = useState('');
   const [signupError, setSignupError] = useState('');
   const [signupSuccess, setSignupSuccess] = useState('');
@@ -948,3 +948,4 @@ const MfaVerificationForm: React.FC<{
 MfaVerificationForm.displayName = 'MfaVerificationForm';
 
 export default AuthPage;
+
