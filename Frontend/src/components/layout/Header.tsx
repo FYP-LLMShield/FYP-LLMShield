@@ -138,3 +138,37 @@ const Header: React.FC = () => {
             </Link>
           </nav>
         </div>
+
+        {/* Right side controls */}
+        <div className="flex items-center space-x-3">
+          {/* Login button */}
+          <Link
+            to="/auth"
+            className="hidden md:block px-4 py-1.5 rounded-full bg-accent-teal text-white hover:bg-accent-teal/90 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal focus:ring-offset-2"
+          >
+            Login
+          </Link>
+
+          {/* Sign Up button */}
+          <Link
+            to="/auth?signup=true"
+            className="hidden md:block px-4 py-1.5 rounded-full bg-accent-teal text-white hover:bg-accent-teal/90 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal focus:ring-offset-2"
+          >
+            Sign Up
+          </Link>
+          
+          {/* Divider */}
+          <div className="hidden md:block mx-3 h-6 w-px bg-white/20"></div>
+          
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal"
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? (
+              <MoonIcon className="h-5 w-5 text-accent-blue" />
+            ) : (
+              <SunIcon className="h-5 w-5 text-yellow-500" />
+            )}
+          </button>
