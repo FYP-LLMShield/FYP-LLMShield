@@ -41,3 +41,63 @@ const Footer = () => {
               </a>
             </div>
           </div>
+
+          {/* Quick Links */}
+          <div>
+            <h3 className="text-white font-semibold mb-4">Quick Links</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/" className="text-gray-400 hover:text-cyber-green transition-colors duration-300">
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link to="/pricing" className="text-gray-400 hover:text-cyber-green transition-colors duration-300">
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link to="/about" className="text-gray-400 hover:text-cyber-green transition-colors duration-300">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="text-gray-400 hover:text-cyber-green transition-colors duration-300">
+                  Contact
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Security */}
+          <div>
+            <h3 className="text-white font-semibold mb-4">Security</h3>
+            <ul className="space-y-2">
+              <li className="text-gray-400 hover:text-cyber-green transition-colors duration-300 cursor-pointer">
+                Prompt Injection
+              </li>
+              <li className="text-gray-400 hover:text-cyber-green transition-colors duration-300 cursor-pointer">
+                Model Poisoning
+              </li>
+              <li className="text-gray-400 hover:text-cyber-green transition-colors duration-300 cursor-pointer">
+                Vector Embeddings
+              </li>
+              <li className="text-gray-400 hover:text-cyber-green transition-colors duration-300 cursor-pointer">
+                Code Scanning
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-cyber-gray-600 mt-8 pt-8 text-center">
+          <p className="text-gray-400">
+            © 2025 LLMShield. Developed by Alisha Shahid, Um e Abeeha, Khalood Sami under the supervision of Maj. Retd.
+            Dr. Muhammad Arif Butt, PUCIT, University of the Punjab, Lahore.
+          </p>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+export default Footer
