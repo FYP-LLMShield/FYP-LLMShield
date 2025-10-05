@@ -431,3 +431,88 @@ export function CodeScanningPage() {
           </div>
         )}
 
+
+        {scanPhase === "scanning" && (
+          <div className="animate-fadeIn">
+            <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
+              <CardHeader>
+                <CardTitle className="text-white text-2xl flex items-center gap-3">
+                  <Search className="w-6 h-6 text-blue-400 animate-spin" />
+                  Scanning in Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-blue-400 mb-2">{scanProgress}%</div>
+                    <div className="text-gray-300 text-lg font-semibold">Scan Progress</div>
+                  </div>
+                  <div className="relative">
+                    <Progress value={scanProgress} className="h-6 bg-gray-800/60" />
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+                      {scanProgress}% Complete
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {scanPhase === "results" && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-red-900/60 to-red-800/40 backdrop-blur-md border border-red-500/40 shadow-red-500/30 hover:shadow-red-500/50 hover-lift transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-red-500/20 rounded-xl border border-red-400/30">
+                      <AlertTriangle className="w-8 h-8 text-red-300" />
+                    </div>
+                    <div>
+                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'Critical').length}</div>
+                      <div className="text-sm text-red-200 font-semibold">Critical Issues</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-orange-900/60 to-orange-800/40 backdrop-blur-md border border-orange-500/40 shadow-orange-500/30 hover:shadow-orange-500/50 hover-lift transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-400/30">
+                      <Shield className="w-8 h-8 text-orange-300" />
+                    </div>
+                    <div>
+                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'High').length}</div>
+                      <div className="text-sm text-orange-200 font-semibold">High Issues</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-yellow-900/60 to-yellow-800/40 backdrop-blur-md border border-yellow-500/40 shadow-yellow-500/30 hover:shadow-yellow-500/50 hover-lift transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-yellow-500/20 rounded-xl border border-yellow-400/30">
+                      <Bug className="w-8 h-8 text-yellow-300" />
+                    </div>
+                    <div>
+                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'Medium').length}</div>
+                      <div className="text-sm text-yellow-200 font-semibold">Medium Issues</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-blue-900/60 to-blue-800/40 backdrop-blur-md border border-blue-500/40 shadow-blue-500/30 hover:shadow-blue-500/50 hover-lift transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-400/30">
+                      <Zap className="w-8 h-8 text-blue-300" />
+                    </div>
+                    <div>
+                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'Low').length}</div>
+                      <div className="text-sm text-blue-200 font-semibold">Low Issues</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
