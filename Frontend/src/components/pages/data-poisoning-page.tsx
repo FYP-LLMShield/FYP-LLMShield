@@ -440,3 +440,226 @@ export function DataPoisoningPage() {
           </Card>
         </TabsContent>
 
+
+
+        <TabsContent value="vector" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Analysis Mode</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Sampling Mode</Label>
+                  <Select value={samplingMode} onValueChange={setSamplingMode}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/10">
+                      <SelectItem value="full">Full Analysis</SelectItem>
+                      <SelectItem value="sample">Sample (10%)</SelectItem>
+                      <SelectItem value="batch">Batch Mode</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-gray-300">Vector Store</Label>
+                  <Select defaultValue="production">
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/10">
+                      <SelectItem value="production">Production Store</SelectItem>
+                      <SelectItem value="staging">Staging Store</SelectItem>
+                      <SelectItem value="backup">Backup Snapshot</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Cross-Source Clusters</span>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Label Collisions</span>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Norm Outliers</span>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Known Triggers</span>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="lg:col-span-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-white">2.4M</div>
+                    <div className="text-gray-400 text-sm">Total Vectors</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-white">3.2</div>
+                    <div className="text-gray-400 text-sm">Avg Norm</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-white">0.87</div>
+                    <div className="text-gray-400 text-sm">Density Score</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                  <CardContent className="p-4">
+                    <div className="text-2xl font-bold text-white">23</div>
+                    <div className="text-gray-400 text-sm">Anomalies Found</div>
+                  </CardContent>
+                </Card>
+              </div>
+              <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white">Vector Anomalies</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/10">
+                        <TableHead className="text-gray-400">Vector ID</TableHead>
+                        <TableHead className="text-gray-400">Source</TableHead>
+                        <TableHead className="text-gray-400">Anomaly Type</TableHead>
+                        <TableHead className="text-gray-400">Norm</TableHead>
+                        <TableHead className="text-gray-400">Confidence</TableHead>
+                        <TableHead className="text-gray-400">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {vectorAnomalies.map((anomaly) => (
+                        <TableRow key={anomaly.id} className="border-white/10 hover:bg-white/5">
+                          <TableCell>
+                            <div>
+                              <div className="text-white font-mono text-sm">{anomaly.vectorId}</div>
+                              <div className="text-gray-400 text-xs">Tenant: {anomaly.tenantId}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="text-gray-300 text-sm">{anomaly.sourceDoc}</div>
+                              <div className="text-gray-400 text-xs">{anomaly.chunk}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                anomaly.anomalyType.includes("Extreme")
+                                  ? "border-red-500/30 text-red-400"
+                                  : anomaly.anomalyType.includes("Cluster")
+                                    ? "border-orange-500/30 text-orange-400"
+                                    : "border-purple-500/30 text-purple-400"
+                              }
+                            >
+                              {anomaly.anomalyType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-white font-medium">{anomaly.norm}</div>
+                            <div className="text-gray-400 text-xs">Avg: {anomaly.avgNorm}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <div className="text-white font-medium">{(anomaly.confidence * 100).toFixed(0)}%</div>
+                              <div className="w-12 bg-gray-700 rounded-full h-2">
+                                <div
+                                  className="bg-blue-500 h-2 rounded-full"
+                                  style={{ width: `${anomaly.confidence * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-1">
+                              <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white p-1">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white p-1">
+                                <Shield className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white p-1">
+                                <Database className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Recommended Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button className="bg-orange-600 hover:bg-orange-700">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Quarantine Vectors
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-blue-500/30 text-blue-400 hover:bg-blue-600/10 bg-transparent"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Re-embed Sources
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-600/10 bg-transparent"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Tighten Filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="retrieval" className="space-y-6">
+          {/* Attack Simulation Configuration */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Simulation Config</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Attack Types</Label>
+                  <div className="space-y-2 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Paraphrase</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Unicode</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Homoglyph</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Trigger</span>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
