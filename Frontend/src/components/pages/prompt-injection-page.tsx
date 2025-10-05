@@ -513,3 +513,67 @@ export function PromptInjectionPage() {
                   </div>
                 </CardContent>
               </Card>
+
+
+              <Card className="glass-card border-purple-500/30 shadow-purple-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-400 text-sm font-medium">Scan Duration</p>
+                      <p className="text-3xl font-bold text-white">2.4s</p>
+                    </div>
+                    <Activity className="w-8 h-8 text-purple-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="glass-card border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white text-xl">Attack Outcomes by Pattern</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={outcomeData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="pattern" stroke="#9CA3AF" fontSize={12} />
+                      <YAxis stroke="#9CA3AF" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(17, 24, 39, 0.95)",
+                          border: "1px solid rgba(75, 85, 99, 0.3)",
+                          borderRadius: "8px",
+                        }}
+                      />
+                      <Bar dataKey="blocked" fill="#10B981" name="Blocked" />
+                      <Bar dataKey="escaped" fill="#EF4444" name="Escaped" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white text-xl">Guard Effectiveness</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={guardEffectivenessData} layout="horizontal">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis type="number" stroke="#9CA3AF" />
+                      <YAxis dataKey="guard" type="category" stroke="#9CA3AF" fontSize={12} width={120} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(17, 24, 39, 0.95)",
+                          border: "1px solid rgba(75, 85, 99, 0.3)",
+                          borderRadius: "8px",
+                        }}
+                      />
+                      <Bar dataKey="effectiveness" fill="#3B82F6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
