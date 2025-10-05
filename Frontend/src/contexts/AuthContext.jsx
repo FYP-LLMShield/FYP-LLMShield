@@ -361,4 +361,29 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth()
   }, [])
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        login,
+        signup,
+        logout,
+        isLoading,
+        isInitialized,
+        mfaStatus,
+        fetchMfaStatus,
+        initiateMfaSetup,
+        completeMfaSetup,
+        disableMfa,
+        regenerateRecoveryCodes,
+        validateToken,
+        refreshAccessToken,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
 
