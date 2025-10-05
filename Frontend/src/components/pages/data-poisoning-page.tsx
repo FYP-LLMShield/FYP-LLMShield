@@ -240,3 +240,72 @@ export function DataPoisoningPage() {
               </Card>
             </div>
 
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Chunking Configuration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-gray-300 mb-2 block">Chunk Size: {chunkSize[0]} tokens</Label>
+                  <Slider value={chunkSize} onValueChange={setChunkSize} min={128} max={2048} step={64} />
+                </div>
+
+                <div>
+                  <Label className="text-gray-300 mb-2 block">Overlap: {overlap[0]} tokens</Label>
+                  <Slider value={overlap} onValueChange={setOverlap} min={0} max={200} step={10} />
+                </div>
+
+                <div>
+                  <Label className="text-gray-300">Pipeline Mode</Label>
+                  <Select defaultValue="production">
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/10">
+                      <SelectItem value="production">Production Pipeline</SelectItem>
+                      <SelectItem value="staging">Staging Pipeline</SelectItem>
+                      <SelectItem value="custom">Custom Settings</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-gray-300">Detection Flags</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Instruction-like Payloads</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Trigger Patterns</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Obfuscation</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Extreme Repetition</span>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {isProcessing && (
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Processing Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Progress value={progress} className="w-full mb-2" />
+                <div className="text-sm text-gray-400">
+                  Extracting and analyzing document chunks... {progress}% complete
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
