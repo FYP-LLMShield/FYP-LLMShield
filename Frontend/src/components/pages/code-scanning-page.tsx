@@ -317,3 +317,117 @@ export function CodeScanningPage() {
                         />
                       </TabsContent>
 
+
+                      <TabsContent value="file" className="animate-fadeIn">
+                        <div className="border-2 border-dashed border-purple-500/30 rounded-xl p-8 text-center bg-gradient-to-br from-purple-500/5 to-transparent hover:border-purple-500/50 transition-all duration-300 hover-lift">
+                          <Upload className="mx-auto h-12 w-12 text-purple-400 mb-4" />
+                          <p className="text-white text-base mb-2">Drop files here or click to upload</p>
+                          <p className="text-gray-400 text-sm mb-4">Supports .c, .cpp, .h, .hpp files up to 10MB</p>
+                          <input
+                            type="file"
+                            multiple
+                            accept=".c,.cpp,.h,.hpp,.cc,.cxx"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            id="file-upload"
+                          />
+                          <Button 
+                            onClick={() => document.getElementById('file-upload')?.click()}
+                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-purple-500/25 transition-all duration-300"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Choose Files
+                          </Button>
+                        </div>
+                        {selectedFiles.length > 0 && (
+                          <div className="mt-4">
+                            <Label className="text-gray-300 text-sm">Selected Files ({selectedFiles.length})</Label>
+                            <div className="max-h-20 overflow-y-auto space-y-1 mt-2">
+                              {selectedFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between p-2 bg-white/5 rounded text-sm">
+                                  <span className="text-gray-300">{file.name}</span>
+                                  <span className="text-gray-500">{(file.size / 1024).toFixed(1)} KB</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="github" className="animate-fadeIn">
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="text-gray-300 text-base">Repository URL</Label>
+                            <Input
+                              value={repoUrl}
+                              onChange={(e) => setRepoUrl(e.target.value)}
+                              placeholder="https://github.com/username/repository"
+                              className="bg-white/5 backdrop-blur-md border border-white/10 text-black placeholder-gray-400 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300"
+                            />
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="xl:col-span-1">
+                <Card className="glass-card border-green-500/30 shadow-green-500/20 h-full">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-white text-xl flex items-center gap-3">
+                      <Lock className="w-5 h-5 text-green-400" />
+                      Scan Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300 text-sm mb-2 block">Language</Label>
+                        <Select value={scanConfig.language} onValueChange={(value) => setScanConfig({...scanConfig, language: value})}>
+                          <SelectTrigger className="bg-white/5 backdrop-blur-md border border-white/10 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cpp">C++</SelectItem>
+                            <SelectItem value="c">C</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Button
+                        onClick={startScan}
+                        disabled={(
+                          (inputMethod === "code" && !codeInput.trim()) ||
+                          (inputMethod === "file" && selectedFiles.length === 0) ||
+                          (inputMethod === "github" && !repoUrl.trim())
+                        )}
+                        size="sm"
+                        className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-green-500/30 transition-all duration-300 hover-lift text-sm font-semibold"
+                      >
+                        <Play className="mr-2 h-4 w-4" />
+                        Quick Scan
+                      </Button>
+                      <Button
+                        onClick={startScan}
+                        disabled={(
+                          (inputMethod === "code" && !codeInput.trim()) ||
+                          (inputMethod === "file" && selectedFiles.length === 0) ||
+                          (inputMethod === "github" && !repoUrl.trim())
+                        )}
+                        size="sm"
+                        className="w-full h-10 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-purple-500/30 transition-all duration-300 hover-lift text-sm font-semibold"
+                      >
+                        <Search className="mr-2 h-4 w-4" />
+                        Deep Scan
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
+
