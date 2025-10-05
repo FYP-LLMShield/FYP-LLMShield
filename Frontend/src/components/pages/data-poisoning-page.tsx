@@ -663,3 +663,195 @@ export function DataPoisoningPage() {
                     </div>
                   </div>
                 </div>
+
+                <div>
+                  <Label className="text-gray-300">Top-K Results</Label>
+                  <Input type="number" defaultValue="10" className="bg-white/5 border-white/10 text-white" />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Inference Enabled</span>
+                  <Switch checked={inferenceEnabled} onCheckedChange={setInferenceEnabled} />
+                </div>
+
+                <div>
+                  <Label className="text-gray-300">Rank Shift Threshold</Label>
+                  <Input type="number" defaultValue="3" className="bg-white/5 border-white/10 text-white" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="lg:col-span-3">
+              {/* Query Input */}
+              <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 mb-6">
+                <CardHeader>
+                  <CardTitle className="text-white">Test Queries</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Baseline Query</Label>
+                    <Textarea
+                      placeholder="Enter your baseline query to test..."
+                      className="bg-white/5 border-white/10 text-white placeholder-gray-400"
+                    />
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button className="bg-teal-600 hover:bg-teal-700">
+                      <Search className="mr-2 h-4 w-4" />
+                      Run Simulation
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-white/20 text-gray-300 hover:bg-white/10 bg-transparent"
+                    >
+                      <Target className="mr-2 h-4 w-4" />
+                      Generate Variants
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Attack Results */}
+              <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white">Retrieval Attack Results</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/10">
+                        <TableHead className="text-gray-400">Query</TableHead>
+                        <TableHead className="text-gray-400">Type</TableHead>
+                        <TableHead className="text-gray-400">Rank Shift</TableHead>
+                        <TableHead className="text-gray-400">Vectors</TableHead>
+                        <TableHead className="text-gray-400">Impact</TableHead>
+                        <TableHead className="text-gray-400">Severity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {retrievalAttacks.map((attack) => (
+                        <TableRow key={attack.id} className="border-white/10 hover:bg-white/5">
+                          <TableCell className="max-w-48">
+                            <div className="text-gray-300 text-sm truncate">{attack.query}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                attack.type === "Baseline"
+                                  ? "border-blue-500/30 text-blue-400"
+                                  : attack.type === "Homoglyph"
+                                    ? "border-purple-500/30 text-purple-400"
+                                    : "border-orange-500/30 text-orange-400"
+                              }
+                            >
+                              {attack.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <TrendingUp className="h-4 w-4 text-red-400" />
+                              <span className="text-white font-medium">{attack.rankShift}</span>
+                              <span className="text-gray-400 text-sm">
+                                ({attack.beforeRank || "N/A"} → {attack.afterRank})
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-white">{attack.implicatedVectors}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                attack.downstreamImpact === "Policy Violation"
+                                  ? "border-red-500/30 text-red-400"
+                                  : attack.downstreamImpact === "Topic Flip"
+                                    ? "border-orange-500/30 text-orange-400"
+                                    : "border-yellow-500/30 text-yellow-400"
+                              }
+                            >
+                              {attack.downstreamImpact}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={attack.severity === "Critical" ? "destructive" : "secondary"}
+                              className={
+                                attack.severity === "Critical"
+                                  ? "bg-red-600/20 text-red-400 border-red-500/30"
+                                  : "bg-orange-600/20 text-orange-400 border-orange-500/30"
+                              }
+                            >
+                              {attack.severity}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Attack Success Rate Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">23.4%</div>
+                <div className="text-gray-400 text-sm">Attack Success Rate</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">+5.7</div>
+                <div className="text-gray-400 text-sm">Avg Rank Shift</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">12</div>
+                <div className="text-gray-400 text-sm">Implicated Vectors</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">High</div>
+                <div className="text-gray-400 text-sm">Max Impact</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Export Options */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Export Results</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4">
+                <Button className="bg-teal-600 hover:bg-teal-700">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export ASR Metrics
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-blue-500/30 text-blue-400 hover:bg-blue-600/10 bg-transparent"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Vector IDs
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-600/10 bg-transparent"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Parameters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
