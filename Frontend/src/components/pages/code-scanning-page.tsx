@@ -75,3 +75,81 @@ export function CodeScanningPage() {
       setSelectedFiles(Array.from(event.target.files))
     }
   }
+
+
+
+  const startScan = async () => {
+    try {
+      setError(null)
+      setScanPhase("scanning")
+      setScanProgress(0)
+      
+      // Validate input based on method
+      if (inputMethod === "code" && !codeInput.trim()) {
+        throw new Error("Please enter some code to scan")
+      }
+      if (inputMethod === "file" && selectedFiles.length === 0) {
+        throw new Error("Please select files to scan")
+      }
+      if (inputMethod === "github" && !repoUrl.trim()) {
+        throw new Error("Please enter a GitHub repository URL")
+      }
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setScanProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 500)
+
+      let result: any
+      if (inputMethod === "code") {
+        result = await scannerAPI.scanText({ 
+          content: codeInput,
+          filename: "pasted_code.txt",
+          scan_types: ["secrets", "cpp_vulns"]
+        })
+      } else if (inputMethod === "file") {
+        result = await scannerAPI.uploadFiles(selectedFiles)
+      } else {
+        result = await scannerAPI.scanRepository({ 
+          repo_url: repoUrl,
+          scan_types: ["secrets", "cpp_vulns"] 
+        })
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Scan failed")
+      }
+      
+      clearInterval(progressInterval)
+      setScanProgress(100)
+      
+      setTimeout(() => {
+        const convertedVulnerabilities = result.data?.findings?.map((finding: any) => ({
+          id: finding.id,
+          severity: finding.severity,
+          type: finding.type,
+          file: finding.file,
+          line: finding.line,
+          column: finding.column,
+          description: finding.message,
+          codeSnippet: finding.snippet, // Changed from finding.code_snippet
+          recommendation: finding.remediation, // Changed from finding.recommendation
+          cwe: finding.cwe?.[0] || "", // Get first CWE or empty string
+        })) || []
+        
+        setVulnerabilities(convertedVulnerabilities)
+        setScanResults(result.data)
+        setScanPhase("results")
+      }, 1000)
+      
+    } catch (err: any) {
+      setError(err.message || "An error occurred during scanning")
+      setScanPhase("setup")
+    }
+  }
