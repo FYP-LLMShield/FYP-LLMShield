@@ -295,3 +295,348 @@ const Chatbot: React.FC = React.memo(() => {
     };
 
     setMessages(prev => [...prev, botMessage]);
+    
+    // Type character by character with faster speed
+    for (let i = 0; i <= text.length; i++) {
+      const partialText = text.substring(0, i);
+      
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === botMessageId 
+            ? { ...msg, text: partialText }
+            : msg
+        )
+      );
+      
+      // Faster typing speed - 8ms for very fast response
+      if (i < text.length) {
+        await new Promise(resolve => setTimeout(resolve, 8));
+      }
+    }
+  }, []);
+
+  const handleFAQClick = useCallback(async (faq: FAQ) => {
+    if (isProcessing) {
+      setShowProcessingPopup(true);
+      setTimeout(() => setShowProcessingPopup(false), 2000);
+      return;
+    }
+
+    setIsProcessing(true);
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: faq.question,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Add a small delay before typing starts
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await typeMessage(faq.answer, faq);
+    
+    setIsProcessing(false);
+  }, [isProcessing, typeMessage]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading || isProcessing) return;
+
+    // Check if already processing a question
+    if (isProcessing) {
+      setShowProcessingPopup(true);
+      setTimeout(() => setShowProcessingPopup(false), 2000);
+      return;
+    }
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: inputValue,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    const userInput = inputValue;
+    setInputValue('');
+    setIsLoading(true);
+    setIsProcessing(true);
+
+    // Check if the question matches any FAQ
+    const matchedFAQ = faqs.find(faq => 
+      faq.question.toLowerCase().includes(userInput.toLowerCase()) ||
+      userInput.toLowerCase().includes(faq.question.toLowerCase()) ||
+      faq.answer.toLowerCase().includes(userInput.toLowerCase())
+    );
+
+    try {
+      if (matchedFAQ) {
+        // If it's an FAQ, provide the answer with typing animation
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await typeMessage(matchedFAQ.answer, matchedFAQ);
+      } else {
+        // If it's not an FAQ, ask user to login
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await typeMessage('I can only answer frequently asked questions. For other queries, please log in to get personalized assistance.');
+      }
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: 'Sorry, I encountered an error. Please try again.',
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+      setIsProcessing(false);
+    }
+  }, [inputValue, isLoading, isProcessing, typeMessage]);
+
+  return (
+    <div className="fixed bottom-1 right-6 z-40">
+      {/* Chat bubble button */}
+      <motion.button
+        className="w-14 h-14 rounded-full bg-gradient-to-r from-accent-teal to-accent-darkTeal hover:from-accent-darkTeal hover:to-accent-teal text-white flex items-center justify-center shadow-2xl transition-all duration-300 border-2 border-white/20"
+        onClick={toggleChat}
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        whileTap={{ scale: 0.9 }}
+        animate={{
+          boxShadow: [
+            "0 0 20px rgba(20, 184, 166, 0.3)",
+            "0 0 30px rgba(20, 184, 166, 0.5)",
+            "0 0 20px rgba(20, 184, 166, 0.3)"
+          ]
+        }}
+        transition={{
+          boxShadow: {
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }
+        }}
+        aria-label="Open chat assistant"
+      >
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {isOpen ? (
+            <XMarkIcon className="h-6 w-6" />
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+          )}
+        </motion.div>
+      </motion.button>
+
+      {/* Chat panel */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="absolute bottom-8 right-4 w-72 sm:w-80 bg-white dark:bg-dark-secondary rounded-2xl shadow-2xl overflow-hidden flex flex-col border-2 border-accent-teal/20 dark:border-accent-teal/30 backdrop-blur-sm max-h-[calc(100vh-8rem)]"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
+              backdropFilter: 'blur(10px)'
+            }}
+          >
+            {/* Chat header */}
+            <div className="bg-gradient-to-r from-accent-teal via-accent-darkTeal to-accent-teal text-white p-4 flex items-center justify-between relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-accent-teal/90 to-accent-darkTeal/90 backdrop-blur-sm"></div>
+              <div className="flex items-center space-x-3 relative z-10">
+                <motion.div 
+                  className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30"
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                  </svg>
+                </motion.div>
+                <div>
+                  <h3 className="font-bold text-base">LLMShield Assistant</h3>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <p className="text-xs opacity-90 font-medium">Online & Ready</p>
+                  </div>
+                </div>
+              </div>
+              <motion.button
+                onClick={toggleChat}
+                className="text-white/80 hover:text-white transition-colors p-3 rounded-full hover:bg-white/20 relative z-50 min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer touch-manipulation"
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </motion.button>
+            </div>
+
+            {/* Messages container */}
+            <div className="flex-grow flex flex-col bg-gray-50 dark:bg-dark-primary max-h-72">
+              {/* Messages Section - Scrollable */}
+              <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                {/* FAQ Section - Always at top of messages */}
+                <div className="flex-shrink-0 mb-4">
+                  <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Frequently Asked Questions:</p>
+                    <div className="grid grid-cols-1 gap-2 max-h-24 overflow-y-auto">
+                      {faqs.slice(0, 12).map((faq, index) => (
+                        <motion.button
+                          key={faq.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          onClick={() => handleFAQClick(faq)}
+                          className="text-left p-2 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white transition-all duration-200 text-xs text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md"
+                        >
+                          {faq.question}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {messages.length === 0 && (
+                  <div className="text-center">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Start a conversation or click on a FAQ above!</p>
+                  </div>
+                )}
+                
+                {messages.map((message, index) => (
+                  <div key={message.id} className="mb-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-3 items-start gap-2`}
+                    >
+                      {/* Bot Icon */}
+                      {message.sender === 'bot' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                      
+                      <div
+                        className={`max-w-xs rounded-lg px-3 py-2 shadow-sm ${
+                          message.sender === 'user' 
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
+                            : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600'
+                        }`}
+                      >
+                        <p className="text-sm leading-relaxed">{message.text}</p>
+                        <div className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      
+                      {/* User Icon */}
+                      {message.sender === 'user' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-r from-green-500 to-teal-600 flex items-center justify-center shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      )}
+                    </motion.div>
+                    
+                    {/* Related Questions - Show only for bot messages after typing is complete */}
+                    {message.sender === 'bot' && message.relatedQuestions && message.relatedQuestions.length > 0 && !isProcessing && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-3 ml-10"
+                      >
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Related Questions:</p>
+                        <div className="flex flex-col gap-2">
+                          {message.relatedQuestions.map((relatedQ, idx) => {
+                            const relatedFAQ = faqs.find(faq => faq.question === relatedQ);
+                            return relatedFAQ ? (
+                              <motion.button
+                                key={idx}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.6 + idx * 0.1 }}
+                                onClick={() => handleFAQClick(relatedFAQ)}
+                                className="text-left p-2 rounded-lg bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-800/40 transition-all duration-200 text-xs text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-600 shadow-sm hover:shadow-md"
+                              >
+                                {relatedQ}
+                              </motion.button>
+                            ) : null;
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                ))}
+                
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {/* Custom Processing Popup */}
+            <AnimatePresence>
+              {showProcessingPopup && (
+                <motion.div
+                  className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.div
+                    className="bg-white dark:bg-gray-800 rounded-lg p-4 mx-4 shadow-xl border border-accent-teal/30"
+                    initial={{ scale: 0.8, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.8, y: 20 }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 border-2 border-accent-teal border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-gray-700 dark:text-gray-300 font-medium">
+                        Please wait! I am already processing your previous question.
+                      </p>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Input form */}
+            <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-dark-secondary">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 dark:bg-dark-primary dark:text-white"
+                  ref={inputRef}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputValue.trim()}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-2 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <PaperAirplaneIcon className="h-5 w-5" />
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+export default memo(Chatbot);
+
+
