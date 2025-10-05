@@ -24,3 +24,28 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName =
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
+  
+  useEffect(() => {
+    if (isOpen) {
+      setTypedText('');
+      setShowVideo(true);
+      const timer = setTimeout(() => {
+        let currentIndex = 0;
+        const typingInterval = setInterval(() => {
+          if (currentIndex <= welcomeText.length) {
+            setTypedText(welcomeText.slice(0, currentIndex));
+            currentIndex++;
+          } else {
+            clearInterval(typingInterval);
+          }
+        }, 50);
+        return () => clearInterval(typingInterval);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, welcomeText]);
+
+  // 2. Get the portal target element from the DOM
+  const modalRoot = document.getElementById('modal-root');
+
+
