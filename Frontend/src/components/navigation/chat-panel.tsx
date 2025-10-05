@@ -159,3 +159,100 @@ export function ChatPanel({ open, width, onToggle, onResize }: ChatPanelProps) {
       </Button>
     )
   }
+
+
+  return (
+    <div
+      className="bg-white/5 backdrop-blur-md rounded-l-3xl border-l border-white/10 flex flex-col h-full"
+      style={{
+        width: `${width}px`,
+        background: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)`,
+      }}
+    >
+      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <h3 className="text-white font-semibold">AI Assistant</h3>
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="sm" onClick={exportChat} className="text-gray-400 hover:text-white">
+            <Download size={16} />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onToggle} className="text-gray-400 hover:text-white">
+            <X size={16} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="p-4 border-b border-white/10">
+        <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+          {faqChips.map((chip) => (
+            <Button
+              key={chip}
+              variant="outline"
+              size="sm"
+              onClick={() => handleChipClick(chip)}
+              className="text-xs bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 justify-start text-left h-auto py-2 px-3"
+            >
+              {chip}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[80%] p-3 rounded-lg group relative ${
+                  message.type === "user" ? "bg-blue-600 text-white" : "bg-white/10 text-gray-100"
+                }`}
+              >
+                <p className="text-sm">{message.content}</p>
+                <p className="text-xs opacity-70 mt-1">{message.timestamp.toLocaleTimeString()}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyMessage(message.content)}
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
+                >
+                  <Copy size={12} />
+                </Button>
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white/10 text-gray-100 p-3 rounded-lg">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.1s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="p-4 border-t border-white/10">
+        <div className="flex space-x-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Ask about security findings..."
+            className="bg-white/5 border-white/10 text-white placeholder-gray-400"
+          />
+          <Button onClick={handleSend} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Send size={16} />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
