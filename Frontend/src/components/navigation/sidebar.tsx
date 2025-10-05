@@ -96,3 +96,71 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         </div>
       )}
+
+      {/* Navigation Menu */}
+      <nav className="flex-1 p-1 relative z-10">
+        <div className="space-y-0.5">
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href
+            const Icon = item.icon
+            
+            return (
+              <Link key={item.href} to={item.href} onClick={handleMenuClick}>
+                <div
+                  className={`flex items-center space-x-2 px-2 py-2 rounded-lg transition-all duration-300 group hover:scale-105 ${
+                    isActive
+                      ? "bg-white/20 text-white shadow-lg"
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
+                  }`}
+                  style={{
+                    background: isActive 
+                      ? `linear-gradient(135deg, ${item.color}30, ${item.color}10)`
+                      : undefined,
+                    boxShadow: isActive 
+                      ? `0 0 20px ${item.color}40, 0 4px 15px rgba(0,0,0,0.3)`
+                      : undefined,
+                    border: isActive 
+                      ? `1px solid ${item.color}50`
+                      : undefined,
+                  }}
+                >
+                  <div 
+                    className={`p-1.5 rounded-md transition-all duration-300 ${
+                      isActive ? "shadow-lg" : "group-hover:shadow-md"
+                    }`}
+                    style={{
+                      background: isActive ? `${item.color}20` : undefined,
+                      boxShadow: isActive ? `0 0 15px ${item.color}40` : undefined,
+                    }}
+                  >
+                    <Icon 
+                      size={16} 
+                      className={`transition-all duration-300 ${
+                        isActive ? "drop-shadow-lg" : ""
+                      }`}
+                      style={{
+                        filter: isActive ? `drop-shadow(0 0 8px ${item.color}60)` : undefined
+                      }}
+                    />
+                  </div>
+                  {!collapsed && (
+                    <span 
+                      className={`font-medium text-sm transition-all duration-300 ${
+                        isActive ? "drop-shadow-lg" : ""
+                      }`}
+                      style={{
+                        textShadow: isActive ? `0 0 10px ${item.color}50` : undefined
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
+    </div>
+  )
+}
