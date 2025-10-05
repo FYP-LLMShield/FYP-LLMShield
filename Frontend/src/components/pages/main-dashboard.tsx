@@ -268,3 +268,68 @@ export const MainDashboard = memo(() => {
           </div>
         </div>
 
+
+        <div className="glass-card border-green-500/30 shadow-green-500/20 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-white mb-4">Guardrail Coverage</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={memoizedGuardrailData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="name" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1F2937",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  color: "#F9FAFB",
+                }}
+              />
+              <Bar dataKey="coverage" fill="#22C55E" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="glass-card border-red-500/30 shadow-red-500/20 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Recent Alerts</h3>
+              <Button variant="outline" size="sm">
+                View All
+              </Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-gray-400">ID</TableHead>
+                  <TableHead className="text-gray-400">Type</TableHead>
+                  <TableHead className="text-gray-400">Severity</TableHead>
+                  <TableHead className="text-gray-400">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentAlerts.map((alert) => (
+                  <TableRow key={alert.id}>
+                    <TableCell className="text-white font-mono text-sm">{alert.id}</TableCell>
+                    <TableCell className="text-gray-300">{alert.type}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={alert.severity === "Critical" ? "destructive" : alert.severity === "High" ? "secondary" : "outline"}
+                      >
+                        {alert.severity}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {alert.status === "Open" && <div className="w-2 h-2 bg-red-500 rounded-full" />}
+                        {alert.status === "Investigating" && <div className="w-2 h-2 bg-yellow-500 rounded-full" />}
+                        {alert.status === "Assigned" && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+                        {alert.status === "Resolved" && <CheckCircle size={16} className="text-green-500" />}
+                        <span className="text-gray-300 text-sm">{alert.status}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
