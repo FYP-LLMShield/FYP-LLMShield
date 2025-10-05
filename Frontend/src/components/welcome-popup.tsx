@@ -114,6 +114,16 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName =
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B1230]/60 via-transparent to-transparent" />
           </div>
         )}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-teal-500/10 pointer-events-none" />
+        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-teal-600/20 blur-xl pointer-events-none" />
+      </div>
+    </div>,
+    modalRoot // The second argument is the target DOM node
+  );
+};
+
+export default WelcomePopup;
+
 
 
 
