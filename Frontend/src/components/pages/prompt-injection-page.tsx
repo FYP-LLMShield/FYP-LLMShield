@@ -270,3 +270,97 @@ export function PromptInjectionPage() {
                 </CardContent>
               </Card>
             </div>
+
+
+
+            {/* Target/Policy Panel */}
+            <div className="space-y-8">
+              <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white text-2xl flex items-center gap-3">
+                    <Lock className="w-6 h-6 text-blue-400 animate-pulse" />
+                    Security Configuration
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <Label className="text-gray-300 text-lg">Pipeline Environment</Label>
+                    <Select defaultValue="production">
+                      <SelectTrigger className="bg-white/5 backdrop-blur-md border border-white/10 text-white focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 backdrop-blur-md border border-white/20 shadow-2xl">
+                        <SelectItem value="production">🔴 Production</SelectItem>
+                        <SelectItem value="staging">🟡 Staging</SelectItem>
+                        <SelectItem value="development">🟢 Development</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-gray-300 text-lg">Security Guards</Label>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <Shield className="w-5 h-5 text-green-400" />
+                          <span className="text-white">Prompt Filter</span>
+                        </div>
+                        <Switch
+                          checked={guards.promptFilter}
+                          onCheckedChange={(checked) => setGuards((prev) => ({ ...prev, promptFilter: checked }))}
+                          className="data-[state=checked]:bg-green-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <Lock className="w-5 h-5 text-blue-400" />
+                          <span className="text-white">System-Leak Blocker</span>
+                        </div>
+                        <Switch
+                          checked={guards.systemLeakBlocker}
+                          onCheckedChange={(checked) => setGuards((prev) => ({ ...prev, systemLeakBlocker: checked }))}
+                          className="data-[state=checked]:bg-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <Filter className="w-5 h-5 text-purple-400" />
+                          <span className="text-white">Output Sanitizer</span>
+                        </div>
+                        <Switch
+                          checked={guards.outputSanitizer}
+                          onCheckedChange={(checked) => setGuards((prev) => ({ ...prev, outputSanitizer: checked }))}
+                          className="data-[state=checked]:bg-purple-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <Activity className="w-5 h-5 text-orange-400" />
+                          <span className="text-white">Tool-Call Validator</span>
+                        </div>
+                        <Switch
+                          checked={guards.toolCallValidator}
+                          onCheckedChange={(checked) => setGuards((prev) => ({ ...prev, toolCallValidator: checked }))}
+                          className="data-[state=checked]:bg-orange-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-gray-300 text-lg">Strictness Level: {strictness[0]}%</Label>
+                    <div className="px-3">
+                      <Slider value={strictness} onValueChange={setStrictness} max={100} step={5} className="w-full" />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Permissive</span>
+                      <span>Balanced</span>
+                      <span>Strict</span>
+                    </div>
+                  </div>
+
+
