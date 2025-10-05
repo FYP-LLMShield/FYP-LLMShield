@@ -516,3 +516,82 @@ export function CodeScanningPage() {
               </Card>
             </div>
 
+
+
+            <Card className="glass-card border-purple-500/30 shadow-purple-500/20">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white text-2xl flex items-center gap-3">
+                    <Bug className="w-6 h-6 text-purple-400 animate-pulse" />
+                    Code Analysis Results
+                  </CardTitle>
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={resetScan}
+                      variant="outline" 
+                      className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 bg-transparent hover-lift"
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      New Scan
+                    </Button>
+                    <Button 
+                      onClick={() => exportReport('json')}
+                      variant="outline" 
+                      className="border-green-500/30 text-green-400 hover:bg-green-500/20 bg-transparent hover-lift"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Report
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {vulnerabilities.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Shield className="mx-auto h-16 w-16 text-green-400 mb-4" />
+                      <h3 className="text-xl font-semibold text-white mb-2">No Vulnerabilities Found</h3>
+                      <p className="text-gray-400">Your code appears to be secure!</p>
+                    </div>
+                  ) : (
+                    vulnerabilities.map((vuln) => (
+                      <div key={vuln.id} className="bg-gradient-to-r from-gray-800/60 to-gray-700/40 backdrop-blur-md border border-gray-600/30 rounded-xl p-6 space-y-4 hover:from-gray-800/80 hover:to-gray-700/60 transition-all duration-300 shadow-lg hover:shadow-xl">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <Badge className={`${getSeverityColor(vuln.severity)} text-white flex items-center gap-2 px-4 py-2 text-sm font-semibold shadow-lg`}>
+                              {getSeverityIcon(vuln.severity)}
+                              {vuln.severity}
+                            </Badge>
+                            <span className="text-white font-bold text-xl">{vuln.type}</span>
+                            <span className="text-gray-300 text-sm bg-gray-700/50 px-3 py-1 rounded-full border border-gray-600/30">{vuln.cwe}</span>
+                          </div>
+                          <div className="text-sm text-gray-300 bg-gray-800/60 px-4 py-2 rounded-lg border border-gray-600/30 font-mono">
+                            {vuln.file}:{vuln.line}:{vuln.column}
+                          </div>
+                        </div>
+
+                        <p className="text-gray-100 text-lg leading-relaxed">{vuln.description}</p>
+
+                        <div className="bg-gray-900/80 rounded-xl p-5 border border-gray-600/40 shadow-inner">
+                          <Label className="text-gray-300 text-sm font-bold uppercase tracking-wider mb-3 block">Code Snippet</Label>
+                          <pre className="text-sm text-green-300 font-mono bg-black/40 p-4 rounded-lg border border-gray-700/50 overflow-x-auto">
+                            <code>{vuln.codeSnippet}</code>
+                          </pre>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-blue-900/60 to-indigo-900/40 rounded-xl p-5 border border-blue-500/30 shadow-inner">
+                          <Label className="text-blue-200 text-sm font-bold uppercase tracking-wider mb-3 block">Recommendation</Label>
+                          <p className="text-blue-100 text-lg leading-relaxed">{vuln.recommendation}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
