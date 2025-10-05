@@ -137,3 +137,106 @@ const retrievalAttacks = [
     severity: "High",
   },
 ]
+
+
+
+
+export function DataPoisoningPage() {
+  const [activeTab, setActiveTab] = useState("document")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [chunkSize, setChunkSize] = useState([512])
+  const [overlap, setOverlap] = useState([50])
+  const [selectedFiles] = useState<string[]>([])
+  const [samplingMode, setSamplingMode] = useState("full")
+  const [inferenceEnabled, setInferenceEnabled] = useState(true)
+
+  const startProcessing = () => {
+    setIsProcessing(true)
+    setProgress(0)
+
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          setIsProcessing(false)
+          return 100
+        }
+        return prev + 2
+      })
+    }, 100)
+  }
+
+  return (
+    <div className="p-6 space-y-6 min-h-screen" style={{backgroundColor: '#1d2736'}}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Data Poisoning Detection</h1>
+          <p className="text-gray-400 mt-2">Detect and analyze data poisoning attacks in documents and vector stores</p>
+        </div>
+        <Button onClick={startProcessing} disabled={isProcessing} className="bg-orange-600 hover:bg-orange-700">
+          {isProcessing ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Processing
+            </>
+          ) : (
+            <>
+              <Play className="mr-2 h-4 w-4" />
+              Start Analysis
+            </>
+          )}
+        </Button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <TabsTrigger value="document" className="data-[state=active]:bg-orange-600/20">
+            Document→Embedding Inspection
+          </TabsTrigger>
+          <TabsTrigger value="vector" className="data-[state=active]:bg-orange-600/20">
+            Vector Store Anomaly Detection
+          </TabsTrigger>
+          <TabsTrigger value="retrieval" className="data-[state=active]:bg-orange-600/20">
+            Retrieval Attack Simulation
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="document" className="space-y-6">
+          {/* Document Upload and Configuration */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white">Document Upload</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-8 text-center">
+                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p className="text-gray-300 mb-2">Drop documents here or click to upload</p>
+                    <p className="text-gray-500 text-sm">Supports PDF, DOCX, MD, TXT files</p>
+                    <Button className="mt-4 bg-orange-600 hover:bg-orange-700">Choose Files</Button>
+                  </div>
+
+                  {selectedFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-300">Selected Files</Label>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-white/5 p-2 rounded">
+                            <div className="flex items-center space-x-2">
+                              <FileText className="h-4 w-4 text-blue-400" />
+                              <span className="text-gray-300 text-sm">{file}</span>
+                            </div>
+                            <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300">
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
