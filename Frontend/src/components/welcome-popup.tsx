@@ -76,6 +76,45 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName =
               <span className="animate-pulse text-blue-400">|</span>
             </p>
           </div>
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="text-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <div className="text-2xl mb-2">🛡️</div>
+              <p className="text-sm text-gray-400">AI Security</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <div className="text-2xl mb-2">🔍</div>
+              <p className="text-sm text-gray-400">Threat Detection</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-teal-500/10 border border-teal-500/20">
+              <div className="text-2xl mb-2">📊</div>
+              <p className="text-sm text-gray-400">Analytics</p>
+            </div>
+          </div>
+          <div className="flex justify-center md:justify-start pt-4">
+            <button
+              onClick={onClose}
+              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border border-blue-500/30"
+            >
+              Continue to Dashboard
+            </button>
+          </div>
+        </div>
+        {showVideo && (
+          <div className="flex-1 relative bg-gradient-to-br from-blue-900/20 to-purple-900/20 flex items-center justify-center overflow-hidden min-h-[400px] md:min-h-[500px]">
+            <video
+              autoPlay
+              muted
+              loop
+              className="w-full h-full object-cover opacity-80"
+              onError={() => setShowVideo(false)}
+            >
+              <source src="/videos/robot-hello.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0B1230]/60 via-transparent to-transparent" />
+          </div>
+        )}
+
 
 
 
