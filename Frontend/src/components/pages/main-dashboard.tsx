@@ -420,3 +420,106 @@ function HeroCard({ title, accent, href, artSrc, icon: Icon, kpis }: HeroCardPro
             filter: "blur(1px)",
           }}
         />
+
+        
+        <div className="relative z-10 flex flex-col h-full">
+          <div className="flex items-center space-x-3 mb-4">
+            <div 
+              className="p-2 rounded-lg"
+              style={{
+                background: `${glowColors[accent]}20`,
+                boxShadow: `0 0 15px ${glowColors[accent]}40`
+              }}
+            >
+              <Icon size={24} className="text-white drop-shadow-lg" />
+            </div>
+            <h3 className="text-lg font-semibold text-white drop-shadow-lg">{title}</h3>
+          </div>
+          <div className="space-y-3 flex-1">
+            {kpis.map((kpi, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <span className="text-gray-300 text-sm">{kpi.label}</span>
+                <span className="text-white font-bold text-lg drop-shadow-lg">{kpi.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+interface KPICardProps {
+  title: string
+  value: string
+  type?: "ring"
+  color: "orange" | "red" | "yellow" | "green"
+}
+
+function KPICard({ title, value, type, color }: KPICardProps) {
+  const colorClasses = {
+    orange: "border-orange-500/50 shadow-orange-500/30",
+    red: "border-red-500/50 shadow-red-500/30",
+    yellow: "border-yellow-500/50 shadow-yellow-500/30",
+    green: "border-green-500/50 shadow-green-500/30",
+  }
+
+  const ringColors = {
+    orange: "text-orange-500",
+    red: "text-red-500",
+    yellow: "text-yellow-500",
+    green: "text-green-500",
+  }
+
+  const glowColors = {
+    orange: "#F97316",
+    red: "#EF4444",
+    yellow: "#EAB308",
+    green: "#22C55E",
+  }
+
+  return (
+    <div
+      className={`glass-card ${colorClasses[color]} p-6 hover:shadow-2xl hover:shadow-current/40 transition-all duration-300 hover:scale-105 group`}
+    >
+      
+      <div className="relative z-10">
+        <h4 className="text-gray-300 text-sm mb-2 font-medium">{title}</h4>
+        {type === "ring" ? (
+          <div className="flex items-center space-x-4">
+            <div className="relative w-16 h-16">
+              <svg className="w-16 h-16 transform -rotate-90">
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                  className="text-gray-700"
+                />
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeDasharray={`${2 * Math.PI * 28}`}
+                  strokeDashoffset={`${2 * Math.PI * 28 * (1 - Number.parseInt(value) / 100)}`}
+                  className={ringColors[color]}
+
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-bold text-white drop-shadow-lg">{value}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-3xl font-bold text-white drop-shadow-lg">{value}</div>
+        )}
+      </div>
+    </div>
+  )
+}
