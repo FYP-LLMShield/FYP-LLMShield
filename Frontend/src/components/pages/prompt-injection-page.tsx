@@ -577,3 +577,81 @@ export function PromptInjectionPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Detailed Findings */}
+            <Card className="glass-card border-white/10">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-white text-xl">Detailed Findings</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filter
+                  </Button>
+                  <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/10">
+                      <TableHead className="text-gray-300">ID</TableHead>
+                      <TableHead className="text-gray-300">Pattern</TableHead>
+                      <TableHead className="text-gray-300">Trigger</TableHead>
+                      <TableHead className="text-gray-300">Guards Fired</TableHead>
+                      <TableHead className="text-gray-300">Verdict</TableHead>
+                      <TableHead className="text-gray-300">Severity</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sampleFindings.map((finding) => (
+                      <TableRow key={finding.id} className="border-white/10 hover:bg-white/5">
+                        <TableCell className="text-white font-mono">{finding.id}</TableCell>
+                        <TableCell className="text-white">{finding.pattern}</TableCell>
+                        <TableCell className="text-gray-300 max-w-xs truncate">{finding.trigger}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {finding.guardsFired.map((guard) => (
+                              <Badge key={guard} variant="secondary" className="text-xs">
+                                {guard}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={finding.verdict === "Blocked" ? "default" : "destructive"}
+                            className={finding.verdict === "Blocked" ? "bg-green-500/20 text-green-400" : ""}
+                          >
+                            {finding.verdict}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`${
+                              finding.severity === "Critical"
+                                ? "border-red-500 text-red-400"
+                                : finding.severity === "High"
+                                ? "border-orange-500 text-orange-400"
+                                : "border-yellow-500 text-yellow-400"
+                            }`}
+                          >
+                            {finding.severity}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
