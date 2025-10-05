@@ -333,3 +333,90 @@ export const MainDashboard = memo(() => {
             </Table>
           </div>
 
+
+
+          <div className="glass-card border-blue-500/30 shadow-blue-500/20 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Recent Scans</h3>
+              <Button variant="outline" size="sm">
+                <Eye size={16} className="mr-2" />
+                View All
+              </Button>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-gray-400">ID</TableHead>
+                  <TableHead className="text-gray-400">Type</TableHead>
+                  <TableHead className="text-gray-400">Findings</TableHead>
+                  <TableHead className="text-gray-400">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentScans.map((scan) => (
+                  <TableRow key={scan.id}>
+                    <TableCell className="text-white font-mono text-sm">{scan.id}</TableCell>
+                    <TableCell className="text-gray-300">{scan.type}</TableCell>
+                    <TableCell className="text-white font-medium">{scan.findings}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {scan.status === "Completed" && <CheckCircle size={16} className="text-green-500" />}
+                        {scan.status === "Running" && <Pause size={16} className="text-yellow-500" />}
+                        <span className="text-gray-300 text-sm">{scan.status}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+});
+
+// ... (HeroCard and KPICard components remain the same)
+interface HeroCardProps {
+  title: string
+  accent: "purple" | "red" | "teal" | "yellow"
+  href: string
+  artSrc: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  kpis: { label: string; value: string }[]
+}
+
+function HeroCard({ title, accent, href, artSrc, icon: Icon, kpis }: HeroCardProps) {
+  const accentColors = {
+    purple: "border-4 border-purple-200 shadow-[#4C1D95]/50",
+    red: "border-4 border-red-200 shadow-[#7F1D1D]/50",
+    teal: "border-2 border-teal-200 shadow-[#134E4A]/50",
+    yellow: "<border-2></border-2> border-yellow-200 shadow-[#713F12]/50",
+  }
+
+  const glowColors = {
+    purple: "#4C1D95",
+    red: "#7F1D1D", 
+    teal: "#134E4A",
+    yellow: "#713F12",
+  }
+
+  return (
+    <Link to={href}>
+      <div
+        className={`glass-card p-6 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-current/50 hover:scale-105 relative overflow-hidden h-56 flex flex-col group`}
+        style={{
+           border: accent === 'purple' ? '2px solid #a855f7' :
+                  accent === 'red' ? '2px solid #f87171' :
+                  accent === 'teal' ? '2px solid #2dd4bf' :
+                  '2px solid #facc15'
+         }}
+      >
+        <div
+          className="absolute inset-0 opacity-30 bg-cover bg-center group-hover:opacity-40 transition-opacity duration-300"
+          style={{
+            backgroundImage: `url(${artSrc})`,
+            mixBlendMode: "overlay",
+            filter: "blur(1px)",
+          }}
+        />
