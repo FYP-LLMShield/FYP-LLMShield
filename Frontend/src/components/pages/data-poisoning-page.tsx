@@ -309,3 +309,134 @@ export function DataPoisoningPage() {
           )}
 
 
+
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white">Inspection Results</CardTitle>
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-white/20 text-gray-300 hover:bg-white/10 bg-transparent"
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filter
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-white/20 text-gray-300 hover:bg-white/10 bg-transparent"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10">
+                    <TableHead className="text-gray-400">Document</TableHead>
+                    <TableHead className="text-gray-400">Location</TableHead>
+                    <TableHead className="text-gray-400">Snippet</TableHead>
+                    <TableHead className="text-gray-400">Risk Score</TableHead>
+                    <TableHead className="text-gray-400">Flags</TableHead>
+                    <TableHead className="text-gray-400">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {documentInspectionResults.map((result) => (
+                    <TableRow key={result.id} className="border-white/10 hover:bg-white/5">
+                      <TableCell>
+                        <div>
+                          <div className="text-white font-medium">{result.file}</div>
+                          <div className="text-gray-400 text-sm">{result.id}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        Page {result.page}, Chunk {result.chunk}
+                      </TableCell>
+                      <TableCell className="max-w-64">
+                        <div className="text-gray-300 text-sm truncate">{result.snippet}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <div className="text-white font-bold">{result.riskScore}</div>
+                          <div
+                            className={`w-16 h-2 rounded-full ${
+                              result.riskScore >= 90
+                                ? "bg-red-500"
+                                : result.riskScore >= 70
+                                  ? "bg-orange-500"
+                                  : "bg-yellow-500"
+                            }`}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {result.flags.map((flag) => (
+                            <Badge key={flag} variant="secondary" className="bg-red-600/20 text-red-400 text-xs">
+                              {flag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white p-1">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white p-1">
+                            <Shield className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white p-1">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Remediation Preview */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Remediation Preview</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Sanitize Content
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-orange-500/30 text-orange-400 hover:bg-orange-600/10 bg-transparent"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Mask Sensitive Data
+                </Button>
+                <Button variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-600/10 bg-transparent">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remove Flagged Chunks
+                </Button>
+              </div>
+
+              <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-4">
+                <div className="text-blue-400 font-medium mb-2">Recommended Actions</div>
+                <ul className="text-gray-300 text-sm space-y-1">
+                  <li>• Adjust chunk size to 256 tokens to reduce instruction-like patterns</li>
+                  <li>• Add "ignore", "reveal", "password" to denylist</li>
+                  <li>• Re-run analysis on 3 affected chunks</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
