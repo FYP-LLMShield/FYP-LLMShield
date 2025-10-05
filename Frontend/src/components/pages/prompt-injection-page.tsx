@@ -364,3 +364,152 @@ export function PromptInjectionPage() {
                   </div>
 
 
+
+
+                  <div className="space-y-3 pt-6">
+                    <Button
+                      onClick={() => startScan("quick")}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-purple-500/25 transition-all duration-300 hover-lift"
+                    >
+                      <Play className="mr-2 h-5 w-5" />
+                      Run Quick Scan
+                    </Button>
+                    <Button
+                      onClick={() => startScan("full")}
+                      variant="outline"
+                      className="w-full border-2 border-gradient-to-r border-purple-500/30 text-purple-400 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-blue-600/10 bg-transparent transition-all duration-300 hover-lift"
+                    >
+                      <Shield className="mr-2 h-5 w-5" />
+                      Run Full Security Scan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {phase === "during" && (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Progress Stepper */}
+            <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
+              <CardHeader>
+                <CardTitle className="text-white text-2xl flex items-center gap-3">
+                  <Activity className="w-6 h-6 text-blue-400 animate-pulse" />
+                  Scan Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-6">
+                  {stepperSteps.map((step, index) => (
+                    <div key={step} className="flex items-center">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 ${
+                          index <= currentStep
+                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg animate-glow"
+                            : "bg-gray-700 text-gray-400"
+                        }`}
+                      >
+                        {index + 1}
+                      </div>
+                      <span
+                        className={`ml-3 text-sm font-medium transition-all duration-300 ${
+                          index <= currentStep ? "text-white" : "text-gray-400"
+                        }`}
+                      >
+                        {step}
+                      </span>
+                      {index < stepperSteps.length - 1 && (
+                        <div
+                          className={`w-16 h-1 mx-6 rounded-full transition-all duration-500 ${
+                            index < currentStep
+                              ? "bg-gradient-to-r from-blue-600 to-purple-600 animate-shimmer"
+                              : "bg-gray-700"
+                          }`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <Progress value={scanProgress} className="w-full h-3 bg-gray-700" />
+                <div className="text-center mt-3 text-gray-300">{scanProgress.toFixed(1)}% Complete</div>
+              </CardContent>
+            </Card>
+
+            {/* Live Activity Feed */}
+            <Card className="glass-card border-yellow-500/30 shadow-yellow-500/20">
+              <CardHeader>
+                <CardTitle className="text-white text-2xl flex items-center gap-3">
+                  <Eye className="w-6 h-6 text-yellow-400 animate-pulse" />
+                  Live Activity Feed
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-64">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="text-green-400 text-sm font-mono">12:34:56</span>
+                      <span className="text-white">Loaded 247 attack patterns</span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                      <span className="text-blue-400 text-sm font-mono">12:34:58</span>
+                      <span className="text-white">Testing SQL injection patterns...</span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+                      <span className="text-red-400 text-sm font-mono">12:35:02</span>
+                      <span className="text-white">⚠️ Potential vulnerability detected</span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                      <span className="text-purple-400 text-sm font-mono">12:35:05</span>
+                      <span className="text-white">Evaluating guard effectiveness...</span>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {phase === "after" && (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="glass-card border-green-500/30 shadow-green-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-green-400 text-sm font-medium">Attacks Blocked</p>
+                      <p className="text-3xl font-bold text-white">169</p>
+                    </div>
+                    <Shield className="w-8 h-8 text-green-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card border-red-500/30 shadow-red-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-red-400 text-sm font-medium">Attacks Escaped</p>
+                      <p className="text-3xl font-bold text-white">14</p>
+                    </div>
+                    <AlertTriangle className="w-8 h-8 text-red-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-400 text-sm font-medium">Success Rate</p>
+                      <p className="text-3xl font-bold text-white">92.3%</p>
+                    </div>
+                    <Target className="w-8 h-8 text-blue-400" />
+                  </div>
+                </CardContent>
+              </Card>
