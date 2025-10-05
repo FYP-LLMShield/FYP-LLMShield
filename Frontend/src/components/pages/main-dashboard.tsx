@@ -196,3 +196,75 @@ export const MainDashboard = memo(() => {
           />
         </div>
 
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <KPICard title="Overall Risk Score" value="73" type="ring" color="orange" />
+          <KPICard title="Open Alerts (Sev1)" value="12" color="red" />
+          <KPICard title="Open Alerts (Sev2)" value="34" color="yellow" />
+          <KPICard title="Latency p95" value="245ms" color="green" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2 glass-card border-blue-500/30 shadow-blue-500/20 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Threat Timeline (24h)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={memoizedThreatData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="time" stroke="#9CA3AF" />
+                <YAxis stroke="#9CA3AF" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1F2937",
+                    border: "1px solid #374151",
+                    borderRadius: "8px",
+                    color: "#F9FAFB",
+                  }}
+                />
+                <Area type="monotone" dataKey="attacks" stackId="1" stroke="#EF4444" fill="#EF4444" fillOpacity={0.3} />
+                <Area type="monotone" dataKey="blocked" stackId="2" stroke="#22C55E" fill="#22C55E" fillOpacity={0.3} />
+                <Area type="monotone" dataKey="escaped" stackId="3" stroke="#F97316" fill="#F97316" fillOpacity={0.3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="glass-card border-orange-500/30 shadow-orange-500/20 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Severity Distribution</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={memoizedSeverityData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {memoizedSeverityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1F2937",
+                    border: "1px solid #374151",
+                    borderRadius: "8px",
+                    color: "#F9FAFB",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="mt-4 space-y-2">
+              {memoizedSeverityData.map((item) => (
+                <div key={item.name} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                    <span className="text-gray-300 text-sm">{item.name}</span>
+                  </div>
+                  <span className="text-white font-medium">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
