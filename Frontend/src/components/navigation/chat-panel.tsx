@@ -59,3 +59,57 @@ const faqAnswers: Record<string, string> = {
   "Performance optimization tips":
     "Optimize performance by: tuning detection thresholds, implementing efficient caching, optimizing query patterns, regular maintenance, and monitoring resource usage.",
 }
+
+export function ChatPanel({ open, width, onToggle, onResize }: ChatPanelProps) {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      type: "assistant",
+      content: "Hello! I'm your AI security assistant. How can I help you today?",
+      timestamp: new Date(),
+    },
+  ])
+  const [input, setInput] = useState("")
+  const [isTyping, setIsTyping] = useState(false)
+  const resizeRef = useRef<HTMLDivElement>(null)
+  const [isResizing, setIsResizing] = useState(false)
+
+  const handleSend = async () => {
+    if (!input.trim()) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: "user",
+      content: input,
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    const currentInput = input
+    setInput("")
+    setIsTyping(true)
+
+    setTimeout(() => {
+      const response =
+        faqAnswers[currentInput] ||
+        `I understand you're asking about "${currentInput}". This appears to be related to security analysis. Let me help you with that...`
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: response,
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, assistantMessage])
+      setIsTyping(false)
+    }, 1500)
+  }
+
+  const handleChipClick = (chip: string) => {
+    setInput(chip)
+  }
+
+  const copyMessage = (content: string) => {
+    navigator.clipboard.writeText(content)
+  }
+
