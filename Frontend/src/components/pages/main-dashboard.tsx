@@ -128,3 +128,71 @@ export const MainDashboard = memo(() => {
     setShowWelcomePopup(false);
     sessionStorage.setItem('welcomePopupShown', 'true');
   };
+
+
+
+  const memoizedThreatData = useMemo(() => threatTimelineData, []);
+  const memoizedSeverityData = useMemo(() => severityMixData, []);
+  const memoizedGuardrailData = useMemo(() => guardrailCoverageData, []);
+
+  return (
+    // No changes needed here. The popup will portal itself out correctly.
+    <div className="p-8 scroll-container min-h-screen" style={{backgroundColor: '#1d2736'}}>
+      <WelcomePopup 
+        isOpen={showWelcomePopup} 
+        onClose={handleCloseWelcome}
+        userName="Security Admin"
+      />
+      
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-white mb-8">Security Dashboard</h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <HeroCard
+            title="Prompt Injection"
+            accent="purple"
+            href="/dashboard/prompt-injection"
+            artSrc="/art/prompt.png"
+            icon={Shield}
+            kpis={[
+              { label: "Attempts (24h)", value: "1,247" },
+              { label: "Blocked", value: "1,198" },
+              { label: "Escaped", value: "49" },
+            ]}
+          />
+          <HeroCard
+            title="Model Poisoning"
+            accent="red"
+            href="/dashboard/model-poisoning"
+            artSrc="/art/model.png"
+            icon={AlertTriangle}
+            kpis={[
+              { label: "Suspected Models", value: "3" },
+              { label: "Incidents", value: "12" },
+            ]}
+          />
+          <HeroCard
+            title="Vector Embedding"
+            accent="teal"
+            href="/dashboard/vector-embedding"
+            artSrc="/art/vector.png"
+            icon={Database}
+            kpis={[
+              { label: "Hit-Rate", value: "94.2%" },
+              { label: "Drift", value: "0.03" },
+              { label: "Duplicates", value: "127" },
+            ]}
+          />
+          <HeroCard
+            title="C/C++ Code Scanning"
+            accent="yellow"
+            href="/dashboard/code-scanning"
+            artSrc="/art/code.png"
+            icon={Code}
+            kpis={[
+              { label: "Sev1/2/3", value: "45/123/89" },
+              { label: "Files Scanned", value: "2,847" },
+            ]}
+          />
+        </div>
+
