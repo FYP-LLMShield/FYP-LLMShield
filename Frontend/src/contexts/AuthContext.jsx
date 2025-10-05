@@ -161,3 +161,204 @@ export const AuthProvider = ({ children }) => {
     setMfaStatus({ enabled: false, setupComplete: false, recoveryCodesRemaining: 0 })
     localStorage.removeItem("user")
   }
+  // MFA-related functions
+  const fetchMfaStatus = async () => {
+    try {
+      const response = await mfaAPI.getStatus()
+      if (response.success && response.data) {
+        setMfaStatus({
+          enabled: response.data.mfa_enabled,
+          setupComplete: response.data.setup_complete,
+          recoveryCodesRemaining: response.data.recovery_codes_remaining
+        })
+        
+        // Update user object with MFA status
+        if (user) {
+          const updatedUser = { ...user, mfaEnabled: response.data.mfa_enabled }
+          setUser(updatedUser)
+          localStorage.setItem("user", JSON.stringify(updatedUser))
+        }
+        
+        return response.data
+      }
+    } catch (error) {
+      console.error('Failed to fetch MFA status:', error)
+      throw error
+    }
+  }
+
+  const initiateMfaSetup = async () => {
+    try {
+      const response = await mfaAPI.initiateSetup()
+      if (response.success && response.data) {
+        return response.data
+      }
+      throw new Error(response.error || 'Failed to initiate MFA setup')
+    } catch (error) {
+      console.error('Failed to initiate MFA setup:', error)
+      throw error
+    }
+  }
+
+  const completeMfaSetup = async (totpCode) => {
+    try {
+      const response = await mfaAPI.completeSetup({ totp_code: totpCode })
+      if (response.success && response.data) {
+        // Refresh MFA status after successful setup
+        await fetchMfaStatus()
+        return response.data
+      }
+      throw new Error(response.error || 'Failed to complete MFA setup')
+    } catch (error) {
+      console.error('Failed to complete MFA setup:', error)
+      throw error
+    }
+  }
+
+  const disableMfa = async (currentPassword, totpCode) => {
+    try {
+      const response = await mfaAPI.disable({ 
+        current_password: currentPassword, 
+        totp_code: totpCode 
+      })
+      if (response.success && response.data) {
+        // Refresh MFA status after successful disable
+        await fetchMfaStatus()
+        return response.data
+      }
+      throw new Error(response.error || 'Failed to disable MFA')
+    } catch (error) {
+      console.error('Failed to disable MFA:', error)
+      throw error
+    }
+  }
+
+  const regenerateRecoveryCodes = async () => {
+    try {
+      const response = await mfaAPI.regenerateRecoveryCodes()
+      if (response.success && response.data) {
+        // Refresh MFA status after regenerating codes
+        await fetchMfaStatus()
+        return response.data
+      }
+      throw new Error(response.error || 'Failed to regenerate recovery codes')
+    } catch (error) {
+      console.error('Failed to regenerate recovery codes:', error)
+      throw error
+    }
+  }
+
+  // Validate current token
+  const validateToken = async () => {
+    const token = localStorage.getItem('access_token')
+    if (!token) {
+      return false
+    }
+
+    try {
+      const response = await authAPI.getCurrentUser()
+      if (response.success && response.data) {
+        return response.data
+      } else {
+        // Token is invalid, try to refresh
+        const refreshToken = localStorage.getItem('refresh_token')
+        if (refreshToken) {
+          return await refreshAccessToken()
+        }
+        return false
+      }
+    } catch (error) {
+      console.error('Token validation failed:', error)
+      // Try to refresh token
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (refreshToken) {
+        return await refreshAccessToken()
+      }
+      return false
+    }
+  }
+
+  // Refresh access token using refresh token
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem('refresh_token')
+    if (!refreshToken) {
+      return false
+    }
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1'}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${refreshToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem('access_token', data.access_token)
+        // Update API client token
+        authAPI.setToken(data.access_token)
+        
+        // Get user data with new token
+        const userResponse = await authAPI.getCurrentUser()
+        if (userResponse.success && userResponse.data) {
+          return userResponse.data
+        }
+      }
+      return false
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      return false
+    }
+  }
+
+  // Check for existing user and validate token on app load
+  React.useEffect(() => {
+    const initializeAuth = async () => {
+      setIsLoading(true)
+      
+      const savedUser = localStorage.getItem("user")
+      const token = localStorage.getItem('access_token')
+      
+      if (savedUser && token) {
+        // Set token in API client first
+        authAPI.setToken(token)
+        // Validate the token
+        const userData = await validateToken()
+        if (userData) {
+          // Update user data with fresh info from server
+          const updatedUser = {
+            id: userData.user.id,
+            email: userData.user.email,
+            name: userData.user.name || userData.user.email.split('@')[0],
+            username: userData.user.username || userData.user.email.split('@')[0],
+            plan: "free",
+            isVerified: userData.user.is_verified,
+            mfaEnabled: userData.user.mfa_enabled
+          }
+          setUser(updatedUser)
+          localStorage.setItem("user", JSON.stringify(updatedUser))
+          
+          // Fetch MFA status
+          try {
+            await fetchMfaStatus()
+          } catch (error) {
+            console.warn('Failed to fetch MFA status:', error)
+          }
+        } else {
+          // Token is invalid, clear everything
+          logout()
+        }
+      } else if (savedUser && !token) {
+        // User data exists but no token, clear everything
+        logout()
+      }
+      
+      setIsLoading(false)
+      setIsInitialized(true)
+    }
+
+    initializeAuth()
+  }, [])
+
