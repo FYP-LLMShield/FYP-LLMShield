@@ -113,3 +113,49 @@ export function ChatPanel({ open, width, onToggle, onResize }: ChatPanelProps) {
     navigator.clipboard.writeText(content)
   }
 
+  const exportChat = () => {
+    const chatData = {
+      messages,
+      timestamp: new Date().toISOString(),
+      user: "Security Admin",
+    }
+    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `chat-export-${Date.now()}.json`
+    a.click()
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+      const newWidth = window.innerWidth - e.clientX
+      onResize(Math.max(300, Math.min(600, newWidth)))
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove)
+      document.addEventListener("mouseup", handleMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseup", handleMouseUp)
+    }
+  }, [isResizing, onResize])
+
+  if (!open) {
+    return (
+      <Button
+        onClick={onToggle}
+        className="fixed right-4 bottom-4 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg"
+      >
+        <MessageCircle size={24} />
+      </Button>
+    )
+  }
