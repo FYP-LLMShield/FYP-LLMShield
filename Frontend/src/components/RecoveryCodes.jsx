@@ -110,6 +110,24 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
           </span>
         </button>
       </div>
+      
+      {/* Warning for regeneration */}
+      {showWarning && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 text-sm">
+            <strong>Warning:</strong> Regenerating codes will invalidate all existing recovery codes. 
+            Make sure you have saved the current codes before proceeding.
+          </p>
+          <button
+            onClick={() => setShowWarning(false)}
+            className="mt-2 text-red-600 hover:text-red-700 text-sm underline"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+
 
 
 
