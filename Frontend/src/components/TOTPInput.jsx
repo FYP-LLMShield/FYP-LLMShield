@@ -80,6 +80,33 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
     setDigits(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
   };
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-center space-x-2">
+        {digits.map((digit, index) => (
+          <input
+            key={index}
+            ref={(el) => (inputRefs.current[index] = el)}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={digit}
+            onChange={(e) => handleChange(index, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(index, e)}
+            onPaste={handlePaste}
+            disabled={loading}
+            className={`w-12 h-12 text-center text-xl font-bold border-2 rounded-lg transition-all duration-200 ${
+              error
+                ? 'border-red-500 bg-red-50 text-red-900'
+                : digit
+                ? 'border-green-500 bg-green-50 text-green-900'
+                : 'border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
+            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          />
+        ))}
+      </div>
+
 
 
 
