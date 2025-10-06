@@ -62,6 +62,26 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       inputRefs.current[index + 1]?.focus();
     }
   };
+  
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text');
+    
+    // Check if pasted data is 6 digits
+    if (/^[0-9]{6}$/.test(pastedData)) {
+      const newDigits = pastedData.split('');
+      setDigits(newDigits);
+      // Focus last input
+      inputRefs.current[5]?.focus();
+    }
+  };
+
+  const clearInputs = () => {
+    setDigits(['', '', '', '', '', '']);
+    inputRefs.current[0]?.focus();
+  };
+
+
 
 
 
