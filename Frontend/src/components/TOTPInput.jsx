@@ -26,4 +26,21 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       onComplete(code);
     }
   }, [digits, onComplete]);
+  const handleChange = (index, value) => {
+    // Only allow single digits
+    if (value.length > 1) return;
+    
+    // Only allow numbers
+    if (value && !/^[0-9]$/.test(value)) return;
+
+    const newDigits = [...digits];
+    newDigits[index] = value;
+    setDigits(newDigits);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
 
