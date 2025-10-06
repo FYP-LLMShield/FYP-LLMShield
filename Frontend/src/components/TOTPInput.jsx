@@ -10,3 +10,20 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       inputRefs.current[0].focus();
     }
   }, []);
+  // Sync internal digits state with external value prop
+  useEffect(() => {
+    if (value === '' || value.length === 0) {
+      setDigits(['', '', '', '', '', '']);
+    } else if (value.length === 6) {
+      setDigits(value.split(''));
+    }
+  }, [value]);
+
+  useEffect(() => {
+    // Check if all digits are filled
+    if (digits.every(digit => digit !== '')) {
+      const code = digits.join('');
+      onComplete(code);
+    }
+  }, [digits, onComplete]);
+
