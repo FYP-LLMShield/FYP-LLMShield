@@ -473,3 +473,260 @@ export function VectorEmbeddingPage() {
             </Card>
           </div>
 
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Chunk Length Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chunkLengthData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="length" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1F2937",
+                        border: "1px solid #374151",
+                        borderRadius: "8px",
+                        color: "#F9FAFB",
+                      }}
+                    />
+                    <Bar dataKey="count" fill="#14B8A6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Top-K Score Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={topKScoreData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="k" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1F2937",
+                        border: "1px solid #374151",
+                        borderRadius: "8px",
+                        color: "#F9FAFB",
+                      }}
+                    />
+                    <Line type="monotone" dataKey="score" stroke="#3B82F6" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Drift Over Time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={driftData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="time" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1F2937",
+                        border: "1px solid #374151",
+                        borderRadius: "8px",
+                        color: "#F9FAFB",
+                      }}
+                    />
+                    <Line type="monotone" dataKey="drift" stroke="#F97316" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Duplicate Similarity Heatmap</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-2">
+                  {duplicateHeatmapData.map((item, index) => (
+                    <div
+                      key={index}
+                      className="aspect-square rounded flex items-center justify-center text-xs font-medium text-white"
+                      style={{
+                        backgroundColor: `rgba(139, 92, 246, ${item.similarity})`,
+                      }}
+                    >
+                      {item.count}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-between text-sm text-gray-400">
+                  <span>Low Similarity</span>
+                  <span>High Similarity</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tables */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Poor Performing Queries</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/10">
+                      <TableHead className="text-gray-400">Query</TableHead>
+                      <TableHead className="text-gray-400">Hit Rate</TableHead>
+                      <TableHead className="text-gray-400">Issue</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {badQueries.map((query) => (
+                      <TableRow key={query.id} className="border-white/10 hover:bg-white/5">
+                        <TableCell className="max-w-48">
+                          <div className="text-gray-300 text-sm truncate">{query.query || "<empty>"}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-white font-medium">{(query.hitRate * 100).toFixed(1)}%</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="border-red-500/30 text-red-400">
+                            {query.issue}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Orphan Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-white/10">
+                      <TableHead className="text-gray-400">Document</TableHead>
+                      <TableHead className="text-gray-400">Embeddings</TableHead>
+                      <TableHead className="text-gray-400">Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orphanDocs.map((doc) => (
+                      <TableRow key={doc.id} className="border-white/10 hover:bg-white/5">
+                        <TableCell>
+                          <div className="text-gray-300 text-sm">{doc.title}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-white font-medium">{doc.embeddings}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="border-yellow-500/30 text-yellow-400">
+                            {doc.reason}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Duplicate Clusters */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Duplicate Clusters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10">
+                    <TableHead className="text-gray-400">Cluster</TableHead>
+                    <TableHead className="text-gray-400">Size</TableHead>
+                    <TableHead className="text-gray-400">Similarity</TableHead>
+                    <TableHead className="text-gray-400">Representative</TableHead>
+                    <TableHead className="text-gray-400">Sources</TableHead>
+                    <TableHead className="text-gray-400">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {duplicateClusters.map((cluster) => (
+                    <TableRow key={cluster.id} className="border-white/10 hover:bg-white/5">
+                      <TableCell className="text-white font-mono">{cluster.id}</TableCell>
+                      <TableCell className="text-white font-medium">{cluster.size}</TableCell>
+                      <TableCell className="text-white">{(cluster.avgSimilarity * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="max-w-64">
+                        <div className="text-gray-300 text-sm truncate">{cluster.representative}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {cluster.sources.map((source) => (
+                            <Badge key={source} variant="secondary" className="bg-blue-600/20 text-blue-400 text-xs">
+                              {source}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-green-500/30 text-green-400">
+                          {cluster.action}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-4">
+            <Button className="bg-teal-600 hover:bg-teal-700">
+              <Settings className="mr-2 h-4 w-4" />
+              Suggest Chunking
+            </Button>
+            <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-600/10 bg-transparent">
+              <Database className="mr-2 h-4 w-4" />
+              Rebuild Index
+            </Button>
+            <Button
+              variant="outline"
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-600/10 bg-transparent"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Switch Reranker
+            </Button>
+            <Button
+              variant="outline"
+              className="border-green-500/30 text-green-400 hover:bg-green-600/10 bg-transparent"
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Re-evaluate
+            </Button>
+            <Button
+              variant="outline"
+              className="border-orange-500/30 text-orange-400 hover:bg-orange-600/10 bg-transparent"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Report
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
