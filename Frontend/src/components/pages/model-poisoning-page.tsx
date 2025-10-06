@@ -267,3 +267,182 @@ export function ModelPoisoningPage() {
                 </Card>
               </div>
             </div>
+
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
+                <CardContent className="p-6">
+                  <div className="text-2xl font-bold text-white">1,247</div>
+                  <div className="text-gray-400 text-sm">Probes Run</div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-red-500/30 shadow-red-500/20">
+                <CardContent className="p-6">
+                  <div className="text-2xl font-bold text-white">23</div>
+                  <div className="text-gray-400 text-sm">Flagged Anomalies</div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-yellow-500/30 shadow-yellow-500/20">
+                <CardContent className="p-6">
+                  <div className="text-2xl font-bold text-white">4</div>
+                  <div className="text-gray-400 text-sm">Target Categories</div>
+                </CardContent>
+              </Card>
+              <Card className="glass-card border-green-500/30 shadow-green-500/20">
+                <CardContent className="p-6">
+                  <div className="text-2xl font-bold text-white">High</div>
+                  <div className="text-gray-400 text-sm">Max Severity</div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="triggers" className="space-y-6">
+            {/* Trigger Library Management */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="glass-card border-purple-500/30 shadow-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Trigger Library</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Library Version</Label>
+                    <Select defaultValue="v2.1.3">
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-white/10">
+                        <SelectItem value="v2.1.3">v2.1.3 (Latest)</SelectItem>
+                        <SelectItem value="v2.1.2">v2.1.2</SelectItem>
+                        <SelectItem value="v2.1.1">v2.1.1</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Trials per Trigger</Label>
+                    <Input type="number" defaultValue="10" className="bg-white/5 border-white/10 text-white" />
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Harmful Threshold (%)</Label>
+                    <Input type="number" defaultValue="60" className="bg-white/5 border-white/10 text-white" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Unicode Variants</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Prefix/Suffix</span>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Homoglyphs</span>
+                      <Switch />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="lg:col-span-2">
+                {/* Custom Triggers */}
+                <Card className="glass-card border-teal-500/30 shadow-teal-500/20 mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-white">Custom Triggers</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex space-x-2">
+                      <Input
+                        value={newTrigger}
+                        onChange={(e) => setNewTrigger(e.target.value)}
+                        placeholder="Enter custom trigger phrase..."
+                        className="bg-white/5 border-white/10 text-white placeholder-gray-400"
+                        onKeyPress={(e) => e.key === "Enter" && addCustomTrigger()}
+                      />
+                      <Button onClick={addCustomTrigger} size="sm" className="bg-teal-600 hover:bg-teal-700">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {customTriggers.map((trigger, index) => (
+                        <div key={index} className="flex items-center justify-between bg-white/5 p-2 rounded">
+                          <span className="text-gray-300 text-sm">{trigger}</span>
+                          <Button
+                            onClick={() => removeCustomTrigger(index)}
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Trigger Test Results */}
+                <Card className="glass-card border-yellow-500/30 shadow-yellow-500/20">
+                  <CardHeader>
+                    <CardTitle className="text-white">Trigger Test Results</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-white/10">
+                          <TableHead className="text-gray-400">Trigger ID</TableHead>
+                          <TableHead className="text-gray-400">Trigger Text</TableHead>
+                          <TableHead className="text-gray-400">Variants</TableHead>
+                          <TableHead className="text-gray-400">Harmful Rate</TableHead>
+                          <TableHead className="text-gray-400">Status</TableHead>
+                          <TableHead className="text-gray-400">Tags</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {triggerResults.map((result) => (
+                          <TableRow key={result.id} className="border-white/10 hover:bg-white/5">
+                            <TableCell className="text-white font-mono">{result.id}</TableCell>
+                            <TableCell className="text-gray-300 max-w-48 truncate">{result.trigger}</TableCell>
+                            <TableCell className="text-gray-300">{result.variants}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-white font-medium">{result.rate}%</span>
+                                <span className="text-gray-400 text-sm">
+                                  ({result.harmful}/{result.trials})
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {result.flagged ? (
+                                <Badge className="bg-red-600/20 text-red-400 border-red-500/30">
+                                  <AlertTriangle className="mr-1 h-3 w-3" />
+                                  Flagged
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-green-600/20 text-green-400 border-green-500/30">
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  Safe
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {result.tags.map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="bg-blue-600/20 text-blue-400 text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
