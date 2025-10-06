@@ -217,3 +217,259 @@ export function VectorEmbeddingPage() {
           </Button>
         )}
       </div>
+
+      
+      {phase === "before" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Configuration Panel */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Evaluation Configuration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">Collection</Label>
+                    <Select value={collection} onValueChange={setCollection}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-white/10">
+                        <SelectItem value="production">Production</SelectItem>
+                        <SelectItem value="staging">Staging</SelectItem>
+                        <SelectItem value="development">Development</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Embedding Model</Label>
+                    <Select value={embeddingModel} onValueChange={setEmbeddingModel}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-white/10">
+                        <SelectItem value="text-embedding-3-large">text-embedding-3-large</SelectItem>
+                        <SelectItem value="text-embedding-3-small">text-embedding-3-small</SelectItem>
+                        <SelectItem value="text-embedding-ada-002">text-embedding-ada-002</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Top-K Results</Label>
+                    <Input
+                      value={k}
+                      onChange={(e) => setK(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Chunk Size</Label>
+                    <Input
+                      value={chunkSize}
+                      onChange={(e) => setChunkSize(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Overlap (tokens)</Label>
+                    <Input
+                      value={overlap}
+                      onChange={(e) => setOverlap(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-gray-300">Reranker</Label>
+                    <Switch checked={rerankerEnabled} onCheckedChange={setRerankerEnabled} />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <Button onClick={startEvaluation} className="w-full bg-teal-600 hover:bg-teal-700">
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Evaluation
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Collection Info */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Collection Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-400 text-sm">Total Vectors</Label>
+                  <div className="text-2xl font-bold text-white">2.4M</div>
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-sm">Dimensions</Label>
+                  <div className="text-2xl font-bold text-white">3072</div>
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-sm">Documents</Label>
+                  <div className="text-2xl font-bold text-white">45K</div>
+                </div>
+                <div>
+                  <Label className="text-gray-400 text-sm">Last Updated</Label>
+                  <div className="text-sm text-gray-300">2 hours ago</div>
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <Label className="text-gray-400 text-sm">Current Health</Label>
+                <div className="flex items-center space-x-2 mt-1">
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                  <span className="text-green-400 font-medium">Healthy</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {phase === "during" && (
+        <div className="space-y-6">
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Evaluation Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Progress value={progress} className="w-full" />
+                <div className="flex justify-between text-sm text-gray-400">
+                  <span>
+                    Processing queries... {liveMetrics.processed}/{liveMetrics.total}
+                  </span>
+                  <span>{progress}% complete</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Live Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-white">{(liveMetrics.hitRate * 100).toFixed(1)}%</div>
+                    <div className="text-gray-400 text-sm">Hit Rate</div>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-white">{liveMetrics.mrr.toFixed(3)}</div>
+                    <div className="text-gray-400 text-sm">MRR</div>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-blue-400" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-white">{liveMetrics.ndcg.toFixed(3)}</div>
+                    <div className="text-gray-400 text-sm">nDCG</div>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-purple-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Controls */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Controls</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex space-x-4">
+                <Button
+                  variant="outline"
+                  className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/10 bg-transparent"
+                  disabled={!isEvaluating}
+                >
+                  <Pause className="mr-2 h-4 w-4" />
+                  Pause Evaluation
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-red-500/30 text-red-400 hover:bg-red-600/10 bg-transparent"
+                  onClick={resetEvaluation}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {phase === "after" && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">94.2%</div>
+                <div className="text-gray-400 text-sm">Hit Rate</div>
+                <div className="flex items-center mt-2">
+                  <TrendingUp className="h-4 w-4 text-green-400 mr-1" />
+                  <span className="text-green-400 text-sm">+2.3%</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">0.876</div>
+                <div className="text-gray-400 text-sm">MRR</div>
+                <div className="flex items-center mt-2">
+                  <TrendingUp className="h-4 w-4 text-blue-400 mr-1" />
+                  <span className="text-blue-400 text-sm">+0.045</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">0.923</div>
+                <div className="text-gray-400 text-sm">nDCG</div>
+                <div className="flex items-center mt-2">
+                  <TrendingUp className="h-4 w-4 text-purple-400 mr-1" />
+                  <span className="text-purple-400 text-sm">+0.032</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+              <CardContent className="p-6">
+                <div className="text-2xl font-bold text-white">0.089</div>
+                <div className="text-gray-400 text-sm">Drift Score</div>
+                <div className="flex items-center mt-2">
+                  <TrendingDown className="h-4 w-4 text-orange-400 mr-1" />
+                  <span className="text-orange-400 text-sm">-0.012</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
