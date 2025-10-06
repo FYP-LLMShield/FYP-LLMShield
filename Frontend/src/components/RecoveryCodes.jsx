@@ -127,6 +127,39 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
         </div>
       )}
 
+      
+      {/* Recovery Codes Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {codes.map((code, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-gray-500 text-sm font-medium w-6">
+                {index + 1}.
+              </span>
+              <code className="font-mono text-gray-900 select-all">
+                {code}
+              </code>
+            </div>
+            <button
+              onClick={() => copyToClipboard(code, index)}
+              className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Copy code"
+            >
+              {copiedIndex === index ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        ))}
+      </div>
+
+
+
 
 
 
