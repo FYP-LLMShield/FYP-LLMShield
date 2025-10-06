@@ -446,3 +446,189 @@ export function ModelPoisoningPage() {
                 </Card>
               </div>
             </div>
+
+            {/* False Positive Rate */}
+            <Card className="glass-card border-green-500/30 shadow-green-500/20">
+              <CardHeader>
+                <CardTitle className="text-white">False Positive Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white mb-2">2.3%</div>
+                    <div className="text-gray-400">False Positive Rate</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white mb-2">156</div>
+                    <div className="text-gray-400">Negative Controls</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-white mb-2">4</div>
+                    <div className="text-gray-400">False Positives</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-6">
+            {/* Model Information */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Model Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-400 text-sm">Model ID</Label>
+                      <div className="text-white font-mono text-sm">{auditData.modelId}</div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-sm">Version</Label>
+                      <div className="text-white font-mono text-sm">{auditData.version}</div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-sm">Config Hash</Label>
+                      <div className="text-white font-mono text-sm truncate">{auditData.configHash}</div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-sm">Suite Version</Label>
+                      <div className="text-white font-mono text-sm">{auditData.suiteVersion}</div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-sm">Operator</Label>
+                      <div className="text-white text-sm">{auditData.operator}</div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-sm">Environment</Label>
+                      <div className="text-white text-sm capitalize">{auditData.environment}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-card border-green-500/30 shadow-green-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white">Audit Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-400 text-sm">Total Probes</Label>
+                      <div className="text-2xl font-bold text-white">{auditData.totalProbes}</div>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-sm">Flagged Count</Label>
+                      <div className="text-2xl font-bold text-red-400">{auditData.flaggedCount}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-400 text-sm mb-2 block">Severity Breakdown</Label>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-red-400 text-sm">Critical</span>
+                        <span className="text-white font-medium">{auditData.severityBreakdown.critical}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-orange-400 text-sm">High</span>
+                        <span className="text-white font-medium">{auditData.severityBreakdown.high}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-yellow-400 text-sm">Medium</span>
+                        <span className="text-white font-medium">{auditData.severityBreakdown.medium}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-400 text-sm">Timestamp</Label>
+                    <div className="text-white font-mono text-sm">{auditData.timestamp}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Evidence Bundle */}
+            <Card className="glass-card border-purple-500/30 shadow-purple-500/20">
+              <CardHeader>
+                <CardTitle className="text-white">Evidence Bundle</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-white/5 rounded-lg">
+                    <FileText className="mx-auto h-8 w-8 text-blue-400 mb-2" />
+                    <div className="text-white font-medium">Raw I/O Data</div>
+                    <div className="text-gray-400 text-sm">Complete request/response logs</div>
+                  </div>
+                  <div className="text-center p-4 bg-white/5 rounded-lg">
+                    <Target className="mx-auto h-8 w-8 text-green-400 mb-2" />
+                    <div className="text-white font-medium">Trigger Variants</div>
+                    <div className="text-gray-400 text-sm">All tested trigger variations</div>
+                  </div>
+                  <div className="text-center p-4 bg-white/5 rounded-lg">
+                    <Hash className="mx-auto h-8 w-8 text-purple-400 mb-2" />
+                    <div className="text-white font-medium">Anomaly Scores</div>
+                    <div className="text-gray-400 text-sm">Computed deviation metrics</div>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-white font-medium">Export Options</h4>
+                    <div className="text-sm text-gray-400">
+                      Checksum: <span className="font-mono">sha256:f1e2d3c4b5a6...</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4">
+                    <Button className="bg-red-600 hover:bg-red-700">
+                      <Download className="mr-2 h-4 w-4" />
+                      Export PDF Report
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-blue-500/30 text-blue-400 hover:bg-blue-600/10 bg-transparent"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export JSON Bundle
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-green-500/30 text-green-400 hover:bg-green-600/10 bg-transparent"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export CSV Data
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-purple-500/30 text-purple-400 hover:bg-purple-600/10 bg-transparent"
+                    >
+                      <Shield className="mr-2 h-4 w-4" />
+                      Verify Signature
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-600/10 border border-yellow-500/30 rounded-lg p-4">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
+                    <div>
+                      <div className="text-yellow-400 font-medium">Security Notice</div>
+                      <div className="text-gray-300 text-sm">
+                        All exported data is automatically redacted to remove sensitive information including API keys,
+                        personal data, and proprietary model parameters.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  )
+}
+
