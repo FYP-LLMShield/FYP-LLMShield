@@ -106,6 +106,32 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
           />
         ))}
       </div>
+      {error && (
+        <div className="text-center">
+          <p className="text-red-500 text-sm mb-2">{error}</p>
+          <button
+            onClick={clearInputs}
+            className="text-purple-600 hover:text-purple-700 text-sm underline"
+          >
+            Clear and try again
+          </button>
+        </div>
+      )}
+      
+      {loading && (
+        <div className="text-center">
+          <div className="inline-flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+            <span className="text-gray-600 text-sm">Verifying...</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TOTPInput;
+
 
 
 
