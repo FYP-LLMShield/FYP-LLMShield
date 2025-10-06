@@ -436,3 +436,169 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+
+        <TabsContent value="notifications" className="space-y-6">
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Notification Preferences</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-gray-300">Email Alerts</Label>
+                    <p className="text-sm text-gray-400">Receive security alerts via email</p>
+                  </div>
+                  <Switch
+                    checked={settings.emailAlerts}
+                    onCheckedChange={(checked) => updateSetting("emailAlerts", checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-gray-300">Slack Notifications</Label>
+                    <p className="text-sm text-gray-400">Send notifications to Slack channels</p>
+                  </div>
+                  <Switch
+                    checked={settings.slackNotifications}
+                    onCheckedChange={(checked) => updateSetting("slackNotifications", checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-gray-300">Critical Alerts</Label>
+                    <p className="text-sm text-gray-400">Immediate notifications for critical issues</p>
+                  </div>
+                  <Switch
+                    checked={settings.criticalAlerts}
+                    onCheckedChange={(checked) => updateSetting("criticalAlerts", checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-gray-300">Weekly Reports</Label>
+                    <p className="text-sm text-gray-400">Receive weekly security summary reports</p>
+                  </div>
+                  <Switch
+                    checked={settings.weeklyReports}
+                    onCheckedChange={(checked) => updateSetting("weeklyReports", checked)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="scanning" className="space-y-6">
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Scanning Configuration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Default Scan Timeout (seconds)</Label>
+                    <Input
+                      type="number"
+                      value={settings.defaultScanTimeout}
+                      onChange={(e) => updateSetting("defaultScanTimeout", Number.parseInt(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Max Concurrent Scans</Label>
+                    <Input
+                      type="number"
+                      value={settings.maxConcurrentScans}
+                      onChange={(e) => updateSetting("maxConcurrentScans", Number.parseInt(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Data Retention (days)</Label>
+                    <Input
+                      type="number"
+                      value={settings.retentionDays}
+                      onChange={(e) => updateSetting("retentionDays", Number.parseInt(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-gray-300">Auto-Scan Enabled</Label>
+                    <Switch
+                      checked={settings.autoScanEnabled}
+                      onCheckedChange={(checked) => updateSetting("autoScanEnabled", checked)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="thresholds" className="space-y-6">
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Detection Thresholds</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-6">
+                <div>
+                  <Label className="text-gray-300">
+                    Prompt Injection Threshold: {settings.promptInjectionThreshold}%
+                  </Label>
+                  <Slider
+                    value={[settings.promptInjectionThreshold]}
+                    onValueChange={(value) => updateSetting("promptInjectionThreshold", value[0])}
+                    max={100}
+                    step={5}
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-400 mt-1">Sensitivity for detecting prompt injection attacks</p>
+                </div>
+                <div>
+                  <Label className="text-gray-300">Anomaly Detection Threshold: {settings.anomalyThreshold}%</Label>
+                  <Slider
+                    value={[settings.anomalyThreshold]}
+                    onValueChange={(value) => updateSetting("anomalyThreshold", value[0])}
+                    max={100}
+                    step={5}
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-400 mt-1">Threshold for flagging behavioral anomalies</p>
+                </div>
+                <div>
+                  <Label className="text-gray-300">Risk Score Threshold: {settings.riskScoreThreshold}%</Label>
+                  <Slider
+                    value={[settings.riskScoreThreshold]}
+                    onValueChange={(value) => updateSetting("riskScoreThreshold", value[0])}
+                    max={100}
+                    step={5}
+                    className="mt-2"
+                  />
+                  <p className="text-sm text-gray-400 mt-1">Overall risk score threshold for alerts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Action Buttons */}
+      <div className="flex justify-end space-x-4">
+        <Button variant="outline" onClick={resetSettings}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Reset to Defaults
+        </Button>
+        <Button onClick={saveSettings} className="bg-blue-600 hover:bg-blue-700">
+          <Save className="w-4 h-4 mr-2" />
+          Save Settings
+        </Button>
+      </div>
+    </div>
+  )
+}
