@@ -177,3 +177,262 @@ export function SettingsPage() {
               <p className="text-gray-400 text-sm mt-4">Selected: {avatarOptions.find(a => a.id === selectedAvatar)?.name}</p>
             </CardContent>
           </Card>
+
+
+          {/* User Profile Information */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Profile Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">Display Name</Label>
+                  <Input
+                    value={settings.displayName}
+                    onChange={(e) => updateSetting("displayName", e.target.value)}
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Email</Label>
+                  <Input
+                    value={settings.email}
+                    onChange={(e) => updateSetting("email", e.target.value)}
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Password Change */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Change Password</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-gray-300">Current Password</Label>
+                <Input
+                  type="password"
+                  value={settings.password}
+                  onChange={(e) => updateSetting("password", e.target.value)}
+                  className="bg-white/5 border-white/10 text-white"
+                  placeholder="Enter current password"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-300">New Password</Label>
+                  <Input
+                    type="password"
+                    value={settings.newPassword}
+                    onChange={(e) => updateSetting("newPassword", e.target.value)}
+                    className="bg-white/5 border-white/10 text-white"
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Confirm New Password</Label>
+                  <Input
+                    type="password"
+                    value={settings.confirmPassword}
+                    onChange={(e) => updateSetting("confirmPassword", e.target.value)}
+                    className="bg-white/5 border-white/10 text-white"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                Update Password
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="plans" className="space-y-6">
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Subscription Plans</CardTitle>
+              <p className="text-gray-400">Choose the plan that best fits your needs</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {plans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className={`relative p-6 rounded-2xl border transition-all duration-200 ${
+                      settings.currentPlan === plan.id
+                        ? "border-blue-500 bg-gradient-to-br from-blue-900/30 to-purple-900/30"
+                        : "border-white/10 bg-white/5 hover:border-white/20"
+                    }`}
+                  >
+                    {settings.currentPlan === plan.id && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          Current Plan
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="text-center mb-4">
+                      <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
+                      <div className={`text-3xl font-bold bg-gradient-to-r ${plan.color} bg-clip-text text-transparent`}>
+                        {plan.price}
+                      </div>
+                    </div>
+                    
+                    <ul className="space-y-3 mb-6">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-center text-gray-300">
+                          <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mr-3"></div>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    
+                    <Button
+                      className={`w-full ${
+                        settings.currentPlan === plan.id
+                          ? "bg-gray-600 cursor-not-allowed"
+                          : `bg-gradient-to-r ${plan.color} hover:opacity-90`
+                      }`}
+                      disabled={settings.currentPlan === plan.id}
+                      onClick={() => updateSetting("currentPlan", plan.id)}
+                    >
+                      {settings.currentPlan === plan.id ? "Current Plan" : "Upgrade"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white">Security Configuration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Session Timeout (minutes)</Label>
+                    <Input
+                      type="number"
+                      value={settings.sessionTimeout}
+                      onChange={(e) => updateSetting("sessionTimeout", Number.parseInt(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-gray-300">Password Expiry (days)</Label>
+                    <Input
+                      type="number"
+                      value={settings.passwordExpiry}
+                      onChange={(e) => updateSetting("passwordExpiry", Number.parseInt(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-gray-300">Max Login Attempts</Label>
+                    <Input
+                      type="number"
+                      value={settings.loginAttempts}
+                      onChange={(e) => updateSetting("loginAttempts", Number.parseInt(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-gray-300">Multi-Factor Authentication</Label>
+                    <Switch
+                      checked={settings.mfaEnabled}
+                      onCheckedChange={(checked) => updateSetting("mfaEnabled", checked)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Two-Factor Authentication Setup */}
+          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Two-Factor Authentication
+              </CardTitle>
+              <p className="text-gray-400">Add an extra layer of security to your account</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${mfaStatus?.enabled ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                  <div>
+                    <h4 className="text-white font-medium">Two-Factor Authentication</h4>
+                    <p className="text-gray-400 text-sm">
+                      {mfaStatus?.enabled ? 'Active - Your account is protected' : 'Disabled - Enable for better security'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-400">
+                  {mfaStatus?.enabled ? 'Active' : 'Inactive'}
+                </div>
+              </div>
+
+              {mfaStatus?.enabled && (
+                <div className="space-y-4 p-4 bg-gradient-to-r from-green-900/20 to-blue-900/20 rounded-xl border border-green-500/20">
+                  <div className="flex items-center gap-2 text-green-400">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">Two-Factor Authentication is Active</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button 
+                      onClick={() => navigate('/dashboard/mfa')}
+                      variant="outline" 
+                      className="border-white/20 text-white hover:bg-white/10"
+                    >
+                      Manage MFA
+                    </Button>
+                    <Button 
+                      onClick={() => navigate('/dashboard/mfa')}
+                      variant="outline" 
+                      className="border-white/20 text-white hover:bg-white/10"
+                    >
+                      View Recovery Codes
+                    </Button>
+                    <Button 
+                      onClick={() => navigate('/dashboard/mfa')}
+                      variant="outline" 
+                      className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/40"
+                    >
+                      Disable 2FA
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {!mfaStatus?.enabled && (
+                <div className="space-y-4 p-4 bg-gradient-to-r from-yellow-900/20 to-orange-900/20 rounded-xl border border-yellow-500/20">
+                  <div className="flex items-center gap-2 text-yellow-400">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span className="text-sm font-medium">Enable 2FA for Enhanced Security</span>
+                  </div>
+                  <p className="text-gray-400 text-sm">
+                    Protect your account with an additional security layer using your mobile device.
+                  </p>
+                  <Button 
+                    onClick={() => navigate('/dashboard/mfa')}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    Setup Two-Factor Authentication
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
