@@ -158,6 +158,23 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
         ))}
       </div>
 
+       {/* Usage Instructions */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="text-blue-800 font-medium mb-2">How to use recovery codes:</h4>
+        <ul className="text-blue-700 text-sm space-y-1">
+          <li>• Use these codes when you can't access your authenticator app</li>
+          <li>• Enter any unused code when prompted during login</li>
+          <li>• Each code can only be used once</li>
+          <li>• Generate new codes if you're running low</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+export default RecoveryCodes;
+
+
 
 
 
