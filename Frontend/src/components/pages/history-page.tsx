@@ -206,3 +206,86 @@ export function HistoryPage() {
                 <SelectItem value="info">Info</SelectItem>
               </SelectContent>
             </Select>
+
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="bg-white/5 border-white/10 text-white">
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  {dateRange ? format(dateRange, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar mode="single" selected={dateRange} onSelect={setDateRange} initialFocus />
+              </PopoverContent>
+            </Popover>
+
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* History Timeline */}
+      <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white">Activity Timeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredHistory.map((event, index) => (
+              <div key={event.id} className="flex items-start space-x-4 p-4 border border-white/10 rounded-lg">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                    {getTypeIcon(event.type)}
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-white font-medium">{event.title}</h3>
+                      <Badge className={`${getStatusColor(event.status)} text-white text-xs`}>
+                        {getStatusIcon(event.status)}
+                        <span className="ml-1 capitalize">{event.status}</span>
+                      </Badge>
+                      <Badge variant="outline" className="text-gray-400 border-gray-600">
+                        {event.module}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-gray-400">{format(event.timestamp, "MMM dd, yyyy HH:mm")}</div>
+                  </div>
+
+                  <p className="text-gray-300 text-sm mb-2">{event.description}</p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 text-xs text-gray-400">
+                      <span className="flex items-center space-x-1">
+                        <User className="w-3 h-3" />
+                        <span>{event.user}</span>
+                      </span>
+                      {event.details && (
+                        <span>
+                          {Object.entries(event.details).map(([key, value]) => (
+                            <span key={key} className="mr-2">
+                              {key}: {String(value)}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
