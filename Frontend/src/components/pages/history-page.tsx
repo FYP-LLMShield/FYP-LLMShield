@@ -142,3 +142,67 @@ export function HistoryPage() {
         return <FileText className="w-4 h-4" />
     }
   }
+
+
+  const filteredHistory = mockHistory.filter((event) => {
+    const matchesSearch =
+      event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesType = filterType === "all" || event.type === filterType
+    const matchesStatus = filterStatus === "all" || event.status === filterStatus
+    return matchesSearch && matchesType && matchesStatus
+  })
+
+  return (
+    <div className="p-6 space-y-6 min-h-screen" style={{backgroundColor: '#1d2736'}}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Security History</h1>
+          <p className="text-gray-400 mt-2">Audit trail and activity logs for all security operations</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <History className="w-8 h-8 text-blue-400" />
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search history..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10 text-white"
+                />
+              </div>
+            </div>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-40 bg-white/5 border-white/10 text-white">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="scan">Scans</SelectItem>
+                <SelectItem value="alert">Alerts</SelectItem>
+                <SelectItem value="action">Actions</SelectItem>
+                <SelectItem value="login">Logins</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40 bg-white/5 border-white/10 text-white">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
+                <SelectItem value="info">Info</SelectItem>
+              </SelectContent>
+            </Select>
