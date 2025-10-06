@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-
 const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
@@ -131,6 +130,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
 };
 
 export default TOTPInput;
+
 
 
 
