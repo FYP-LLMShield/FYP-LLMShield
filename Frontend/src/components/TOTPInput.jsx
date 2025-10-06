@@ -42,5 +42,27 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       inputRefs.current[index + 1]?.focus();
     }
   };
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace') {
+      if (!digits[index] && index > 0) {
+        // If current input is empty, focus previous and clear it
+        inputRefs.current[index - 1]?.focus();
+        const newDigits = [...digits];
+        newDigits[index - 1] = '';
+        setDigits(newDigits);
+      } else {
+        // Clear current input
+        const newDigits = [...digits];
+        newDigits[index] = '';
+        setDigits(newDigits);
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+
 
 
