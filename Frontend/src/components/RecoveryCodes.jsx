@@ -72,4 +72,45 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
         </div>
       </div>
 
+      
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={copyAllCodes}
+          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+        >
+          {copiedIndex === 'all' ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
+          <span>{copiedIndex === 'all' ? 'Copied!' : 'Copy All'}</span>
+        </button>
+        
+        <button
+          onClick={downloadCodes}
+          className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          <span>Download</span>
+        </button>
+        
+        <button
+          onClick={handleRegenerate}
+          disabled={loading}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+            showWarning
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-gray-600 hover:bg-gray-700 text-white'
+          } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <span>
+            {loading ? 'Regenerating...' : showWarning ? 'Confirm Regenerate' : 'Regenerate'}
+          </span>
+        </button>
+      </div>
+
+
+
 
