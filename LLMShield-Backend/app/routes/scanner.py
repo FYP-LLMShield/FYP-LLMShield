@@ -5,6 +5,7 @@ Handles text scanning, file uploads, and GitHub repository analysis.
 Fixed version with proper authentication and error handling.
 """
 
+
 import os
 import re
 import math
