@@ -1,160 +1,46 @@
-# 🛡️ LLMShield Frontend
+# Getting Started with Create React App
 
-**LLMShield** is a comprehensive AI security platform that protects your AI applications from various threats including prompt injection attacks, model poisoning, and code vulnerabilities.
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## 🚀 Features
+## Available Scripts
 
-### 🔐 Authentication & Security
-- **User Registration & Login** - Secure account creation and authentication
-- **Multi-Factor Authentication (MFA)** - Enhanced security with 2FA support
-- **Remember Me** - Convenient login with secure session management
-- **Password Security** - Strong password requirements and validation
+In the project directory, you can run:
 
-### 🛡️ Security Scanning Services
-- **Prompt Injection Scanner** - Detect malicious prompt injection attempts
-- **C/C++ Code Scanner** - Identify vulnerabilities in source code
-- **Model Poisoning Detection** - Analyze AI models for poisoning attacks
-- **Vector Embedding Security** - Check embedding vulnerabilities
+### `npm start`
 
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-### 📊 Dashboard & Analytics
-- **Security Dashboard** - Overview of scans and threat statistics
-- **Detailed Reports** - Comprehensive security analysis results
-- **Risk Assessment** - High, medium, and low risk categorization
-- **Scan History** - Track all security scans and results
+The page will reload if you make edits.\
+You will also see any lint errors in the console.
 
-### ⚙️ User Management
-- **Profile Settings** - Manage user information and preferences
-- **Plan Management** - Free, Regular, and Premium subscription plans
-- **Notification Settings** - Customize alerts and reports
-- **API Access** - Integration capabilities for developers
+### `npm test`
 
-## 🛠️ Technology Stack
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-- **Frontend Framework**: React 19.1.1 with TypeScript
-- **Styling**: Tailwind CSS with custom animations
-- **UI Components**: Radix UI components for accessibility
-- **Routing**: React Router DOM for navigation
-- **Animations**: Framer Motion for smooth transitions
-- **Forms**: React Hook Form with Zod validation
-- **Icons**: Lucide React and Heroicons
-- **Charts**: Recharts for data visualization
+### `npm run build`
 
-## 📋 Prerequisites
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
 
-Before running this project, make sure you have:
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
 
-- **Node.js** (version 16 or higher)
-- **npm** (comes with Node.js)
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
+### `npm run eject`
 
-## 🚀 Getting Started
+**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
 
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd LLMShield-Frontend
-```
+If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
 
-### 2. Install Dependencies
-```bash
-npm install
-```
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
 
-### 3. Start the Development Server
-```bash
-npm start
-```
+You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
-The application will open at [http://localhost:3000](http://localhost:3000)
+## Learn More
 
-## 📁 Project Structure
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-```
-src/
-├── components/          # Reusable UI components
-│   ├── dashboard/      # Dashboard-specific components
-│   ├── pages/          # Page components
-│   └── Chatbot.tsx     # AI assistant chatbot
-├── contexts/           # React context providers
-│   └── AuthContext.jsx # Authentication state management
-├── hooks/              # Custom React hooks
-├── lib/                # Utility libraries and configurations
-├── pages/              # Main page components
-│   ├── AuthPage.tsx    # Login/Signup page
-│   ├── DashboardPage.tsx # Main dashboard
-│   └── ServicesPage.tsx # Services overview
-└── App.tsx             # Main application component
-```
-
-## 🔧 Available Scripts
-
-### Development
-```bash
-npm start          # Start development server
-npm test           # Run test suite
-npm run build      # Build for production
-```
-
-### Production Build
-```bash
-npm run build
-```
-Creates an optimized production build in the `build` folder.
-
-## 🌐 How to Use
-
-### 1. **Registration**
-- Visit [http://localhost:3000](http://localhost:3000)
-- Click "Sign Up" to create a new account
-- Fill in your name, username, email, and password
-- Complete the registration process
-
-### 2. **Login**
-- Enter your email and password
-- Optionally check "Remember Me" for convenience
-- Complete MFA verification if enabled
-
-### 3. **Dashboard**
-- View your security statistics and recent scans
-- Access quick actions for different security services
-- Monitor threat levels and risk assessments
-
-### 4. **Security Scanning**
-- **Prompt Injection**: Upload text or enter prompts to scan
-- **Code Scanner**: Upload C/C++ files for vulnerability analysis
-- **Model Poisoning**: Analyze AI models for security threats
-- **Vector Analysis**: Check embedding security
-
-### 5. **Settings**
-- Manage your profile and account settings
-- Adjust notification settings
-- Upgrade your subscription plan
-
-## 🔒 Security Features
-
-- **Secure Authentication** - JWT-based authentication with refresh tokens
-- **Session Management** - Secure session handling and timeout
-- **Data Protection** - Client-side encryption and secure data transmission
-- **CSRF Protection** - Cross-site request forgery prevention
-
-## 🎨 UI/UX Features
-
-- **Responsive Design** - Works on desktop, tablet, and mobile
-- **Dark Theme** - Modern dark interface with teal accents
-- **Smooth Animations** - Framer Motion powered transitions
-- **Accessibility** - WCAG compliant with Radix UI components
-- **Interactive Elements** - Hover effects and loading states
-
-
-## 🤝 Support
-
-For support and questions:
-- Check the built-in chatbot for common questions
-- Review the FAQ section in the application
-- Contact support through the settings page
-
-
----
-
-**Made with ❤️ for AI Security**
+To learn React, check out the [React documentation](https://reactjs.org/).

@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../../contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "../ui/button"
@@ -14,7 +14,12 @@ import { Settings, User, Shield, Bell, Database, Save, RefreshCw, AlertTriangle,
 
 export function SettingsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { mfaStatus, fetchMfaStatus } = useAuth()
+  
+  // Handle active tab from navigation state
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "user")
+  
   const [settings, setSettings] = useState({
     // User Settings
     displayName: "Security Admin",
@@ -124,7 +129,7 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="user" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
           <TabsTrigger value="user" className="data-[state=active]:bg-blue-600">
             <User className="w-4 h-4 mr-2" />
@@ -177,7 +182,6 @@ export function SettingsPage() {
               <p className="text-gray-400 text-sm mt-4">Selected: {avatarOptions.find(a => a.id === selectedAvatar)?.name}</p>
             </CardContent>
           </Card>
-
 
           {/* User Profile Information */}
           <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
@@ -436,7 +440,6 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
 
         <TabsContent value="notifications" className="space-y-6">
           <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">

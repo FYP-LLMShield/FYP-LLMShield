@@ -56,6 +56,7 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
       </div>
     );
   }
+
   return (
     <div className="space-y-6">
       {/* Warning Banner */}
@@ -72,7 +73,6 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
         </div>
       </div>
 
-      
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3">
         <button
@@ -110,7 +110,7 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
           </span>
         </button>
       </div>
-      
+
       {/* Warning for regeneration */}
       {showWarning && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -127,7 +127,6 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
         </div>
       )}
 
-      
       {/* Recovery Codes Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {codes.map((code, index) => (
@@ -158,7 +157,7 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
         ))}
       </div>
 
-       {/* Usage Instructions */}
+      {/* Usage Instructions */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="text-blue-800 font-medium mb-2">How to use recovery codes:</h4>
         <ul className="text-blue-700 text-sm space-y-1">
@@ -173,12 +172,3 @@ const RecoveryCodes = ({ codes, onRegenerate, loading = false }) => {
 };
 
 export default RecoveryCodes;
-
-
-
-
-
-
-
-
-

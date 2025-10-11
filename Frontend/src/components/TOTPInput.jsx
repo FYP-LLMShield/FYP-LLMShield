@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+
 const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
@@ -9,6 +10,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       inputRefs.current[0].focus();
     }
   }, []);
+
   // Sync internal digits state with external value prop
   useEffect(() => {
     if (value === '' || value.length === 0) {
@@ -25,6 +27,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       onComplete(code);
     }
   }, [digits, onComplete]);
+
   const handleChange = (index, value) => {
     // Only allow single digits
     if (value.length > 1) return;
@@ -41,6 +44,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       inputRefs.current[index + 1]?.focus();
     }
   };
+
   const handleKeyDown = (index, e) => {
     if (e.key === 'Backspace') {
       if (!digits[index] && index > 0) {
@@ -61,7 +65,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
       inputRefs.current[index + 1]?.focus();
     }
   };
-  
+
   const handlePaste = (e) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text');
@@ -79,7 +83,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
     setDigits(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
   };
-  
+
   return (
     <div className="space-y-4">
       <div className="flex justify-center space-x-2">
@@ -105,6 +109,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
           />
         ))}
       </div>
+      
       {error && (
         <div className="text-center">
           <p className="text-red-500 text-sm mb-2">{error}</p>
@@ -130,12 +135,3 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
 };
 
 export default TOTPInput;
-
-
-
-
-
-
-
-
-

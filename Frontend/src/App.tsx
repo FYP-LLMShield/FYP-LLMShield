@@ -17,6 +17,7 @@ const Chatbot = React.lazy(() => import('./components/Chatbot'));
 // Lazy load pages for better performance
 const HomePage = React.lazy(() => import('./pages/HomePage'));
 const AuthPage = React.lazy(() => import('./pages/AuthPage'));
+const ResetPasswordPage = React.lazy(() => import('./components/auth/ResetPasswordPage'));
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const UseCasesPage = React.lazy(() => import('./pages/UseCasesPage'));
 const ServicesPage = React.lazy(() => import('./pages/ServicesPage'));
@@ -80,6 +81,7 @@ function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/signup" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
             <Route path="/use-cases" element={<Layout><UseCasesPage /></Layout>} />
             <Route path="/services" element={<Layout><ServicesPage /></Layout>} />

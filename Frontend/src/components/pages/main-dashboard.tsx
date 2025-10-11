@@ -2,12 +2,14 @@
 
 import type React from "react"
 
-import { useState, memo, useMemo } from "react"
+import { useState, memo, useMemo, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table"
 import WelcomePopup from "../welcome-popup"
+import MfaNotificationPopup from "../mfa-notification-popup"
+import { useAuth } from "../../contexts/AuthContext"
 import {
   AreaChart,
   Area,
@@ -119,17 +121,25 @@ const recentScans = [
 ]
 
 export const MainDashboard = memo(() => {
+  const { user, mfaStatus } = useAuth();
+  
   const [showWelcomePopup, setShowWelcomePopup] = useState(() => {
     const hasSeenWelcome = sessionStorage.getItem('welcomePopupShown');
     return !hasSeenWelcome;
   });
+
+  // Disable MFA popup for now
+  const [showMfaPopup, setShowMfaPopup] = useState(false);
 
   const handleCloseWelcome = () => {
     setShowWelcomePopup(false);
     sessionStorage.setItem('welcomePopupShown', 'true');
   };
 
-
+  const handleCloseMfa = () => {
+    setShowMfaPopup(false);
+    sessionStorage.setItem('mfaPopupDismissed', 'true');
+  };
 
   const memoizedThreatData = useMemo(() => threatTimelineData, []);
   const memoizedSeverityData = useMemo(() => severityMixData, []);
@@ -143,6 +153,13 @@ export const MainDashboard = memo(() => {
         onClose={handleCloseWelcome}
         userName="Security Admin"
       />
+      
+      {/* MFA popup disabled for now */}
+      {/* <MfaNotificationPopup
+        isOpen={showMfaPopup && !showWelcomePopup} // Only show after welcome popup is closed
+        onClose={handleCloseMfa}
+        userName={user?.name || "User"}
+      /> */}
       
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-white mb-8">Security Dashboard</h1>
@@ -195,7 +212,6 @@ export const MainDashboard = memo(() => {
             ]}
           />
         </div>
-
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <KPICard title="Overall Risk Score" value="73" type="ring" color="orange" />
@@ -268,7 +284,6 @@ export const MainDashboard = memo(() => {
           </div>
         </div>
 
-
         <div className="glass-card border-green-500/30 shadow-green-500/20 p-6 mb-8">
           <h3 className="text-lg font-semibold text-white mb-4">Guardrail Coverage</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -332,8 +347,6 @@ export const MainDashboard = memo(() => {
               </TableBody>
             </Table>
           </div>
-
-
 
           <div className="glass-card border-blue-500/30 shadow-blue-500/20 p-6">
             <div className="flex items-center justify-between mb-4">
@@ -420,6 +433,7 @@ function HeroCard({ title, accent, href, artSrc, icon: Icon, kpis }: HeroCardPro
             filter: "blur(1px)",
           }}
         />
+        
 
         
         <div className="relative z-10 flex flex-col h-full">

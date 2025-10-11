@@ -18,7 +18,7 @@ const QRCode = ({ value, size = 200 }) => {
       </div>
     );
   }
-  
+
   // Fallback for invalid or missing QR code data
   return (
     <div className="bg-white p-4 rounded-lg inline-block">
@@ -39,4 +39,3 @@ const QRCode = ({ value, size = 200 }) => {
 };
 
 export default QRCode;
-

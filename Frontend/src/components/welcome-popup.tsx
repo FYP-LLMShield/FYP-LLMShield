@@ -24,7 +24,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName =
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
-  
+
   useEffect(() => {
     if (isOpen) {
       setTypedText('');
@@ -47,7 +47,7 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName =
 
   // 2. Get the portal target element from the DOM
   const modalRoot = document.getElementById('modal-root');
-  
+
   // 3. Add a safety check: if the component isn't open or the portal root doesn't exist, render nothing.
   if (!isOpen || !modalRoot) {
     return null;
@@ -123,8 +123,3 @@ const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName =
 };
 
 export default WelcomePopup;
-
-
-
-
-

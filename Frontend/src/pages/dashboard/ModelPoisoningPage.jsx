@@ -1,3 +1,4 @@
+
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Lock, Upload, Play, Download, MessageCircle, AlertTriangle, CheckCircle, FileText } from "lucide-react"
@@ -178,6 +179,7 @@ const ModelPoisoningPage = () => {
             </motion.div>
           )}
         </div>
+
         {/* Sidebar */}
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-purple-900 to-pink-900 p-6 rounded-lg border border-purple-800">
@@ -224,4 +226,3 @@ const ModelPoisoningPage = () => {
 }
 
 export default ModelPoisoningPage
-

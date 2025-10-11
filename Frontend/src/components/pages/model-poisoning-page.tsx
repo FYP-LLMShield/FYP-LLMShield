@@ -268,7 +268,6 @@ export function ModelPoisoningPage() {
               </div>
             </div>
 
-
             {/* Summary Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
@@ -631,4 +630,3 @@ export function ModelPoisoningPage() {
     </div>
   )
 }
-

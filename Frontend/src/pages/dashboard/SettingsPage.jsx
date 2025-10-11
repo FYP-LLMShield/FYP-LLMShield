@@ -1,3 +1,4 @@
+
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Link } from "react-router-dom"
@@ -87,6 +88,7 @@ const SettingsPage = () => {
           </div>
         </div>
       </motion.div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Navigation */}
         <motion.div
@@ -146,6 +148,7 @@ const SettingsPage = () => {
                     />
                   </div>
                 </div>
+
                 <div>
                   <label className="block text-gray-300 text-sm font-medium mb-2">Change Password</label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -368,6 +371,3 @@ const SettingsPage = () => {
 }
 
 export default SettingsPage
-
-
-
