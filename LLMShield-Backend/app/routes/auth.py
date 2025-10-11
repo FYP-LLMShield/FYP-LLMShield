@@ -5,15 +5,10 @@ from app.models.user import (
     UserRegistration, UserLogin, Token, UserResponse, 
     PasswordResetRequest, PasswordReset, ProfileUpdate
 )
-from app.models.password_reset import ForgotPasswordRequest, ResetPasswordRequest
-from app.models.google_auth import GoogleSignInRequest, GoogleSignInResponse
 from app.utils.user_service import user_service
 from app.utils.auth import create_access_token, create_refresh_token, verify_token
 from app.utils.mfa import mfa_utils
-from app.utils.password_reset_service import PasswordResetService
-from app.utils.google_auth import GoogleAuthService
 from app.core.config import settings
-from app.core.database import get_database
 
 router = APIRouter()
 security = HTTPBearer()
@@ -148,7 +143,7 @@ async def login(
             "user": {
                 "id": str(user.id),
                 "email": user.email,
-                "name": user.name,
+                "full_name": user.full_name,
                 "is_verified": user.is_verified,
                 "mfa_enabled": user.mfa_enabled
             }
@@ -247,7 +242,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             "user": {
                 "id": str(user.id),
                 "email": user.email,
-                "name": user.name,
+                "full_name": user.full_name,
                 "is_verified": user.is_verified,
                 "is_active": user.is_active,
                 "created_at": user.created_at,
@@ -300,16 +295,13 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(secu
             detail=f"Token refresh failed: {str(e)}"
         )
 
-@router.post("/forgot-password", response_model=dict)
-async def forgot_password(request: ForgotPasswordRequest):
+@router.post("/request-password-reset", response_model=dict)
+async def request_password_reset(request: PasswordResetRequest):
     """
     Request password reset - sends reset email if user exists
     """
     try:
-        db = await get_database()
-        password_reset_service = PasswordResetService(db)
-        
-        success = await password_reset_service.request_password_reset(request.email)
+        success = await user_service.request_password_reset(request.email)
         
         return {
             "message": "If an account with this email exists, you will receive a password reset email shortly.",
@@ -323,15 +315,12 @@ async def forgot_password(request: ForgotPasswordRequest):
         )
 
 @router.post("/reset-password", response_model=dict)
-async def reset_password(reset_data: ResetPasswordRequest):
+async def reset_password(reset_data: PasswordReset):
     """
     Reset password using valid reset token
     """
     try:
-        db = await get_database()
-        password_reset_service = PasswordResetService(db)
-        
-        success = await password_reset_service.reset_password(
+        success = await user_service.reset_password(
             reset_data.token, 
             reset_data.new_password
         )
@@ -384,7 +373,7 @@ async def update_profile(
             "user": {
                 "id": str(updated_user.id),
                 "email": updated_user.email,
-                "name": updated_user.name,
+                "full_name": updated_user.full_name,
                 "is_verified": updated_user.is_verified,
                 "updated_at": updated_user.updated_at,
                 "mfa_enabled": updated_user.mfa_enabled
@@ -424,59 +413,4 @@ async def logout(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Logout failed: {str(e)}"
-        )
-
-@router.post("/google-signin", response_model=dict)
-async def google_signin(request: GoogleSignInRequest, response: Response):
-    """
-    Authenticate user with Google Sign-In
-    """
-    try:
-        db = await get_database()
-        google_auth_service = GoogleAuthService(db)
-        
-        # Verify Google ID token
-        google_user = await google_auth_service.verify_google_token(request.id_token)
-        if not google_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid Google ID token"
-            )
-        
-        # Get or create user
-        user, is_new_user = await google_auth_service.get_or_create_user(google_user)
-        
-        # Create tokens
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user.email}, expires_delta=access_token_expires
-        )
-        refresh_token = create_refresh_token(data={"sub": user.email})
-        
-        # Update last login
-        await user_service.update_user_last_login(user.email)
-        
-        return {
-            "message": "Google Sign-In successful",
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # seconds
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "name": user.name,
-                "username": user.username,
-                "is_verified": user.is_verified,
-                "profile_picture": user.profile_picture
-            },
-            "is_new_user": is_new_user
-        }
-    
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Google Sign-In failed: {str(e)}"
         )
