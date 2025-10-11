@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -159,7 +160,6 @@ export function ChatPanel({ open, width, onToggle, onResize }: ChatPanelProps) {
       </Button>
     )
   }
-
 
   return (
     <div

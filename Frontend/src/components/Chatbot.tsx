@@ -638,5 +638,3 @@ const Chatbot: React.FC = React.memo(() => {
 });
 
 export default memo(Chatbot);
-
-

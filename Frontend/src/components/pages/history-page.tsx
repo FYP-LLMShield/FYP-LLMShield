@@ -143,7 +143,6 @@ export function HistoryPage() {
     }
   }
 
-
   const filteredHistory = mockHistory.filter((event) => {
     const matchesSearch =
       event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -206,7 +205,6 @@ export function HistoryPage() {
                 <SelectItem value="info">Info</SelectItem>
               </SelectContent>
             </Select>
-
 
             <Popover>
               <PopoverTrigger asChild>

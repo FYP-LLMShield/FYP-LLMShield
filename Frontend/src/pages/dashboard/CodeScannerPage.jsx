@@ -140,7 +140,7 @@ const CodeScannerPage = () => {
               })}
             </div>
 
-             <div className="p-6">
+            <div className="p-6">
               <AnimatePresence mode="wait">
                 {activeTab === "upload" && (
                   <motion.div
@@ -238,7 +238,7 @@ const CodeScannerPage = () => {
                 </div>
               </div>
 
-               {/* Scan Button */}
+              {/* Scan Button */}
               <motion.button
                 onClick={startScan}
                 disabled={isScanning || (!file && activeTab === "upload") || (!repoUrl.trim() && activeTab === "github")}
@@ -381,6 +381,7 @@ const CodeScannerPage = () => {
             </motion.div>
           )}
         </div>
+
         {/* Sidebar */}
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60">
@@ -404,7 +405,8 @@ const CodeScannerPage = () => {
               </div>
             </div>
           </div>
-           <div className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60">
+
+          <div className="bg-gradient-to-br from-purple-900/80 to-pink-900/60 rounded-lg p-6 border border-purple-700/60">
             <h3 className="text-lg font-bold text-white mb-4">AI Assistant</h3>
             <div className="bg-gradient-to-r from-purple-800/80 to-pink-800/60 rounded-lg p-4 mb-4">
               <p className="text-gray-300 text-sm">
@@ -430,7 +432,3 @@ const CodeScannerPage = () => {
 }
 
 export default CodeScannerPage
-
-
-
-
