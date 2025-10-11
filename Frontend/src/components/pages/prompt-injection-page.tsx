@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -151,8 +152,6 @@ export function PromptInjectionPage() {
         return prev + 2
       })
 
-
-
       setCurrentStep((prev) => {
         const newStep = Math.floor((scanProgress / 100) * stepperSteps.length)
         return Math.min(newStep, stepperSteps.length - 1)
@@ -271,8 +270,6 @@ export function PromptInjectionPage() {
               </Card>
             </div>
 
-
-
             {/* Target/Policy Panel */}
             <div className="space-y-8">
               <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
@@ -362,9 +359,6 @@ export function PromptInjectionPage() {
                       <span>Strict</span>
                     </div>
                   </div>
-
-
-
 
                   <div className="space-y-3 pt-6">
                     <Button
@@ -514,7 +508,6 @@ export function PromptInjectionPage() {
                 </CardContent>
               </Card>
 
-
               <Card className="glass-card border-purple-500/30 shadow-purple-500/20">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -654,4 +647,3 @@ export function PromptInjectionPage() {
     </div>
   )
 }
-

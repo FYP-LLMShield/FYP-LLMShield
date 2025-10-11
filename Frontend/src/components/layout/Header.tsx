@@ -229,7 +229,7 @@ const Header: React.FC = () => {
             >
               Contact Us
             </Link>
-
+            
             {/* Mobile Auth Buttons with Theme Toggle */}
             <div className="flex flex-col space-y-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
               <div className="flex items-center justify-between">

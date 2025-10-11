@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState } from "react"
 import { authAPI, mfaAPI } from '../lib/api'
 
@@ -161,6 +162,7 @@ export const AuthProvider = ({ children }) => {
     setMfaStatus({ enabled: false, setupComplete: false, recoveryCodesRemaining: 0 })
     localStorage.removeItem("user")
   }
+
   // MFA-related functions
   const fetchMfaStatus = async () => {
     try {
@@ -361,6 +363,7 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth()
   }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -385,5 +388,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   )
 }
-
-

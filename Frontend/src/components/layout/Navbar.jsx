@@ -1,3 +1,4 @@
+
 import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { motion } from "framer-motion"
@@ -53,8 +54,7 @@ const Navbar = () => {
                 )}
               </Link>
             ))}
-          </div>          
-
+          </div>
 
           {/* Right side buttons */}
           <div className="hidden md:flex items-center space-x-4">
@@ -99,7 +99,6 @@ const Navbar = () => {
           </div>
         </div>
       </div>
-
 
       {/* Mobile Navigation */}
       <motion.div

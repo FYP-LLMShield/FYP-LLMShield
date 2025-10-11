@@ -1,18 +1,18 @@
-"use client"
-import { useState } from "react"
-import type React from "react"
-import { scannerAPI } from '../../lib/api'
+import React, { useState } from "react";
+import { scannerAPI } from '../../lib/api';
+import { ScanResultsDisplay } from '../scanner/ScanResultsDisplay';
 
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card"
-import { Button } from "../ui/button"
-import { Input } from "../ui/input"
-import { Label } from "../ui/label"
-import { Textarea } from "../ui/textarea"
-import { Badge } from "../ui/badge"
-import { Progress } from "../ui/progress"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Switch } from "../ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Badge } from "../ui/badge";
+import { Progress } from "../ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Switch } from "../ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   Upload,
   Play,
@@ -30,10 +30,10 @@ import {
   Target,
   Lock,
   Activity,
-} from "lucide-react"
+} from "lucide-react";
 
-type InputMethod = "code" | "file" | "github"
-type ScanPhase = "setup" | "scanning" | "results"
+type InputMethod = "code" | "file" | "github";
+type ScanPhase = "setup" | "scanning" | "results";
 
 interface Vulnerability {
   id: string
@@ -68,15 +68,19 @@ export function CodeScanningPage() {
     enableMemoryChecks: true,
     enableSecurityRules: true,
     maxSeverity: "all",
+    useCache: true,
+    maxFileSize: 10,
+    maxFiles: 100
   })
+  
+  const [cacheStats, setCacheStats] = useState<any>(null)
+  const [showCacheDialog, setShowCacheDialog] = useState(false)
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setSelectedFiles(Array.from(event.target.files))
     }
   }
-
-
 
   const startScan = async () => {
     try {
@@ -95,7 +99,7 @@ export function CodeScanningPage() {
         throw new Error("Please enter a GitHub repository URL")
       }
 
-      // Simulate progress
+      // Simulate progress with faster updates for better UX
       const progressInterval = setInterval(() => {
         setScanProgress(prev => {
           if (prev >= 90) {
@@ -111,14 +115,24 @@ export function CodeScanningPage() {
         result = await scannerAPI.scanText({ 
           content: codeInput,
           filename: "pasted_code.txt",
-          scan_types: ["secrets", "cpp_vulns"]
+          scan_types: ["cpp_vulns"],
+          use_cache: scanConfig.useCache
         })
       } else if (inputMethod === "file") {
-        result = await scannerAPI.uploadFiles(selectedFiles)
+        result = await scannerAPI.uploadFiles(
+          selectedFiles, 
+          ["cpp_vulns"], 
+          scanConfig.useCache,
+          scanConfig.maxFileSize,
+          scanConfig.maxFiles
+        )
       } else {
         result = await scannerAPI.scanRepository({ 
           repo_url: repoUrl,
-          scan_types: ["secrets", "cpp_vulns"] 
+          scan_types: ["cpp_vulns"],
+          use_cache: scanConfig.useCache,
+          max_file_size_mb: scanConfig.maxFileSize,
+          max_files: scanConfig.maxFiles
         })
       }
 
@@ -153,8 +167,6 @@ export function CodeScanningPage() {
       setScanPhase("setup")
     }
   }
-
-
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -195,6 +207,37 @@ export function CodeScanningPage() {
     setCodeInput("")
     setSelectedFiles([])
     setRepoUrl("")
+  }
+  
+  // Cache management functions
+  const getCacheStats = async () => {
+    try {
+      setError(null)
+      const result = await scannerAPI.getCacheStats()
+      if (result.success) {
+        setCacheStats(result.data)
+        setShowCacheDialog(true)
+      } else {
+        setError(result.error || "Failed to get cache statistics")
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred while getting cache statistics")
+    }
+  }
+  
+  const clearCache = async () => {
+    try {
+      setError(null)
+      const result = await scannerAPI.clearCache()
+      if (result.success) {
+        // Update cache stats after clearing
+        getCacheStats()
+      } else {
+        setError(result.error || "Failed to clear cache")
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred while clearing cache")
+    }
   }
 
   const exportReport = (format: string = 'json') => {
@@ -238,8 +281,86 @@ export function CodeScanningPage() {
     }
   }
 
+  // Function to download PDF report based on input method
+  const downloadPdfReport = async () => {
+    try {
+      setError(null);
+      
+      let pdfBlob;
+      if (inputMethod === "code") {
+        pdfBlob = await scannerAPI.getTextScanPDF({ 
+          content: codeInput,
+          scan_types: ["cpp_vulns"]
+        });
+      } else if (inputMethod === "file") {
+        pdfBlob = await scannerAPI.getUploadScanPDF(selectedFiles, ["cpp_vulns"]);
+      } else if (inputMethod === "github") {
+        pdfBlob = await scannerAPI.getRepositoryScanPDF({ 
+          repo_url: repoUrl,
+          scan_types: ["cpp_vulns"]
+        });
+      }
+      
+      if (pdfBlob && pdfBlob.success && pdfBlob.data) {
+        // Create a download link for the PDF
+        const url = URL.createObjectURL(pdfBlob.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `llmshield-scan-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      setError(`Failed to download PDF report: ${err.message}`);
+    }
+  };
+
   return (
     <div className="min-h-screen p-6" style={{backgroundColor: '#1d2736'}}>
+      {/* Cache Stats Dialog */}
+      <Dialog open={showCacheDialog} onOpenChange={setShowCacheDialog}>
+        <DialogContent className="bg-gray-900 border border-blue-500/30">
+          <DialogHeader>
+            <DialogTitle className="text-white">Cache Statistics</DialogTitle>
+          </DialogHeader>
+          <div className="text-gray-200">
+            {cacheStats ? (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Cache Size:</span>
+                  <span className="font-mono">{cacheStats.size_mb?.toFixed(2) || 0} MB</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Items in Cache:</span>
+                  <span className="font-mono">{cacheStats.items || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Hit Rate:</span>
+                  <span className="font-mono">{((cacheStats.hit_rate || 0) * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Last Cleared:</span>
+                  <span className="font-mono">{cacheStats.last_cleared || 'Never'}</span>
+                </div>
+              </div>
+            ) : (
+              <p>Loading cache statistics...</p>
+            )}
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button 
+              onClick={() => setShowCacheDialog(false)}
+              variant="outline"
+              className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 bg-transparent"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div className="animate-fadeIn">
@@ -317,7 +438,6 @@ export function CodeScanningPage() {
                         />
                       </TabsContent>
 
-
                       <TabsContent value="file" className="animate-fadeIn">
                         <div className="border-2 border-dashed border-purple-500/30 rounded-xl p-8 text-center bg-gradient-to-br from-purple-500/5 to-transparent hover:border-purple-500/50 transition-all duration-300 hover-lift">
                           <Upload className="mx-auto h-12 w-12 text-purple-400 mb-4" />
@@ -352,6 +472,26 @@ export function CodeScanningPage() {
                             </div>
                           </div>
                         )}
+                        
+
+                        
+                        {/* Hidden default values for advanced options */}
+                        <div className="hidden">
+                          <Switch 
+                            checked={scanConfig.useCache} 
+                            onCheckedChange={(checked) => setScanConfig({...scanConfig, useCache: checked})}
+                          />
+                          <Input
+                            type="number"
+                            value={scanConfig.maxFileSize}
+                            onChange={(e) => setScanConfig({...scanConfig, maxFileSize: parseInt(e.target.value) || 10})}
+                          />
+                          <Input
+                            type="number"
+                            value={scanConfig.maxFiles}
+                            onChange={(e) => setScanConfig({...scanConfig, maxFiles: parseInt(e.target.value) || 100})}
+                          />
+                        </div>
                       </TabsContent>
 
                       <TabsContent value="github" className="animate-fadeIn">
@@ -363,6 +503,24 @@ export function CodeScanningPage() {
                               onChange={(e) => setRepoUrl(e.target.value)}
                               placeholder="https://github.com/username/repository"
                               className="bg-white/5 backdrop-blur-md border border-white/10 text-black placeholder-gray-400 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300"
+                            />
+                          </div>
+                          
+                          {/* Hidden default values for advanced options */}
+                          <div className="hidden">
+                            <Switch 
+                              checked={scanConfig.useCache} 
+                              onCheckedChange={(checked) => setScanConfig({...scanConfig, useCache: checked})}
+                            />
+                            <Input
+                              type="number"
+                              value={scanConfig.maxFileSize}
+                              onChange={(e) => setScanConfig({...scanConfig, maxFileSize: parseInt(e.target.value) || 10})}
+                            />
+                            <Input
+                              type="number"
+                              value={scanConfig.maxFiles}
+                              onChange={(e) => setScanConfig({...scanConfig, maxFiles: parseInt(e.target.value) || 100})}
                             />
                           </div>
                         </div>
@@ -381,21 +539,6 @@ export function CodeScanningPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-gray-300 text-sm mb-2 block">Language</Label>
-                        <Select value={scanConfig.language} onValueChange={(value) => setScanConfig({...scanConfig, language: value})}>
-                          <SelectTrigger className="bg-white/5 backdrop-blur-md border border-white/10 text-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cpp">C++</SelectItem>
-                            <SelectItem value="c">C</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
                     <div className="space-y-3">
                       <Button
                         onClick={startScan}
@@ -404,24 +547,11 @@ export function CodeScanningPage() {
                           (inputMethod === "file" && selectedFiles.length === 0) ||
                           (inputMethod === "github" && !repoUrl.trim())
                         )}
-                        size="sm"
-                        className="w-full h-10 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-green-500/30 transition-all duration-300 hover-lift text-sm font-semibold"
+                        size="lg"
+                        className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-blue-500/30 transition-all duration-300 hover-lift text-base font-semibold"
                       >
-                        <Play className="mr-2 h-4 w-4" />
-                        Quick Scan
-                      </Button>
-                      <Button
-                        onClick={startScan}
-                        disabled={(
-                          (inputMethod === "code" && !codeInput.trim()) ||
-                          (inputMethod === "file" && selectedFiles.length === 0) ||
-                          (inputMethod === "github" && !repoUrl.trim())
-                        )}
-                        size="sm"
-                        className="w-full h-10 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-purple-500/30 transition-all duration-300 hover-lift text-sm font-semibold"
-                      >
-                        <Search className="mr-2 h-4 w-4" />
-                        Deep Scan
+                        <Search className="mr-2 h-5 w-5" />
+                        Start Scan
                       </Button>
                     </div>
                   </CardContent>
@@ -430,7 +560,6 @@ export function CodeScanningPage() {
             </div>
           </div>
         )}
-
 
         {scanPhase === "scanning" && (
           <div className="animate-fadeIn">
@@ -448,7 +577,7 @@ export function CodeScanningPage() {
                     <div className="text-gray-300 text-lg font-semibold">Scan Progress</div>
                   </div>
                   <div className="relative">
-                    <Progress value={scanProgress} className="h-6 bg-gray-800/60" />
+                    <Progress value={scanProgress} className="h-6 bg-gray-800/60" indicatorClassName="bg-blue-500" />
                     <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
                       {scanProgress}% Complete
                     </div>
@@ -461,134 +590,42 @@ export function CodeScanningPage() {
 
         {scanPhase === "results" && (
           <div className="space-y-8 animate-fadeIn">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-gradient-to-br from-red-900/60 to-red-800/40 backdrop-blur-md border border-red-500/40 shadow-red-500/30 hover:shadow-red-500/50 hover-lift transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-red-500/20 rounded-xl border border-red-400/30">
-                      <AlertTriangle className="w-8 h-8 text-red-300" />
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'Critical').length}</div>
-                      <div className="text-sm text-red-200 font-semibold">Critical Issues</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-orange-900/60 to-orange-800/40 backdrop-blur-md border border-orange-500/40 shadow-orange-500/30 hover:shadow-orange-500/50 hover-lift transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-400/30">
-                      <Shield className="w-8 h-8 text-orange-300" />
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'High').length}</div>
-                      <div className="text-sm text-orange-200 font-semibold">High Issues</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-yellow-900/60 to-yellow-800/40 backdrop-blur-md border border-yellow-500/40 shadow-yellow-500/30 hover:shadow-yellow-500/50 hover-lift transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-yellow-500/20 rounded-xl border border-yellow-400/30">
-                      <Bug className="w-8 h-8 text-yellow-300" />
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'Medium').length}</div>
-                      <div className="text-sm text-yellow-200 font-semibold">Medium Issues</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-blue-900/60 to-blue-800/40 backdrop-blur-md border border-blue-500/40 shadow-blue-500/30 hover:shadow-blue-500/50 hover-lift transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-400/30">
-                      <Zap className="w-8 h-8 text-blue-300" />
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-white">{vulnerabilities.filter(v => v.severity === 'Low').length}</div>
-                      <div className="text-sm text-blue-200 font-semibold">Low Issues</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex items-center justify-end mb-4">
+              <div className="flex space-x-2">
+                <Button 
+                  onClick={resetScan}
+                  variant="outline" 
+                  className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 bg-transparent hover-lift"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  New Scan
+                </Button>
+                <Button 
+                  onClick={() => exportReport('json')}
+                  variant="outline" 
+                  className="border-green-500/30 text-green-400 hover:bg-green-500/20 bg-transparent hover-lift"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export JSON
+                </Button>
+                <Button 
+                  onClick={downloadPdfReport}
+                  variant="outline" 
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-500/20 bg-transparent hover-lift"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF Report
+                </Button>
+              </div>
             </div>
-
-
-
-            <Card className="glass-card border-purple-500/30 shadow-purple-500/20">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white text-2xl flex items-center gap-3">
-                    <Bug className="w-6 h-6 text-purple-400 animate-pulse" />
-                    Code Analysis Results
-                  </CardTitle>
-                  <div className="flex space-x-2">
-                    <Button 
-                      onClick={resetScan}
-                      variant="outline" 
-                      className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 bg-transparent hover-lift"
-                    >
-                      <Zap className="w-4 h-4 mr-2" />
-                      New Scan
-                    </Button>
-                    <Button 
-                      onClick={() => exportReport('json')}
-                      variant="outline" 
-                      className="border-green-500/30 text-green-400 hover:bg-green-500/20 bg-transparent hover-lift"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Report
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {vulnerabilities.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Shield className="mx-auto h-16 w-16 text-green-400 mb-4" />
-                      <h3 className="text-xl font-semibold text-white mb-2">No Vulnerabilities Found</h3>
-                      <p className="text-gray-400">Your code appears to be secure!</p>
-                    </div>
-                  ) : (
-                    vulnerabilities.map((vuln) => (
-                      <div key={vuln.id} className="bg-gradient-to-r from-gray-800/60 to-gray-700/40 backdrop-blur-md border border-gray-600/30 rounded-xl p-6 space-y-4 hover:from-gray-800/80 hover:to-gray-700/60 transition-all duration-300 shadow-lg hover:shadow-xl">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <Badge className={`${getSeverityColor(vuln.severity)} text-white flex items-center gap-2 px-4 py-2 text-sm font-semibold shadow-lg`}>
-                              {getSeverityIcon(vuln.severity)}
-                              {vuln.severity}
-                            </Badge>
-                            <span className="text-white font-bold text-xl">{vuln.type}</span>
-                            <span className="text-gray-300 text-sm bg-gray-700/50 px-3 py-1 rounded-full border border-gray-600/30">{vuln.cwe}</span>
-                          </div>
-                          <div className="text-sm text-gray-300 bg-gray-800/60 px-4 py-2 rounded-lg border border-gray-600/30 font-mono">
-                            {vuln.file}:{vuln.line}:{vuln.column}
-                          </div>
-                        </div>
-
-                        <p className="text-gray-100 text-lg leading-relaxed">{vuln.description}</p>
-
-                        <div className="bg-gray-900/80 rounded-xl p-5 border border-gray-600/40 shadow-inner">
-                          <Label className="text-gray-300 text-sm font-bold uppercase tracking-wider mb-3 block">Code Snippet</Label>
-                          <pre className="text-sm text-green-300 font-mono bg-black/40 p-4 rounded-lg border border-gray-700/50 overflow-x-auto">
-                            <code>{vuln.codeSnippet}</code>
-                          </pre>
-                        </div>
-
-                        <div className="bg-gradient-to-r from-blue-900/60 to-indigo-900/40 rounded-xl p-5 border border-blue-500/30 shadow-inner">
-                          <Label className="text-blue-200 text-sm font-bold uppercase tracking-wider mb-3 block">Recommendation</Label>
-                          <p className="text-blue-100 text-lg leading-relaxed">{vuln.recommendation}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            
+            {/* Use the shared ScanResultsDisplay component */}
+            <ScanResultsDisplay 
+              scanResults={scanResults} 
+              vulnerabilities={vulnerabilities} 
+              inputMethod={inputMethod}
+              onDownloadPDF={downloadPdfReport}
+            />
           </div>
         )}
       </div>

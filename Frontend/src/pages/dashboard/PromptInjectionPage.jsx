@@ -336,7 +336,7 @@ const PromptInjectionPage = () => {
             </motion.div>
           )}
         </div>
-           
+
         {/* Sidebar */}
         <div className="lg:col-span-1">
 

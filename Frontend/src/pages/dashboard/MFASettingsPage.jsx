@@ -106,6 +106,7 @@ const MFASettingsPage = () => {
       setIsLoading(false)
     }
   }
+
   const copyToClipboard = async (text, item) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -197,6 +198,7 @@ const MFASettingsPage = () => {
           Enter the 6-digit code from your authenticator app to complete setup
         </p>
       </div>
+
       <div className="space-y-4">
           <div className="bg-white p-6 rounded-lg">
             <TOTPInput
@@ -409,6 +411,7 @@ const MFASettingsPage = () => {
                   )}
                 </div>
               )}
+
               <div className="border-t border-gray-700 pt-6">
                  <button
                    onClick={() => setShowDisableMFA(true)}
@@ -524,7 +527,3 @@ const DisableMFAForm = memo(({
 ))
 
 export default MFASettingsPage
-
-
-
-
