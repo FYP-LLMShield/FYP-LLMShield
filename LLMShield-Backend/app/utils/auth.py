@@ -1,22 +1,14 @@
-# app/utils/auth.py - FIXED VERSION
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, status
 from app.core.config import settings
-from app.core.database import get_database
-from app.utils.user_service import user_service  # Use the global instance
-from app.models.user import UserInDB
 import secrets
 import string
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Security scheme
-security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against its hash"""
@@ -65,41 +57,6 @@ def verify_token(token: str, token_type: str = "access"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> UserInDB:
-    """
-    Dependency to get current authenticated user
-    FIXED: Use global user_service instance instead of creating new one
-    """
-    try:
-        # Extract token from credentials
-        token = credentials.credentials
-        
-        # Verify and decode the token
-        email = verify_token(token, "access")
-        
-        # Get user from database using global user_service
-        user = await user_service.get_user_by_email(email)
-        
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        return user
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
