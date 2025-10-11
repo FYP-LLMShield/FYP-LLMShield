@@ -20,11 +20,9 @@ from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.routes.auth import router as auth_router
 from app.routes.mfa import router as mfa_router
-from app.routes.email_verification import router as email_verification_router
 
 # Import the unified security scanner components
 from app.routes.scanner import router as scanner_router
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -65,11 +63,6 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/auth/mfa", 
     tags=["Multi-Factor Authentication"]
 )
-app.include_router(
-    email_verification_router, 
-    prefix=f"{settings.API_V1_STR}/auth", 
-    tags=["Email Verification"]
-)
 # Add the security scanner router
 app.include_router(
     scanner_router, 
@@ -77,14 +70,6 @@ app.include_router(
     tags=["Security Scanner"]
 )
 
-
-@app.on_event("startup")
-async def startup_event():
-    await connect_to_mongo()
-
-@app.on_event("shutdown") 
-async def shutdown_event():
-    await close_mongo_connection()
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
@@ -146,11 +131,6 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    import logging
-    
-    # Configure logging to show INFO level messages
-    logging.basicConfig(level=logging.INFO)
-    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

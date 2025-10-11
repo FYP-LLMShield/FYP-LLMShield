@@ -25,36 +25,27 @@ class PyObjectId(ObjectId):
 class UserRegistration(BaseModel):
     email: EmailStr
     password: str
-    username: str
-    name: str
-
-class UserCreate(BaseModel):
-    """Model for creating new users with email verification"""
-    email: EmailStr
-    username: str
-    name: str
-    display_name: str = ""
-    password: str
-
-    @validator('username')
-    def validate_username(cls, v):
+    full_name: str
+    
+    @validator('full_name')
+    def validate_full_name(cls, v):
         if not v or not v.strip():
-            raise ValueError('Username is required')
-        if len(v.strip()) < 3:
-            raise ValueError('Username must be at least 3 characters long')
-        if len(v.strip()) > 50:
-            raise ValueError('Username must be at most 50 characters long')
+            raise ValueError('Full name is required')
+        if len(v.strip()) < 2:
+            raise ValueError('Full name must be at least 2 characters long')
         return v.strip()
-
+    
     @validator('password')
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one digit')
         return v
-
-class MessageResponse(BaseModel):
-    """Generic message response model"""
-    message: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -84,34 +75,9 @@ class PasswordReset(BaseModel):
         return v
 
 class ProfileUpdate(BaseModel):
-    username: Optional[str] = None
-    name: Optional[str] = None
+    full_name: Optional[str] = None
     current_password: Optional[str] = None
     new_password: Optional[str] = None
-    
-    @validator('username')
-    def validate_username(cls, v):
-        if v is not None:
-            if not v or not v.strip():
-                raise ValueError('Username is required')
-            if len(v.strip()) < 3:
-                raise ValueError('Username must be at least 3 characters long')
-            if len(v.strip()) > 20:
-                raise ValueError('Username must be at most 20 characters long')
-            # Allow only alphanumeric characters and underscores
-            if not v.replace('_', '').isalnum():
-                raise ValueError('Username can only contain letters, numbers, and underscores')
-            return v.strip().lower()
-        return v
-    
-    @validator('name')
-    def validate_name(cls, v):
-        if v is not None:
-            if not v or not v.strip():
-                raise ValueError('Name is required')
-            if len(v.strip()) < 2:
-                raise ValueError('Name must be at least 2 characters long')
-        return v.strip() if v else v
     
     @validator('new_password')
     def validate_password(cls, v):
@@ -129,19 +95,13 @@ class ProfileUpdate(BaseModel):
 class UserInDB(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     email: EmailStr
-    hashed_password: Optional[str] = None  # Optional for Google users
-    username: str
-    name: str
+    hashed_password: str
+    full_name: str
     is_verified: bool = False
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
-    
-    # Google OAuth fields
-    google_id: Optional[str] = None
-    profile_picture: Optional[str] = None
-    display_name: Optional[str] = ""
     
     # Account management
     verification_token: Optional[str] = None
@@ -171,8 +131,7 @@ class UserInDB(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: EmailStr
-    username: str
-    name: str
+    full_name: str
     is_verified: bool
     is_active: bool
     created_at: datetime

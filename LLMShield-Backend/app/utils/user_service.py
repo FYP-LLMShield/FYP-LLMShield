@@ -56,21 +56,11 @@ class UserService:
         # Generate verification token
         verification_token = secrets.token_urlsafe(32)
 
-        # Check if username already exists
-        existing_username = await collection.find_one({"username": user_data.username})
-        if existing_username:
-            from fastapi import HTTPException, status
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already taken"
-            )
-
         # Create user document
         user_dict = {
             "email": user_data.email,
             "hashed_password": hashed_password,
-            "username": user_data.username,
-            "name": user_data.name,
+            "full_name": user_data.full_name,
             "is_verified": False,
             "is_active": True,
             "created_at": datetime.utcnow(),
@@ -102,15 +92,6 @@ class UserService:
         """Get user by email"""
         collection = await self.get_collection()
         user_data = await collection.find_one({"email": email})
-        
-        if user_data:
-            return UserInDB(**user_data)
-        return None
-    
-    async def get_user_by_username(self, username: str) -> Optional[UserInDB]:
-        """Get user by username"""
-        collection = await self.get_collection()
-        user_data = await collection.find_one({"username": username.lower()})
         
         if user_data:
             return UserInDB(**user_data)
@@ -216,24 +197,9 @@ class UserService:
         # Prepare update document
         update_doc = {"updated_at": datetime.utcnow()}
         
-        # Handle username update
-        if "username" in update_data and update_data["username"]:
-            # Check if username is already taken by another user
-            existing_username = await collection.find_one({
-                "username": update_data["username"],
-                "email": {"$ne": email}  # Exclude current user
-            })
-            if existing_username:
-                from fastapi import HTTPException, status
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Username already taken"
-                )
-            update_doc["username"] = update_data["username"].strip().lower()
-        
-        # Handle name update
-        if "name" in update_data and update_data["name"]:
-            update_doc["name"] = update_data["name"].strip()
+        # Handle full name update
+        if "full_name" in update_data and update_data["full_name"]:
+            update_doc["full_name"] = update_data["full_name"].strip()
         
         # Handle password change
         if update_data.get("current_password") and update_data.get("new_password"):

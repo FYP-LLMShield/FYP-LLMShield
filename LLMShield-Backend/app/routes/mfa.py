@@ -161,6 +161,7 @@ async def complete_mfa_setup(
             detail=f"Failed to complete MFA setup: {str(e)}"
         )
 
+
 @router.post("/verify", response_model=dict)
 async def verify_mfa_code(
     verify_request: MFAVerifyRequest,
