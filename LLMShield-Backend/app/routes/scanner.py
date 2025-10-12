@@ -18,13 +18,25 @@ from collections import Counter, defaultdict
 import concurrent.futures
 from functools import partial
 from datetime import datetime
+import hashlib
+import time
+
+#pdf generation
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from io import BytesIO
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-# Import authentication dependencies (commented out for debugging)
-# from app.routes.auth import get_current_user
-# from app.models.user import User
+# Import authentication dependencies
+from app.utils.auth import get_current_user
+from app.models.user import UserInDB
+from app.services.scan_history_service import save_scan_to_history
 
 try:
     from git import Repo
@@ -34,6 +46,36 @@ except ImportError:
     print("Warning: GitPython not installed. GitHub scanning disabled.")
 
 router = APIRouter()
+
+# Cache for GitHub scans
+_SCAN_CACHE = {}  # {repo_hash: (timestamp, scan_response)}
+CACHE_TTL_SECONDS = 3600  # 1 hour
+
+def get_repo_cache_key(repo_url: str, branch: Optional[str], scan_types: List[str]) -> str:
+    """Generate cache key for repo scan."""
+    cache_string = f"{repo_url}:{branch or 'default'}:{','.join(sorted(scan_types))}"
+    return hashlib.sha256(cache_string.encode()).hexdigest()
+
+def get_cached_scan(cache_key: str) -> Optional[dict]:
+    """Get cached scan if still valid."""
+    if cache_key in _SCAN_CACHE:
+        timestamp, response = _SCAN_CACHE[cache_key]
+        if time.time() - timestamp < CACHE_TTL_SECONDS:
+            return response
+        else:
+            del _SCAN_CACHE[cache_key]
+    return None
+
+def cache_scan(cache_key: str, response: dict):
+    """Cache scan response."""
+    _SCAN_CACHE[cache_key] = (time.time(), response)
+    
+    # Cleanup old cache entries
+    current_time = time.time()
+    keys_to_delete = [k for k, (ts, _) in _SCAN_CACHE.items() 
+                      if current_time - ts > CACHE_TTL_SECONDS]
+    for k in keys_to_delete:
+        del _SCAN_CACHE[k]
 
 # =========================
 # Models & Configuration
@@ -52,6 +94,7 @@ class RepoScanRequest(BaseModel):
     scan_types: List[str] = Field(default=["secrets", "cpp_vulns"], description="Types to scan: 'secrets', 'cpp_vulns'")
     max_file_size_mb: Optional[float] = Field(default=1.0, description="Skip files larger than this (MB)")
     max_files: Optional[int] = Field(default=500, description="Maximum files to scan")
+    use_cache: Optional[bool] = Field(default=True, description="Use cached results if available")
 
 class FindingModel(BaseModel):
     type: str
@@ -96,7 +139,6 @@ class ExecutiveSummary(BaseModel):
     files_affected: int
     critical_issues: int
     immediate_actions_required: int
-    estimated_fix_time: str = Field(default="", description="Rough estimate for fixing all issues")
     top_risks: List[str] = Field(default_factory=list, description="Top 3 risk categories")
     compliance_concerns: List[str] = Field(default_factory=list, description="CWE/Security standard violations")
 
@@ -120,18 +162,18 @@ class ScanResponse(BaseModel):
     method: str
     scan_types: List[str]
     
-    # Executive Summary (NEW)
+    # Executive Summary
     executive_summary: ExecutiveSummary
     
     # Results
     total_findings: int
     findings: List[FindingModel]
     
-    # Enhanced Analytics (NEW)
+    # Enhanced Analytics 
     severity_distribution: SeverityDistribution
     category_breakdown: CategoryBreakdown
     
-    # Top Issues (NEW)
+    # Top Issues (
     critical_findings: List[FindingModel] = Field(default_factory=list, description="Critical issues requiring immediate attention")
     most_affected_files: List[FileIssues] = Field(default_factory=list, description="Files with most issues")
     
@@ -935,6 +977,387 @@ def create_enhanced_response(
     
     return response
 
+
+def add_page_numbers(canvas_obj, doc):
+    """Add page numbers and footer to PDF."""
+    canvas_obj.saveState()
+    canvas_obj.setFont('Helvetica', 8)
+    page_num = canvas_obj.getPageNumber()
+    canvas_obj.drawRightString(7.5*inch, 0.5*inch, f"Page {page_num}")
+    canvas_obj.drawString(inch, 0.5*inch, "LLMShield Security Report")
+    canvas_obj.drawCentredString(4.25*inch, 0.5*inch, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    canvas_obj.restoreState()
+
+def get_severity_color(severity: str) -> colors.Color:
+    """Get background color for severity."""
+    color_map = {
+        "Critical": colors.HexColor('#ffe6e6'),
+        "High": colors.HexColor('#fff3e6'),
+        "Medium": colors.HexColor('#fffbe6'),
+        "Low": colors.HexColor('#e6f3ff'),
+        "Info": colors.HexColor('#f5f5f5')
+    }
+    return color_map.get(severity, colors.white)
+
+def generate_pdf_report(scan_response: ScanResponse) -> bytes:
+    """Generate professional ISO-style PDF report with optimized layout."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=letter,
+        topMargin=0.5*inch,
+        bottomMargin=0.5*inch,
+        leftMargin=0.75*inch,
+        rightMargin=0.75*inch
+    )
+    
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Custom Styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=26,
+        textColor=colors.HexColor('#1a472a'),
+        spaceAfter=8,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Normal'],
+        fontSize=14,
+        textColor=colors.HexColor('#2ecc71'),
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    heading_style = ParagraphStyle(
+        'SectionHeading',
+        parent=styles['Heading2'],
+        fontSize=13,
+        textColor=colors.white,
+        spaceAfter=10,
+        spaceBefore=15,
+        fontName='Helvetica-Bold',
+        backColor=colors.HexColor('#34495e'),
+        leftIndent=10,
+        rightIndent=10,
+        leading=18
+    )
+    
+    subheading_style = ParagraphStyle(
+        'SubHeading',
+        parent=styles['Heading3'],
+        fontSize=11,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=8,
+        spaceBefore=10,
+        fontName='Helvetica-Bold'
+    )
+    
+    info_style = ParagraphStyle(
+        'InfoText',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#34495e'),
+        alignment=TA_LEFT,
+        leading=12
+    )
+    
+    # ==================== COVER PAGE ====================
+    story.append(Spacer(1, 1*inch))
+    
+    # Logo
+    try:
+        from reportlab.platypus import Image
+        logo = Image('llmshield_logo.png', width=2.5*inch, height=0.8*inch)
+        logo.hAlign = 'CENTER'
+        story.append(logo)
+        story.append(Spacer(1, 0.3*inch))
+    except:
+        logo_text = Paragraph(
+            '<font size=28 color="#2ecc71"><b>LLM</b></font><font size=28><b>Shield</b></font>',
+            ParagraphStyle('Logo', alignment=TA_CENTER)
+        )
+        story.append(logo_text)
+        story.append(Spacer(1, 0.2*inch))
+    
+    # Title
+    story.append(Paragraph("SECURITY ASSESSMENT REPORT", title_style))
+    story.append(Paragraph("Comprehensive Vulnerability Analysis", subtitle_style))
+    
+    story.append(Spacer(1, 0.5*inch))
+    
+    # Cover Info
+    exec_sum = scan_response.executive_summary
+    risk_color = {
+        'CRITICAL': colors.HexColor('#e74c3c'),
+        'HIGH': colors.HexColor('#e67e22'),
+        'MEDIUM': colors.HexColor('#f39c12'),
+        'LOW': colors.HexColor('#3498db'),
+        'SAFE': colors.HexColor('#2ecc71')
+    }.get(exec_sum.risk_level, colors.grey)
+    
+    cover_info = [
+        ['Scan Method:', scan_response.method.upper()],
+        ['Assessment Date:', scan_response.timestamp[:10]],
+        ['Scan Type:', ', '.join(scan_response.scan_types).upper()],
+        ['Scan ID:', scan_response.scan_id],
+        ['', ''],
+        ['Overall Risk Level:', exec_sum.risk_level],
+    ]
+    
+    cover_table = Table(cover_info, colWidths=[2.2*inch, 3.8*inch])
+    cover_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TEXTCOLOR', (1, 5), (1, 5), risk_color),
+        ('FONTSIZE', (1, 5), (1, 5), 16),
+        ('FONTNAME', (1, 5), (1, 5), 'Helvetica-Bold'),
+        ('LINEBELOW', (0, 4), (-1, 4), 1, colors.grey),
+    ]))
+    
+    story.append(cover_table)
+    story.append(Spacer(1, 0.8*inch))
+    
+    # Key Metrics Box
+    metrics_data = [
+        ['Total Issues', 'Files Affected', 'Critical Issues'],
+        [str(exec_sum.total_issues), str(exec_sum.files_affected), str(exec_sum.critical_issues)]
+    ]
+    
+    metrics_table = Table(metrics_data, colWidths=[2*inch, 2*inch, 2*inch])
+    metrics_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (-1, 1), 16),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 1), (-1, 1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#ecf0f1')),
+    ]))
+    story.append(metrics_table)
+    
+    story.append(Spacer(1, 0.3*inch))
+    conf_text = Paragraph(
+        '<i>CONFIDENTIAL - This report contains sensitive security information</i>',
+        ParagraphStyle('Conf', parent=info_style, alignment=TA_CENTER, textColor=colors.grey, fontSize=8)
+    )
+    story.append(conf_text)
+    
+    story.append(PageBreak())
+    
+    # ==================== EXECUTIVE SUMMARY (Compact) ====================
+    story.append(Paragraph("Executive Summary", heading_style))
+    story.append(Spacer(1, 0.15*inch))
+    
+    # Two column layout for charts
+    from reportlab.platypus import Table as PLTable
+    from reportlab.graphics.shapes import Drawing
+    from reportlab.graphics.charts.piecharts import Pie
+    from reportlab.graphics.charts.barcharts import VerticalBarChart
+    
+    # Severity Pie Chart
+    sev_dist = scan_response.severity_distribution
+    pie_drawing = Drawing(280, 180)
+    
+    pie = Pie()
+    pie.x = 60
+    pie.y = 20
+    pie.width = 100
+    pie.height = 100
+    
+    pie_data = []
+    pie_labels = []
+    pie_colors = []
+    
+    severity_items = [
+        (sev_dist.critical, 'Critical', colors.HexColor('#e74c3c')),
+        (sev_dist.high, 'High', colors.HexColor('#e67e22')),
+        (sev_dist.medium, 'Medium', colors.HexColor('#f39c12')),
+        (sev_dist.low, 'Low', colors.HexColor('#3498db')),
+        (sev_dist.info, 'Info', colors.HexColor('#95a5a6'))
+    ]
+    
+    for count, label, color in severity_items:
+        if count > 0:
+            pie_data.append(count)
+            pie_labels.append(f'{label}: {count}')
+            pie_colors.append(color)
+    
+    pie.data = pie_data
+    pie.labels = pie_labels
+    pie.slices.strokeWidth = 0.5
+    pie.slices.fontSize = 8
+    
+    for i, color in enumerate(pie_colors):
+        pie.slices[i].fillColor = color
+    
+    pie_drawing.add(pie)
+    
+    # Bar Chart
+    cat_break = scan_response.category_breakdown
+    bar_drawing = Drawing(280, 180)
+    
+    bc = VerticalBarChart()
+    bc.x = 40
+    bc.y = 30
+    bc.height = 110
+    bc.width = 200
+    bc.data = [[cat_break.secrets, cat_break.cpp_vulnerabilities]]
+    
+    bc.categoryAxis.categoryNames = ['Secrets', 'C++ Vulns']
+    bc.categoryAxis.labels.fontSize = 8
+    bc.categoryAxis.labels.angle = 0
+    bc.categoryAxis.labels.boxAnchor = 'n'
+    
+    bc.valueAxis.valueMin = 0
+    bc.valueAxis.valueMax = max(cat_break.secrets, cat_break.cpp_vulnerabilities, 1) * 1.2
+    bc.valueAxis.labels.fontSize = 8
+    
+    bc.bars[0].fillColor = colors.HexColor('#e74c3c')
+    bc.bars.strokeColor = colors.black
+    bc.bars.strokeWidth = 0.5
+    
+    bar_drawing.add(bc)
+    
+    # Side by side charts
+    chart_table = PLTable(
+        [[Paragraph("<b>Severity Distribution</b>", subheading_style), 
+          Paragraph("<b>Issue Categories</b>", subheading_style)],
+         [pie_drawing, bar_drawing]],
+        colWidths=[3*inch, 3*inch]
+    )
+    chart_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    
+    story.append(chart_table)
+    story.append(Spacer(1, 0.2*inch))
+    
+    # ==================== RISK ASSESSMENT ====================
+    story.append(Paragraph("Risk Assessment & Compliance", heading_style))
+    story.append(Spacer(1, 0.1*inch))
+    
+    if exec_sum.top_risks:
+        risk_text = "<b>Top Risk Areas:</b> " + ", ".join(exec_sum.top_risks[:3])
+        story.append(Paragraph(risk_text, info_style))
+        story.append(Spacer(1, 0.08*inch))
+    
+    if exec_sum.compliance_concerns:
+        compliance_text = "<b>CWE Violations:</b> " + ", ".join(exec_sum.compliance_concerns[:5])
+        story.append(Paragraph(compliance_text, info_style))
+    
+    story.append(Spacer(1, 0.2*inch))
+    
+    # ==================== RECOMMENDATIONS (Compact) ====================
+    story.append(Paragraph("Strategic Recommendations", heading_style))
+    story.append(Spacer(1, 0.1*inch))
+    
+    for idx, rec in enumerate(scan_response.recommendations[:5], 1):
+        clean_rec = rec.replace('🔴', '[CRITICAL]').replace('🟠', '[HIGH]').replace('🛡️', '').replace('📋', '').replace('🔍', '')
+        rec_text = Paragraph(f"<b>{idx}.</b> {clean_rec}", info_style)
+        story.append(rec_text)
+        story.append(Spacer(1, 0.08*inch))
+    
+    story.append(Spacer(1, 0.15*inch))
+    
+    # ==================== NEXT STEPS (Compact) ====================
+    story.append(Paragraph("Immediate Next Steps", heading_style))
+    story.append(Spacer(1, 0.1*inch))
+    
+    for step in scan_response.next_steps[:5]:
+        clean_step = step.replace('📧', '').replace('🔴', '').replace('🟠', '')
+        step_text = Paragraph(f"• {clean_step}", info_style)
+        story.append(step_text)
+        story.append(Spacer(1, 0.08*inch))
+    
+    # ==================== MOST AFFECTED FILES ====================
+    if scan_response.most_affected_files:
+        story.append(Spacer(1, 0.15*inch))
+        story.append(Paragraph("Most Affected Files", heading_style))
+        story.append(Spacer(1, 0.1*inch))
+        
+        file_data = [['File', 'Issues', 'Critical', 'High']]
+        for file_issue in scan_response.most_affected_files[:8]:
+            file_data.append([
+                Paragraph(file_issue.filename[-35:], info_style),
+                str(file_issue.issue_count),
+                str(file_issue.critical_count),
+                str(file_issue.high_count)
+            ])
+        
+        file_table = PLTable(file_data, colWidths=[3.5*inch, 0.8*inch, 0.8*inch, 0.8*inch])
+        file_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+        ]))
+        story.append(file_table)
+    
+    # ==================== DETAILED FINDINGS ====================
+    if scan_response.findings:
+        story.append(PageBreak())
+        story.append(Paragraph("Detailed Findings", heading_style))
+        story.append(Spacer(1, 0.15*inch))
+        
+        for idx, finding in enumerate(scan_response.findings, 1):
+            finding_box_data = [
+                [Paragraph(f"<b>Finding #{idx}: {finding.type}</b>", info_style), 
+                 Paragraph(f"<b>Severity: {finding.severity}</b>", info_style)],
+                [Paragraph(f"<b>File:</b> {finding.file}", info_style), 
+                 Paragraph(f"<b>Line:</b> {finding.line}", info_style)],
+                [Paragraph(f"<b>Confidence:</b> {finding.confidence_label} ({finding.confidence:.0%})", info_style),
+                Paragraph(f"<b>Priority:</b> Rank {finding.priority_rank}/5", info_style)],
+                [Paragraph('<b>Message:</b>', info_style), 
+                 Paragraph(finding.message, info_style)],
+                [Paragraph('<b>Remediation:</b>', info_style), 
+                 Paragraph(finding.remediation[:150] + ('...' if len(finding.remediation) > 150 else ''), info_style)]
+            ]
+            
+            finding_table = PLTable(finding_box_data, colWidths=[1.3*inch, 4.7*inch])
+            severity_bg = get_severity_color(finding.severity)
+            finding_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), severity_bg), 
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP')
+            ]))
+            
+            story.append(finding_table)
+            story.append(Spacer(1, 0.12*inch))
+            
+            if idx % 6 == 0 and idx < len(scan_response.findings):
+                story.append(PageBreak())
+        
+        
+    
+    # Build PDF
+    doc.build(story, onFirstPage=add_page_numbers, onLaterPages=add_page_numbers)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
 # =========================
 # API Endpoints
 # =========================
@@ -988,7 +1411,7 @@ async def scanner_info():
 @router.post("/text", response_model=ScanResponse)
 async def scan_text(
     request: TextScanRequest,
-    # current_user: User = Depends(get_current_user)  # Commented out for debugging
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """Scan pasted text content."""
     if not request.content.strip():
@@ -1005,17 +1428,35 @@ async def scan_text(
         stats = {
             "lines_scanned": len(request.content.splitlines()),
             "content_size_bytes": len(request.content.encode('utf-8')),
-            "scan_method": "text_paste"
-            # "user": current_user.email  # Commented out for debugging
+            "scan_method": "text_paste",
+            "user": current_user.email
         }
         
-        return create_enhanced_response(
+        response = create_enhanced_response(
             method="text",
             scan_types=request.scan_types,
             findings=findings,
             stats=stats,
             start_time=start_time
         )
+        
+        # Save scan to history
+        print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
+        try:
+            await save_scan_to_history(
+                user_id=str(current_user.id),
+                scan_response=response,
+                input_type="text",
+                input_size=len(request.content.encode('utf-8'))
+            )
+            print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
+        except Exception as history_error:
+            print(f"Warning: Failed to save scan to history: {str(history_error)}")
+            import traceback
+            traceback.print_exc()
+            # Continue with the response even if history saving fails
+        
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
 
@@ -1023,7 +1464,7 @@ async def scan_text(
 async def scan_upload(
     file: UploadFile = File(...),
     scan_types: str = "secrets,cpp_vulns",
-    # current_user: User = Depends(get_current_user)  # Commented out for debugging
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """Upload and scan file or ZIP archive."""
     if not file.filename:
@@ -1085,22 +1526,164 @@ async def scan_upload(
                 stats["is_binary"] = False
                 stats["files_scanned"] = 1
             
-            return create_enhanced_response(
+            response = create_enhanced_response(
                 method="upload",
                 scan_types=scan_types_list,
                 findings=findings,
                 stats=stats,
                 start_time=start_time
             )
+            
+            # Save scan to history
+            print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
+            try:
+                await save_scan_to_history(
+                    user_id=str(current_user.id),
+                    scan_response=response,
+                    input_type="file_upload",
+                    input_size=len(content)
+                )
+                print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
+            except Exception as history_error:
+                print(f"Warning: Failed to save scan to history: {str(history_error)}")
+                import traceback
+                traceback.print_exc()
+                # Continue with the response even if history saving fails
+            
+            return response
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload scan failed: {str(e)}")
 
+@router.post("/text/pdf")
+async def scan_text_pdf(request: TextScanRequest):
+    """Scan text and return PDF report."""
+    if not request.content.strip():
+        raise HTTPException(status_code=400, detail="Content cannot be empty")
+    
+    valid_types = {"secrets", "cpp_vulns"}
+    if not all(t in valid_types for t in request.scan_types):
+        raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
+    
+    try:
+        start_time = datetime.now()
+        findings = scan_text_content(request.content, request.filename, request.scan_types)
+        
+        stats = {
+            "lines_scanned": len(request.content.splitlines()),
+            "content_size_bytes": len(request.content.encode('utf-8')),
+            "scan_method": "text_paste"
+        }
+        
+        scan_response = create_enhanced_response(
+            method="text",
+            scan_types=request.scan_types,
+            findings=findings,
+            stats=stats,
+            start_time=start_time
+        )
+        
+        pdf_bytes = generate_pdf_report(scan_response)
+        
+        from fastapi.responses import Response
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=security_report_{scan_response.scan_id}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+
+@router.post("/upload/pdf")
+async def scan_upload_pdf(
+    file: UploadFile = File(...),
+    scan_types: str = "secrets,cpp_vulns"
+):
+    """Upload file and return PDF report."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename required")
+    
+    scan_types_list = [t.strip() for t in scan_types.split(",") if t.strip()]
+    if not scan_types_list:
+        scan_types_list = ["secrets", "cpp_vulns"]
+    
+    valid_types = {"secrets", "cpp_vulns"}
+    if not all(t in valid_types for t in scan_types_list):
+        raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
+    
+    try:
+        start_time = datetime.now()
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            uploaded_file = temp_path / file.filename
+            
+            content = await file.read()
+            uploaded_file.write_bytes(content)
+            
+            findings = []
+            stats = {"file_size": len(content), "upload_filename": file.filename}
+            
+            if uploaded_file.suffix.lower() == ".zip":
+                try:
+                    with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
+                        extract_path = temp_path / "extracted"
+                        zip_ref.extractall(extract_path)
+                        
+                        files_to_scan = []
+                        for root, _, files in os.walk(extract_path):
+                            for fname in files:
+                                fpath = Path(root) / fname
+                                if fpath.suffix.lower() in ALL_EXTS and fpath.stat().st_size < MAX_FILE_SIZE:
+                                    files_to_scan.append((fpath, extract_path, scan_types_list, 1.0))
+                        
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                            results = executor.map(scan_file_parallel, files_to_scan)
+                            for file_findings in results:
+                                findings.extend(file_findings)
+                        
+                        stats["archive_type"] = "zip"
+                        stats["files_scanned"] = len(files_to_scan)
+                        stats["total_files_in_archive"] = sum(1 for _ in extract_path.rglob("*") if _.is_file())
+                except zipfile.BadZipFile:
+                    raise HTTPException(status_code=400, detail="Invalid ZIP file")
+            else:
+                if not is_binary_file(content):
+                    text = content.decode('utf-8', errors='ignore')
+                    findings = scan_text_content(text, file.filename, scan_types_list)
+                    stats["lines_scanned"] = len(text.splitlines())
+                else:
+                    raise HTTPException(status_code=400, detail="Binary files not supported")
+                stats["is_binary"] = False
+                stats["files_scanned"] = 1
+            
+            scan_response = create_enhanced_response(
+                method="upload",
+                scan_types=scan_types_list,
+                findings=findings,
+                stats=stats,
+                start_time=start_time
+            )
+            
+            pdf_bytes = generate_pdf_report(scan_response)
+            
+            from fastapi.responses import Response
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=security_report_{scan_response.scan_id}.pdf"}
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+    
 @router.post("/github", response_model=ScanResponse)
 async def scan_github(
     request: RepoScanRequest,
-    # current_user: User = Depends(get_current_user)  # Commented out for debugging
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """Clone and scan GitHub repository - HIGHLY OPTIMIZED VERSION."""
     if not _GIT_OK:
@@ -1109,7 +1692,12 @@ async def scan_github(
     valid_types = {"secrets", "cpp_vulns"}
     if not all(t in valid_types for t in request.scan_types):
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
-    
+    # Check cache first
+    if request.use_cache:
+        cache_key = get_repo_cache_key(request.repo_url, request.branch, request.scan_types)
+        cached = get_cached_scan(cache_key)
+        if cached:
+            return ScanResponse(**cached)
     max_file_size_mb = request.max_file_size_mb or 0.5  # Reduced default to 0.5MB
     max_files = request.max_files or 200  # Reduced default to 200 files
     
@@ -1245,7 +1833,169 @@ async def scan_github(
                 "scan_method": "github_clone"
             }
             
-            return create_enhanced_response(
+            scan_response = create_enhanced_response(
+            method="github",
+            scan_types=request.scan_types,
+            findings=unique_findings,
+            stats=stats,
+            start_time=start_time
+        )
+
+        # ✅ Save to cache before returning
+        if request.use_cache:
+            cache_key = get_repo_cache_key(request.repo_url, request.branch, request.scan_types)
+            cache_scan(cache_key, scan_response.dict())
+
+        # Save scan to history
+        print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
+        try:
+            await save_scan_to_history(
+                user_id=str(current_user.id),
+                scan_response=scan_response,
+                input_type="github_repo",
+                input_size=len(request.repo_url)
+            )
+            print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
+        except Exception as e:
+            print(f"Warning: Failed to save scan to history: {e}")
+            import traceback
+            traceback.print_exc()
+
+        return scan_response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"GitHub scan failed: {str(e)[:200]}")
+
+@router.post("/github/pdf")
+async def scan_github_pdf(request: RepoScanRequest):
+    """Clone GitHub repository and return PDF report."""
+    if not _GIT_OK:
+        raise HTTPException(status_code=500, detail="Git not available. Install gitpython: pip install gitpython")
+    
+    valid_types = {"secrets", "cpp_vulns"}
+    if not all(t in valid_types for t in request.scan_types):
+        raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
+    
+    max_file_size_mb = request.max_file_size_mb or 0.5
+    max_files = request.max_files or 200
+    
+    try:
+        start_time = datetime.now()
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_path = Path(temp_dir) / "repo"
+            
+            repo_url = request.repo_url
+            if request.token and repo_url.startswith("https://"):
+                repo_url = repo_url.replace("https://", f"https://{request.token}@")
+            
+            Repo.clone_from(
+                repo_url, 
+                repo_path, 
+                branch=request.branch, 
+                depth=1,
+                single_branch=True,
+                no_tags=True
+            )
+            
+            scan_target = repo_path / (request.subdir or "")
+            if not scan_target.exists():
+                raise HTTPException(status_code=400, detail=f"Subdirectory not found: {request.subdir}")
+            
+            files_to_scan = []
+            files_checked = 0
+            files_skipped = 0
+            
+            priority_exts = {".c", ".cc", ".cpp", ".h", ".env", ".key", ".pem", ".cfg", ".ini"}
+            secondary_exts = ALL_EXTS - priority_exts
+            
+            for root, dirs, files in os.walk(scan_target):
+                dirs[:] = [d for d in dirs if d not in {
+                    ".git", "node_modules", "__pycache__", ".vscode", 
+                    "build", "dist", "vendor", ".idea", "target", 
+                    "bin", "obj", ".gradle", ".mvn", "out", "cmake-build",
+                    "deps", "external", "third_party", "packages",
+                    ".tox", ".pytest_cache", ".coverage", "htmlcov",
+                    "docs", "documentation", "test", "tests", "spec"
+                }]
+                
+                for fname in files:
+                    if files_checked >= max_files:
+                        break
+                        
+                    fpath = Path(root) / fname
+                    files_checked += 1
+                    
+                    try:
+                        file_stat = fpath.stat()
+                        if file_stat.st_size == 0:
+                            files_skipped += 1
+                            continue
+                        if file_stat.st_size > max_file_size_mb * 1024 * 1024:
+                            files_skipped += 1
+                            continue
+                    except:
+                        continue
+                    
+                    if fpath.suffix.lower() in priority_exts:
+                        files_to_scan.append((fpath, repo_path, request.scan_types, max_file_size_mb))
+                    elif fpath.suffix.lower() in secondary_exts and len(files_to_scan) < max_files // 2:
+                        files_to_scan.append((fpath, repo_path, request.scan_types, max_file_size_mb))
+                
+                if files_checked >= max_files:
+                    break
+            
+            findings = []
+            batch_size = 20
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+                for i in range(0, len(files_to_scan), batch_size):
+                    batch = files_to_scan[i:i+batch_size]
+                    
+                    future_to_file = {
+                        executor.submit(scan_file_parallel, file_info): file_info 
+                        for file_info in batch
+                    }
+                    
+                    for future in concurrent.futures.as_completed(future_to_file, timeout=30):
+                        try:
+                            file_findings = future.result(timeout=2)
+                            if file_findings:
+                                findings.extend(file_findings)
+                        except (concurrent.futures.TimeoutError, Exception):
+                            continue
+            
+            seen = set()
+            unique_findings = []
+            for finding in findings:
+                key = (finding.file, finding.line, finding.type)
+                if key not in seen:
+                    seen.add(key)
+                    unique_findings.append(finding)
+            
+            unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.file, x.line))
+            
+            max_findings = 500
+            truncated = len(unique_findings) > max_findings
+            if truncated:
+                unique_findings = unique_findings[:max_findings]
+            
+            stats = {
+                "repo_url": request.repo_url,
+                "branch": request.branch or "default",
+                "files_scanned": len(files_to_scan),
+                "files_checked": files_checked,
+                "files_skipped": files_skipped,
+                "max_file_size_mb": max_file_size_mb,
+                "max_files": max_files,
+                "performance": "optimized_parallel_scanning",
+                "truncated": truncated,
+                "scan_method": "github_clone"
+            }
+            
+            scan_response = create_enhanced_response(
                 method="github",
                 scan_types=request.scan_types,
                 findings=unique_findings,
@@ -1253,10 +2003,40 @@ async def scan_github(
                 start_time=start_time
             )
             
+            pdf_bytes = generate_pdf_report(scan_response)
+            
+            from fastapi.responses import Response
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=security_report_{scan_response.scan_id}.pdf"}
+            )
+            
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"GitHub scan failed: {str(e)[:200]}")
+
+@router.get("/cache/clear")
+async def clear_cache():
+    """Clear all cached scan results."""
+    global _SCAN_CACHE
+    cache_size = len(_SCAN_CACHE)
+    _SCAN_CACHE.clear()
+    return {
+        "status": "success",
+        "message": f"Cleared {cache_size} cached scan(s)",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@router.get("/cache/stats")
+async def cache_stats():
+    """Get cache statistics."""
+    return {
+        "cached_scans": len(_SCAN_CACHE),
+        "ttl_seconds": CACHE_TTL_SECONDS,
+        "cache_keys": list(_SCAN_CACHE.keys())
+    }
 
 @router.get("/health")
 async def scanner_health():
