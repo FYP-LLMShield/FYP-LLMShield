@@ -18,21 +18,37 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
+from app.mcp_servers import initialize_mcp_servers, mcp_registry
 from app.routes.auth import router as auth_router
 from app.routes.mfa import router as mfa_router
+from app.routes.email_verification import router as email_verification_router
+from app.routes.model_config import router as model_config_router
 
 # Import the unified security scanner components
 from app.routes.scanner import router as scanner_router
+from app.routes.scan_history import router as scan_history_router
+from app.routes.prompt_injection import router as prompt_injection_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
     # Startup
     await connect_to_mongo()
+    await initialize_mcp_servers()
+    await mcp_registry.start_all()
+    
+    # Mount MCP servers
+    mcp_instances = mcp_registry.get_all_mcp_instances()
+    for name, instance in mcp_instances.items():
+        app.mount(f"/mcp/{name}", instance.get_app())
+    
     print("🚀 Database connected successfully")
     print("🛡️  Security scanner modules loaded")
     yield
+    
     # Shutdown
+    await mcp_registry.stop_all()
     await close_mongo_connection()
     print("📴 Database connection closed")
 
@@ -63,13 +79,42 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/auth/mfa", 
     tags=["Multi-Factor Authentication"]
 )
+app.include_router(
+    email_verification_router, 
+    prefix=f"{settings.API_V1_STR}/auth", 
+    tags=["Email Verification"]
+)
 # Add the security scanner router
 app.include_router(
     scanner_router, 
     prefix=f"{settings.API_V1_STR}/scan", 
     tags=["Security Scanner"]
 )
+# Add the scan history router
+app.include_router(
+    scan_history_router, 
+    prefix=f"{settings.API_V1_STR}", 
+    tags=["Scan History"]
+)
+app.include_router(
+    model_config_router, 
+    prefix=f"{settings.API_V1_STR}/model-config", 
+    tags=["Model Configuration"]
+)
+app.include_router(
+    prompt_injection_router, 
+    prefix=f"{settings.API_V1_STR}/prompt-injection", 
+    tags=["Prompt Injection Testing"]
+)
 
+
+@app.on_event("startup")
+async def startup_event():
+    await connect_to_mongo()
+
+@app.on_event("shutdown") 
+async def shutdown_event():
+    await close_mongo_connection()
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
@@ -131,6 +176,11 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    import logging
+    
+    # Configure logging to show INFO level messages
+    logging.basicConfig(level=logging.INFO)
+    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

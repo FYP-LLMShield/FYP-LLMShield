@@ -100,7 +100,7 @@ class PasswordResetService:
         """Send password reset email"""
         try:
             # Create reset URL for frontend
-            FRONTEND_URL = "http://localhost:3001"  # Updated to match current frontend port
+            FRONTEND_URL = "http://localhost:3000"  # Updated to match frontend port
             reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
 
             subject = "Reset Your Password - LLMShield"
