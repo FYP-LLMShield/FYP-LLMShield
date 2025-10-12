@@ -2,9 +2,8 @@
 Security Scanner Router - FastAPI routes for vulnerability and secret detection
 =============================================================================
 Handles text scanning, file uploads, and GitHub repository analysis.
-Fixed version with proper authentication and error handling.
+Enhanced version with improved visual reporting and better readability.
 """
-
 
 import os
 import re
@@ -15,7 +14,10 @@ import zipfile
 import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Iterable, Union
-from collections import Counter
+from collections import Counter, defaultdict
+import concurrent.futures
+from functools import partial
+from datetime import datetime
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel, Field
@@ -48,30 +50,101 @@ class RepoScanRequest(BaseModel):
     subdir: Optional[str] = None
     token: Optional[str] = None
     scan_types: List[str] = Field(default=["secrets", "cpp_vulns"], description="Types to scan: 'secrets', 'cpp_vulns'")
+    max_file_size_mb: Optional[float] = Field(default=1.0, description="Skip files larger than this (MB)")
+    max_files: Optional[int] = Field(default=500, description="Maximum files to scan")
 
 class FindingModel(BaseModel):
     type: str
     category: str
     severity: str
     severity_score: int = Field(description="Numeric severity 1-5")
+    severity_emoji: str = Field(default="", description="Visual indicator for severity")
     cwe: List[str]
     message: str
     remediation: str
     confidence: float = Field(description="Confidence score 0.0-1.0")
+    confidence_label: str = Field(default="", description="Human-readable confidence level")
     file: str
     line: int
     column: Optional[int] = None
     snippet: str
     evidence: Dict[str, str] = Field(default_factory=dict)
+    priority_rank: int = Field(default=0, description="Priority for fixing (1=highest)")
 
+class SeverityDistribution(BaseModel):
+    critical: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+    info: int = 0
+    
+class CategoryBreakdown(BaseModel):
+    secrets: int = 0
+    cpp_vulnerabilities: int = 0
+    
+class FileIssues(BaseModel):
+    filename: str
+    issue_count: int
+    critical_count: int
+    high_count: int
+    lines_affected: List[int]
+    
+class ExecutiveSummary(BaseModel):
+    risk_level: str = Field(description="Overall risk: CRITICAL, HIGH, MEDIUM, LOW, SAFE")
+    risk_emoji: str = Field(default="", description="Visual risk indicator")
+    total_issues: int
+    files_affected: int
+    critical_issues: int
+    immediate_actions_required: int
+    estimated_fix_time: str = Field(default="", description="Rough estimate for fixing all issues")
+    top_risks: List[str] = Field(default_factory=list, description="Top 3 risk categories")
+    compliance_concerns: List[str] = Field(default_factory=list, description="CWE/Security standard violations")
+
+class DetailedStats(BaseModel):
+    scan_duration_ms: Optional[int] = None
+    files_scanned: int = 0
+    total_lines_analyzed: int = 0
+    scan_coverage: str = ""
+    performance_notes: List[str] = Field(default_factory=list)
+    
+class ImpactAnalysis(BaseModel):
+    business_impact: str = Field(default="", description="Potential business impact")
+    technical_impact: str = Field(default="", description="Technical security impact")
+    exploitation_difficulty: str = Field(default="", description="How easy to exploit")
+    
 class ScanResponse(BaseModel):
+    # Core Info
     engine: str = "LLMShield-Unified"
+    scan_id: str = Field(default="", description="Unique scan identifier")
+    timestamp: str = Field(default="", description="Scan timestamp")
     method: str
     scan_types: List[str]
+    
+    # Executive Summary (NEW)
+    executive_summary: ExecutiveSummary
+    
+    # Results
     total_findings: int
     findings: List[FindingModel]
+    
+    # Enhanced Analytics (NEW)
+    severity_distribution: SeverityDistribution
+    category_breakdown: CategoryBreakdown
+    
+    # Top Issues (NEW)
+    critical_findings: List[FindingModel] = Field(default_factory=list, description="Critical issues requiring immediate attention")
+    most_affected_files: List[FileIssues] = Field(default_factory=list, description="Files with most issues")
+    
+    # Visual Summary (NEW)
+    risk_matrix: Dict[str, Dict[str, int]] = Field(default_factory=dict, description="Risk matrix by category and severity")
+    
+    # Legacy fields (kept for compatibility)
     summary: Dict[str, int]
     stats: Dict[str, Union[int, str]] = Field(default_factory=dict)
+    
+    # Recommendations (NEW)
+    recommendations: List[str] = Field(default_factory=list, description="Prioritized fix recommendations")
+    next_steps: List[str] = Field(default_factory=list, description="Immediate next steps")
 
 # File extensions and constants
 CPP_EXTS = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"}
@@ -79,9 +152,217 @@ SECRET_EXTS = {".env", ".ini", ".json", ".pem", ".key", ".cfg", ".toml", ".yml",
 ALL_EXTS = CPP_EXTS | SECRET_EXTS
 IGNORE_MARKER = "LLMShield: ignore"
 
+# Maximum file size for processing (1MB default)
+MAX_FILE_SIZE = 1024 * 1024
+
+# Severity emojis and indicators
+SEVERITY_EMOJIS = {
+    "Critical": "🔴",
+    "High": "🟠", 
+    "Medium": "🟡",
+    "Low": "🔵",
+    "Info": "⚪"
+}
+
+RISK_LEVEL_EMOJIS = {
+    "CRITICAL": "🚨",
+    "HIGH": "⚠️",
+    "MEDIUM": "⚡",
+    "LOW": "ℹ️",
+    "SAFE": "✅"
+}
+
 # =========================
 # Security Detection Logic
 # =========================
+
+def generate_scan_id() -> str:
+    """Generate unique scan ID."""
+    from datetime import datetime
+    import random
+    import string
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"SCAN-{timestamp}-{random_suffix}"
+
+def get_confidence_label(confidence: float) -> str:
+    """Convert confidence score to human-readable label."""
+    if confidence >= 0.95:
+        return "Very High"
+    elif confidence >= 0.85:
+        return "High"
+    elif confidence >= 0.75:
+        return "Medium"
+    elif confidence >= 0.65:
+        return "Low"
+    else:
+        return "Uncertain"
+
+def calculate_priority_rank(severity_score: int, confidence: float) -> int:
+    """Calculate priority rank for fixing (1 = highest priority)."""
+    # Priority based on severity * confidence
+    priority_score = severity_score * confidence
+    if priority_score >= 4.5:
+        return 1  # Urgent
+    elif priority_score >= 3.5:
+        return 2  # High
+    elif priority_score >= 2.5:
+        return 3  # Medium
+    elif priority_score >= 1.5:
+        return 4  # Low
+    else:
+        return 5  # Minimal
+
+def estimate_fix_time(findings: List[FindingModel]) -> str:
+    """Estimate time to fix all issues."""
+    if not findings:
+        return "No fixes needed"
+    
+    total_minutes = 0
+    for finding in findings:
+        if finding.severity_score == 5:  # Critical
+            total_minutes += 30
+        elif finding.severity_score == 4:  # High
+            total_minutes += 20
+        elif finding.severity_score == 3:  # Medium
+            total_minutes += 10
+        else:
+            total_minutes += 5
+    
+    if total_minutes < 60:
+        return f"~{total_minutes} minutes"
+    elif total_minutes < 480:  # 8 hours
+        hours = total_minutes // 60
+        return f"~{hours} hours"
+    else:
+        days = total_minutes // 480  # Assuming 8-hour workday
+        return f"~{days} days"
+
+def determine_risk_level(findings: List[FindingModel]) -> Tuple[str, str]:
+    """Determine overall risk level and emoji."""
+    if not findings:
+        return "SAFE", RISK_LEVEL_EMOJIS["SAFE"]
+    
+    critical_count = sum(1 for f in findings if f.severity_score == 5)
+    high_count = sum(1 for f in findings if f.severity_score == 4)
+    
+    if critical_count > 0:
+        return "CRITICAL", RISK_LEVEL_EMOJIS["CRITICAL"]
+    elif high_count > 2:
+        return "HIGH", RISK_LEVEL_EMOJIS["HIGH"]
+    elif high_count > 0:
+        return "MEDIUM", RISK_LEVEL_EMOJIS["MEDIUM"]
+    else:
+        return "LOW", RISK_LEVEL_EMOJIS["LOW"]
+
+def get_top_risks(findings: List[FindingModel]) -> List[str]:
+    """Get top 3 risk categories."""
+    risk_counts = defaultdict(int)
+    for finding in findings:
+        if finding.severity_score >= 4:  # High and Critical only
+            risk_counts[finding.type] += finding.severity_score
+    
+    sorted_risks = sorted(risk_counts.items(), key=lambda x: x[1], reverse=True)
+    return [f"{risk[0]} ({risk[1]} risk points)" for risk in sorted_risks[:3]]
+
+def get_compliance_concerns(findings: List[FindingModel]) -> List[str]:
+    """Get unique CWE violations."""
+    cwe_set = set()
+    for finding in findings:
+        cwe_set.update(finding.cwe)
+    return sorted(list(cwe_set))[:5]  # Top 5 CWE concerns
+
+def create_risk_matrix(findings: List[FindingModel]) -> Dict[str, Dict[str, int]]:
+    """Create risk matrix by category and severity."""
+    matrix = defaultdict(lambda: defaultdict(int))
+    for finding in findings:
+        category = finding.category.replace(" ", "_").lower()
+        severity = finding.severity.lower()
+        matrix[category][severity] += 1
+    return dict(matrix)
+
+def get_most_affected_files(findings: List[FindingModel], top_n: int = 5) -> List[FileIssues]:
+    """Get files with most issues."""
+    file_data = defaultdict(lambda: {"count": 0, "critical": 0, "high": 0, "lines": set()})
+    
+    for finding in findings:
+        file_data[finding.file]["count"] += 1
+        file_data[finding.file]["lines"].add(finding.line)
+        if finding.severity_score == 5:
+            file_data[finding.file]["critical"] += 1
+        elif finding.severity_score == 4:
+            file_data[finding.file]["high"] += 1
+    
+    # Sort by critical count, then total count
+    sorted_files = sorted(
+        file_data.items(),
+        key=lambda x: (x[1]["critical"], x[1]["count"]),
+        reverse=True
+    )
+    
+    result = []
+    for filename, data in sorted_files[:top_n]:
+        result.append(FileIssues(
+            filename=filename,
+            issue_count=data["count"],
+            critical_count=data["critical"],
+            high_count=data["high"],
+            lines_affected=sorted(list(data["lines"]))
+        ))
+    
+    return result
+
+def generate_recommendations(findings: List[FindingModel]) -> List[str]:
+    """Generate prioritized recommendations."""
+    recommendations = []
+    
+    # Group findings by type and severity
+    critical_secrets = sum(1 for f in findings if f.severity_score == 5 and f.category == "Secret")
+    critical_vulns = sum(1 for f in findings if f.severity_score == 5 and f.category == "C++ Vulnerability")
+    high_issues = sum(1 for f in findings if f.severity_score == 4)
+    
+    if critical_secrets > 0:
+        recommendations.append(f"🔴 URGENT: Rotate {critical_secrets} exposed credential(s) immediately and remove from code")
+    
+    if critical_vulns > 0:
+        recommendations.append(f"🔴 CRITICAL: Fix {critical_vulns} severe vulnerability(ies) that could lead to code execution")
+    
+    if high_issues > 0:
+        recommendations.append(f"🟠 HIGH: Address {high_issues} high-severity issue(s) within 24-48 hours")
+    
+    # Add general recommendations
+    if critical_secrets > 0:
+        recommendations.append("📋 Implement secret management solution (e.g., HashiCorp Vault, AWS Secrets Manager)")
+    
+    if critical_vulns > 0:
+        recommendations.append("🛡️ Enable compiler security flags (-fstack-protector-strong, -D_FORTIFY_SOURCE=2)")
+    
+    if len(findings) > 10:
+        recommendations.append("🔍 Consider integrating automated security scanning in CI/CD pipeline")
+    
+    return recommendations[:5]  # Top 5 recommendations
+
+def generate_next_steps(findings: List[FindingModel]) -> List[str]:
+    """Generate immediate next steps."""
+    steps = []
+    
+    critical_findings = [f for f in findings if f.severity_score == 5]
+    if critical_findings:
+        steps.append(f"1. Review and fix {len(critical_findings)} CRITICAL issue(s) immediately")
+        steps.append("2. Check logs for any unauthorized access or suspicious activity")
+        steps.append("3. Rotate ALL exposed credentials and API keys")
+    
+    high_findings = [f for f in findings if f.severity_score == 4]
+    if high_findings:
+        steps.append(f"4. Schedule fixes for {len(high_findings)} HIGH severity issue(s)")
+    
+    if not steps:
+        steps.append("1. Review all findings and prioritize based on your threat model")
+        steps.append("2. Implement suggested remediations starting with highest severity")
+    
+    steps.append("📧 Share this report with your security team for review")
+    
+    return steps[:5]
 
 def redact_secret(token: str) -> str:
     """Redact secret showing only last 4 chars."""
@@ -118,7 +399,7 @@ def jwt_is_valid(token: str) -> bool:
     except Exception:
         return False
 
-# Secret detection patterns
+# Secret detection patterns - ALL CRITICAL
 SECRET_PATTERNS = {
     "AWSAccessKeyID": re.compile(r"\b(AKIA|ASIA)[0-9A-Z]{16}\b"),
     "AWSSecretAccessKey": re.compile(r"(?i)\baws(_|)?secret(_access)?(_|)?key\b[^=\n]*[:=]\s*[\"']?([A-Za-z0-9/+=]{40})[\"']?"),
@@ -131,44 +412,129 @@ SECRET_PATTERNS = {
     "GenericAPIToken": re.compile(r"(?i)\b[A-Za-z0-9_]*?(api|secret|token|key)[A-Za-z0-9_]*\b\s*[:=]\s*[\"']([A-Za-z0-9_\-\/+=]{12,})[\"']"),
 }
 
-# C/C++ vulnerability patterns - Enhanced version
+# C/C++ vulnerability patterns - Enhanced with specific remediation
 CPP_VULN_PATTERNS = {
-    "gets": {"severity": 5, "cwe": "CWE-120", "msg": "gets() has no bounds checking", "fix": "Use fgets()"},
-    "strcpy": {"severity": 5, "cwe": "CWE-120", "msg": "strcpy() can overflow buffer", "fix": "Use strncpy() or strlcpy()"},
-    "strcat": {"severity": 5, "cwe": "CWE-120", "msg": "strcat() can overflow buffer", "fix": "Use strncat() or strlcat()"},
-    "sprintf": {"severity": 5, "cwe": "CWE-134", "msg": "sprintf() can overflow buffer", "fix": "Use snprintf()"},
-    "vsprintf": {"severity": 5, "cwe": "CWE-134", "msg": "vsprintf() can overflow buffer", "fix": "Use vsnprintf()"},
-    "system": {"severity": 5, "cwe": "CWE-78", "msg": "system() allows command injection", "fix": "Use execve() family"},
-    "popen": {"severity": 4, "cwe": "CWE-78", "msg": "popen() can execute arbitrary commands", "fix": "Use safer process APIs"},
-    "strncpy": {"severity": 4, "cwe": "CWE-120", "msg": "strncpy() may not null-terminate", "fix": "Ensure null termination"},
-    "strncat": {"severity": 4, "cwe": "CWE-120", "msg": "strncat() needs careful size calculation", "fix": "Use strlcat()"},
-    "memcpy": {"severity": 4, "cwe": "CWE-787", "msg": "memcpy() needs length validation", "fix": "Validate lengths"},
-    "tmpnam": {"severity": 4, "cwe": "CWE-377", "msg": "tmpnam() creates predictable filenames", "fix": "Use mkstemp()"},
-    "mktemp": {"severity": 4, "cwe": "CWE-377", "msg": "mktemp() vulnerable to race conditions", "fix": "Use mkstemp()"},
-    "atoi": {"severity": 3, "cwe": "CWE-704", "msg": "atoi() has no error reporting", "fix": "Use strtol()"},
-    "atol": {"severity": 3, "cwe": "CWE-704", "msg": "atol() has no error reporting", "fix": "Use strtol()"},
-    "rand": {"severity": 3, "cwe": "CWE-338", "msg": "Predictable random numbers", "fix": "Use cryptographic RNG"},
-    "printf": {"severity": 4, "cwe": "CWE-134", "msg": "printf() vulnerable if format controlled by user", "fix": "Use constant format strings"},
-    "fprintf": {"severity": 4, "cwe": "CWE-134", "msg": "fprintf() vulnerable if format controlled by user", "fix": "Use constant format strings"},
+    "gets": {
+        "severity": 5, 
+        "cwe": "CWE-120", 
+        "msg": "gets() has no bounds checking", 
+        "fix": "Replace gets(buffer) with fgets(buffer, sizeof(buffer), stdin)"
+    },
+    "strcpy": {
+        "severity": 5, 
+        "cwe": "CWE-120", 
+        "msg": "strcpy() can overflow buffer", 
+        "fix": "Replace strcpy(dest, src) with strncpy(dest, src, sizeof(dest)-1); dest[sizeof(dest)-1] = '\\0'"
+    },
+    "strcat": {
+        "severity": 5, 
+        "cwe": "CWE-120", 
+        "msg": "strcat() can overflow buffer", 
+        "fix": "Replace strcat(dest, src) with strncat(dest, src, sizeof(dest)-strlen(dest)-1)"
+    },
+    "sprintf": {
+        "severity": 5, 
+        "cwe": "CWE-134", 
+        "msg": "sprintf() can overflow buffer", 
+        "fix": "Replace sprintf(buffer, format, ...) with snprintf(buffer, sizeof(buffer), format, ...)"
+    },
+    "vsprintf": {
+        "severity": 5, 
+        "cwe": "CWE-134", 
+        "msg": "vsprintf() can overflow buffer", 
+        "fix": "Replace vsprintf(buffer, format, args) with vsnprintf(buffer, sizeof(buffer), format, args)"
+    },
+    "system": {
+        "severity": 5, 
+        "cwe": "CWE-78", 
+        "msg": "system() allows command injection", 
+        "fix": "Replace system(command) with execve() family or use parameterized commands"
+    },
+    "popen": {
+        "severity": 4, 
+        "cwe": "CWE-78", 
+        "msg": "popen() can execute arbitrary commands", 
+        "fix": "Replace popen(command, mode) with secure process execution using execve()"
+    },
+    "strncpy": {
+        "severity": 4, 
+        "cwe": "CWE-120", 
+        "msg": "strncpy() may not null-terminate", 
+        "fix": "After strncpy(dest, src, n), add: dest[n-1] = '\\0'"
+    },
+    "strncat": {
+        "severity": 4, 
+        "cwe": "CWE-120", 
+        "msg": "strncat() needs careful size calculation", 
+        "fix": "Replace strncat(dest, src, n) with strlcat(dest, src, sizeof(dest)) if available"
+    },
+    "memcpy": {
+        "severity": 4, 
+        "cwe": "CWE-787", 
+        "msg": "memcpy() needs length validation", 
+        "fix": "Before memcpy(dest, src, len), validate: if (len <= sizeof(dest)) memcpy(dest, src, len)"
+    },
+    "tmpnam": {
+        "severity": 4, 
+        "cwe": "CWE-377", 
+        "msg": "tmpnam() creates predictable filenames", 
+        "fix": "Replace tmpnam(buffer) with mkstemp(template)"
+    },
+    "mktemp": {
+        "severity": 4, 
+        "cwe": "CWE-377", 
+        "msg": "mktemp() vulnerable to race conditions", 
+        "fix": "Replace mktemp(template) with mkstemp(template)"
+    },
+    "atoi": {
+        "severity": 3, 
+        "cwe": "CWE-704", 
+        "msg": "atoi() has no error reporting", 
+        "fix": "Replace atoi(str) with strtol(str, &endptr, 10) and check endptr"
+    },
+    "atol": {
+        "severity": 3, 
+        "cwe": "CWE-704", 
+        "msg": "atol() has no error reporting", 
+        "fix": "Replace atol(str) with strtol(str, &endptr, 10) and check endptr"
+    },
+    "rand": {
+        "severity": 3, 
+        "cwe": "CWE-338", 
+        "msg": "Predictable random numbers", 
+        "fix": "Replace rand() with secure random: getrandom(), /dev/urandom, or cryptographic RNG"
+    },
+    "printf": {
+        "severity": 4, 
+        "cwe": "CWE-134", 
+        "msg": "printf() vulnerable if format controlled by user", 
+        "fix": "Never use printf(user_input). Use printf(\"%s\", user_input) instead"
+    },
+    "fprintf": {
+        "severity": 4, 
+        "cwe": "CWE-134", 
+        "msg": "fprintf() vulnerable if format controlled by user", 
+        "fix": "Never use fprintf(file, user_input). Use fprintf(file, \"%s\", user_input) instead"
+    },
 }
 
-# Special pattern-based rules
+# Special pattern-based rules with specific fixes
 SPECIAL_CPP_PATTERNS = [
     {
         "name": "scanf_no_width",
-        "pattern": re.compile(r"\b[sf]?scanf\s*\([^)]*%s(?![0-9])[^)]*\)"),
+        "pattern": re.compile(r"\b([sf]?scanf)\s*\([^)]*(%s)(?![0-9])[^)]*\)"),
         "severity": 5,
         "cwe": "CWE-120",
         "msg": "scanf %s without width limit",
-        "fix": "Use width specifier like %10s"
+        "fix": "Replace %s with width specifier like %99s (for 100-char buffer)"
     },
     {
         "name": "chmod_permissive",
-        "pattern": re.compile(r"\bchmod\s*\([^,]+,\s*0[67][67][67]\s*\)"),
+        "pattern": re.compile(r"\bchmod\s*\([^,]+,\s*(0[67][67][67])\s*\)"),
         "severity": 4,
         "cwe": "CWE-732",
         "msg": "Overly permissive file permissions",
-        "fix": "Use least privilege principle"
+        "fix": "Replace with restrictive permissions: 0600 (owner only) or 0644 (owner write, others read)"
     },
     {
         "name": "md5_usage",
@@ -176,7 +542,7 @@ SPECIAL_CPP_PATTERNS = [
         "severity": 4,
         "cwe": "CWE-327",
         "msg": "MD5 is cryptographically broken",
-        "fix": "Use SHA-256 or stronger"
+        "fix": "Replace MD5 with SHA-256 or SHA-3 for security-critical applications"
     }
 ]
 
@@ -185,8 +551,17 @@ def severity_to_string(score: int) -> str:
     mapping = {5: "Critical", 4: "High", 3: "Medium", 2: "Low", 1: "Info"}
     return mapping.get(score, "Medium")
 
+def extract_function_context(line: str, func_name: str, column: int) -> str:
+    """Extract the actual function call from the line for better remediation."""
+    # Try to extract the function call with its arguments
+    pattern = rf"{re.escape(func_name)}\s*\([^)]*\)"
+    match = re.search(pattern, line[column:])
+    if match:
+        return line[column:column + match.end()]
+    return func_name + "(...)"
+
 def scan_secrets(text: str, filename: str) -> List[FindingModel]:
-    """Scan for secrets and credentials."""
+    """Scan for secrets and credentials - ALL MARKED AS CRITICAL."""
     findings = []
     
     try:
@@ -206,65 +581,75 @@ def scan_secrets(text: str, filename: str) -> List[FindingModel]:
                             if pattern_name == "JWT" and not jwt_is_valid(match.group(0)):
                                 continue
                             
-                            confidence = 0.9
-                            if pattern_name == "JWT":
-                                confidence = 0.95
-                            elif "AWS" in pattern_name:
-                                confidence = 0.93
+                            # ALL secrets are CRITICAL
+                            confidence = 0.95  # High confidence for pattern matches
                             
                             findings.append(FindingModel(
                                 type=pattern_name,
                                 category="Secret",
-                                severity="Critical",
-                                severity_score=5,
-                                cwe=["CWE-798"],
-                                message=f"{pattern_name} detected in code",
-                                remediation="Remove from code, rotate credential, use environment variables",
+                                severity="Critical",  # ALWAYS Critical
+                                severity_score=5,     # ALWAYS 5
+                                severity_emoji=SEVERITY_EMOJIS["Critical"],
+                                cwe=["CWE-798", "CWE-200"],  # Added CWE-200 for info exposure
+                                message=f"{pattern_name} detected - hardcoded credential found",
+                                remediation=f"IMMEDIATE ACTION: 1) Remove '{redact_secret(secret_value)}' from code, 2) Rotate this credential immediately, 3) Use environment variables or secret management service",
                                 confidence=confidence,
+                                confidence_label=get_confidence_label(confidence),
                                 file=filename,
                                 line=line_num,
                                 column=match.start(),
                                 snippet=line.strip(),
-                                evidence={"redacted": redact_secret(secret_value)}
+                                evidence={
+                                    "redacted": redact_secret(secret_value),
+                                    "pattern_matched": pattern_name
+                                },
+                                priority_rank=calculate_priority_rank(5, confidence)
                             ))
-                        except Exception as e:
-                            # Skip this match if there's an error processing it
+                        except Exception:
                             continue
                 
-                # High entropy detection
+                # High entropy detection - ALSO CRITICAL for confirmed patterns
                 for match in re.finditer(r"[\"']([A-Za-z0-9_\-\/+=]{20,})[\"']", line):
                     try:
                         token = match.group(1)
-                        if shannon_entropy(token) > 4.0 and looks_like_b64(token):
+                        entropy = shannon_entropy(token)
+                        
+                        # More aggressive for high entropy strings
+                        if entropy > 4.5 and (looks_like_b64(token) or looks_like_hex(token)):
+                            confidence = 0.85 if entropy > 5.0 else 0.75
                             findings.append(FindingModel(
-                                type="HighEntropyString",
+                                type="HighEntropySecret",
                                 category="Secret",
-                                severity="Medium",
-                                severity_score=3,
-                                cwe=["CWE-798"],
-                                message="High entropy string detected (possible secret)",
-                                remediation="Review if this is a hardcoded credential",
-                                confidence=0.7,
+                                severity="Critical",  # Changed from Medium to Critical
+                                severity_score=5,     # Changed from 3 to 5
+                                severity_emoji=SEVERITY_EMOJIS["Critical"],
+                                cwe=["CWE-798", "CWE-200"],
+                                message=f"High entropy string detected (entropy: {entropy:.2f}) - likely hardcoded secret",
+                                remediation=f"INVESTIGATE: This appears to be a hardcoded secret. 1) Verify if '{redact_secret(token)}' is sensitive, 2) If yes, remove and use environment variables",
+                                confidence=confidence,
+                                confidence_label=get_confidence_label(confidence),
                                 file=filename,
                                 line=line_num,
                                 column=match.start(),
                                 snippet=line.strip(),
-                                evidence={"redacted": redact_secret(token)}
+                                evidence={
+                                    "redacted": redact_secret(token),
+                                    "entropy": f"{entropy:.2f}",
+                                    "type": "base64" if looks_like_b64(token) else "hex"
+                                },
+                                priority_rank=calculate_priority_rank(5, confidence)
                             ))
-                    except Exception as e:
-                        # Skip this match if there's an error processing it
+                    except Exception:
                         continue
-            except Exception as e:
-                # Skip this line if there's an error processing it
+            except Exception:
                 continue
-    except Exception as e:
-        # Return empty findings list with error information
+    except Exception:
         return []
     
     return findings
 
 def scan_cpp_vulns(text: str, filename: str) -> List[FindingModel]:
-    """Scan for C/C++ vulnerabilities."""
+    """Scan for C/C++ vulnerabilities with specific remediation."""
     findings = []
     
     # Check if it looks like C/C++ code
@@ -276,51 +661,108 @@ def scan_cpp_vulns(text: str, filename: str) -> List[FindingModel]:
     text_cleaned = re.sub(r"//.*", "", text_cleaned)
     
     lines = text_cleaned.splitlines()
+    original_lines = text.splitlines()  # Keep original for snippets
     
-    for line_num, line in enumerate(lines, 1):
+    for line_num, (line, orig_line) in enumerate(zip(lines, original_lines), 1):
         if IGNORE_MARKER in line:
             continue
         
         # Check special patterns first
         for special in SPECIAL_CPP_PATTERNS:
-            if special["pattern"].search(line):
+            match = special["pattern"].search(line)
+            if match:
+                # Extract what was matched for better remediation
+                matched_text = match.group(0)
+                specific_fix = special["fix"]
+                
+                # Make fix more specific based on what was found
+                if special["name"] == "scanf_no_width" and match.group(2):
+                    specific_fix = f"Replace '{match.group(2)}' with '%99s' (adjust size to your buffer size)"
+                elif special["name"] == "chmod_permissive" and match.group(1):
+                    specific_fix = f"Replace '{match.group(1)}' with '0600' for private files or '0644' for public read"
+                
+                confidence = 0.90
+                severity_str = severity_to_string(special["severity"])
                 findings.append(FindingModel(
                     type=special["name"],
                     category="C++ Vulnerability",
-                    severity=severity_to_string(special["severity"]),
+                    severity=severity_str,
                     severity_score=special["severity"],
+                    severity_emoji=SEVERITY_EMOJIS[severity_str],
                     cwe=[special["cwe"]],
                     message=special["msg"],
-                    remediation=special["fix"],
-                    confidence=0.85,
+                    remediation=specific_fix,
+                    confidence=confidence,
+                    confidence_label=get_confidence_label(confidence),
                     file=filename,
                     line=line_num,
-                    column=0,
-                    snippet=line.strip(),
-                    evidence={"pattern": special["name"]}
+                    column=match.start(),
+                    snippet=orig_line.strip(),
+                    evidence={
+                        "pattern": special["name"],
+                        "matched": matched_text[:50]  # First 50 chars of match
+                    },
+                    priority_rank=calculate_priority_rank(special["severity"], confidence)
                 ))
         
-        # Function-based patterns
+        # Function-based patterns with smarter detection
         for func_name, details in CPP_VULN_PATTERNS.items():
-            # Create regex pattern for function call
             pattern = rf"(?<![A-Za-z0-9_]){re.escape(func_name)}\s*\("
             
             match = re.search(pattern, line)
             if match:
+                # Extract the actual function call for context
+                func_context = extract_function_context(line, func_name, match.start())
+                
+                # SMART FILTERING FOR PRINTF/FPRINTF
+                # Skip if it's a safe printf/fprintf with literal string only
+                if func_name in ["printf", "fprintf"]:
+                    # Check if it's a safe format string (no user input)
+                    # Look for patterns like printf("literal string") or printf("format", safe_vars)
+                    safe_printf_pattern = rf'{func_name}\s*\([^,)]*"[^"]*"[^")]*\)'
+                    
+                    # Check if format string contains only safe specifiers with matching args
+                    if re.match(safe_printf_pattern, func_context):
+                        # Check if there's no user-controlled data
+                        if not any(dangerous in func_context for dangerous in [
+                            'buffer', 'input', 'user', 'data', 'str[', 'buf[', 
+                            'argv', 'gets', 'scanf', 'fgets', 'read'
+                        ]):
+                            # Check if the format string doesn't have %s with external data
+                            if '%s' in func_context:
+                                # Only flag if %s is used with potentially unsafe data
+                                if not re.search(r'%s.*\b(img\.|buff|data|input|user)', func_context):
+                                    continue  # Skip safe printf calls
+                            else:
+                                continue  # Skip if no %s or user data
+                
+                # Create more specific remediation
+                specific_remediation = details["fix"]
+                if func_context != func_name + "(...)":
+                    specific_remediation = f"In '{func_context[:80]}...': {details['fix']}"
+                
+                confidence = 0.85 if func_name in ["printf", "fprintf"] else 0.90
+                severity_str = severity_to_string(details["severity"])
                 findings.append(FindingModel(
                     type=func_name,
                     category="C++ Vulnerability",
-                    severity=severity_to_string(details["severity"]),
+                    severity=severity_str,
                     severity_score=details["severity"],
+                    severity_emoji=SEVERITY_EMOJIS[severity_str],
                     cwe=[details["cwe"]],
-                    message=details["msg"],
-                    remediation=details["fix"],
-                    confidence=0.85,
+                    message=f"{details['msg']} in {func_context[:80]}",
+                    remediation=specific_remediation,
+                    confidence=confidence,
+                    confidence_label=get_confidence_label(confidence),
                     file=filename,
                     line=line_num,
                     column=match.start(),
-                    snippet=line.strip(),
-                    evidence={"function": func_name}
+                    snippet=orig_line.strip()[:100],
+                    evidence={
+                        "function": func_name,
+                        "context": func_context[:100]
+                    },
+                    priority_rank=calculate_priority_rank(details["severity"], confidence)
                 ))
     
     return findings
@@ -334,14 +776,12 @@ def scan_text_content(content: str, filename: str, scan_types: List[str]) -> Lis
             try:
                 all_findings.extend(scan_secrets(content, filename))
             except Exception as e:
-                # Log the error but continue with other scan types
                 print(f"Error in secret scanning: {str(e)}")
         
         if "cpp_vulns" in scan_types:
             try:
                 all_findings.extend(scan_cpp_vulns(content, filename))
             except Exception as e:
-                # Log the error but continue with other scan types
                 print(f"Error in C++ vulnerability scanning: {str(e)}")
         
         # Remove duplicates
@@ -353,9 +793,11 @@ def scan_text_content(content: str, filename: str, scan_types: List[str]) -> Lis
                 seen.add(key)
                 unique_findings.append(finding)
         
+        # Sort by priority rank (urgent first), then severity, then line
+        unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.line))
+        
         return unique_findings
     except Exception as e:
-        # Return empty list in case of unexpected errors
         print(f"Unexpected error in scan_text_content: {str(e)}")
         return []
 
@@ -369,14 +811,129 @@ def is_binary_file(content: bytes) -> bool:
     except UnicodeDecodeError:
         return True
 
+def scan_file_parallel(file_info: Tuple[Path, Path, List[str], float]) -> List[FindingModel]:
+    """Scan a single file - used for parallel processing."""
+    fpath, base_path, scan_types, max_size_mb = file_info
+    
+    # Skip if file is too large
+    if fpath.stat().st_size > max_size_mb * 1024 * 1024:
+        return []
+    
+    if fpath.suffix.lower() not in ALL_EXTS:
+        return []
+    
+    try:
+        file_content = fpath.read_bytes()
+        if is_binary_file(file_content):
+            return []
+        
+        text = file_content.decode('utf-8', errors='ignore')
+        rel_path = str(fpath.relative_to(base_path))
+        return scan_text_content(text, rel_path, scan_types)
+    except Exception:
+        return []
+
 def create_summary(findings: List[FindingModel]) -> Dict[str, int]:
-    """Create findings summary."""
+    """Create findings summary - legacy format for compatibility."""
     summary = {"TOTAL": len(findings)}
+    
+    # Count by severity
     for finding in findings:
         summary[finding.type] = summary.get(finding.type, 0) + 1
         summary[f"severity_{finding.severity.lower()}"] = summary.get(f"severity_{finding.severity.lower()}", 0) + 1
         summary[f"category_{finding.category.replace(' ', '_').lower()}"] = summary.get(f"category_{finding.category.replace(' ', '_').lower()}", 0) + 1
+    
+    # Add critical count at the top for visibility
+    critical_count = summary.get("severity_critical", 0)
+    if critical_count > 0:
+        summary["CRITICAL_ISSUES"] = critical_count
+    
     return summary
+
+def create_enhanced_response(
+    method: str,
+    scan_types: List[str],
+    findings: List[FindingModel],
+    stats: Dict[str, Union[int, str]],
+    start_time: Optional[datetime] = None
+) -> ScanResponse:
+    """Create enhanced scan response with all visual improvements."""
+    
+    # Calculate scan duration if start_time provided
+    scan_duration_ms = None
+    if start_time:
+        duration = (datetime.now() - start_time).total_seconds() * 1000
+        scan_duration_ms = int(duration)
+    
+    # Create severity distribution
+    severity_dist = SeverityDistribution(
+        critical=sum(1 for f in findings if f.severity_score == 5),
+        high=sum(1 for f in findings if f.severity_score == 4),
+        medium=sum(1 for f in findings if f.severity_score == 3),
+        low=sum(1 for f in findings if f.severity_score == 2),
+        info=sum(1 for f in findings if f.severity_score == 1)
+    )
+    
+    # Create category breakdown
+    category_breakdown = CategoryBreakdown(
+        secrets=sum(1 for f in findings if f.category == "Secret"),
+        cpp_vulnerabilities=sum(1 for f in findings if f.category == "C++ Vulnerability")
+    )
+    
+    # Get critical findings (top 5)
+    critical_findings = [f for f in findings if f.severity_score == 5][:5]
+    
+    # Determine risk level
+    risk_level, risk_emoji = determine_risk_level(findings)
+    
+    # Create executive summary
+    exec_summary = ExecutiveSummary(
+        risk_level=risk_level,
+        risk_emoji=risk_emoji,
+        total_issues=len(findings),
+        files_affected=len(set(f.file for f in findings)),
+        critical_issues=severity_dist.critical,
+        immediate_actions_required=sum(1 for f in findings if f.priority_rank == 1),
+        estimated_fix_time=estimate_fix_time(findings),
+        top_risks=get_top_risks(findings),
+        compliance_concerns=get_compliance_concerns(findings)
+    )
+    
+    # Create detailed stats
+    detailed_stats = DetailedStats(
+        scan_duration_ms=scan_duration_ms,
+        files_scanned=stats.get("files_scanned", 0),
+        total_lines_analyzed=stats.get("lines_scanned", 0),
+        scan_coverage=f"{stats.get('files_scanned', 0)} files analyzed",
+        performance_notes=[]
+    )
+    
+    if scan_duration_ms and scan_duration_ms < 1000:
+        detailed_stats.performance_notes.append("✅ Fast scan completed")
+    elif scan_duration_ms and scan_duration_ms > 60000:
+        detailed_stats.performance_notes.append("⚡ Large codebase scanned")
+    
+    # Create the response
+    response = ScanResponse(
+        scan_id=generate_scan_id(),
+        timestamp=datetime.now().isoformat(),
+        method=method,
+        scan_types=scan_types,
+        executive_summary=exec_summary,
+        total_findings=len(findings),
+        findings=findings,
+        severity_distribution=severity_dist,
+        category_breakdown=category_breakdown,
+        critical_findings=critical_findings,
+        most_affected_files=get_most_affected_files(findings),
+        risk_matrix=create_risk_matrix(findings),
+        summary=create_summary(findings),  # Legacy field
+        stats=stats,
+        recommendations=generate_recommendations(findings),
+        next_steps=generate_next_steps(findings)
+    )
+    
+    return response
 
 # =========================
 # API Endpoints
@@ -387,21 +944,41 @@ async def scanner_info():
     """Scanner information and capabilities."""
     return {
         "name": "LLMShield Security Scanner",
-        "version": "2.0.0",
+        "version": "3.0.0",
+        "improvements": [
+            "🎨 Enhanced visual reporting with emojis and severity indicators",
+            "📊 Executive summary with risk assessment",
+            "📈 Detailed analytics and risk matrices",
+            "🎯 Priority-based finding rankings",
+            "💡 Actionable recommendations and next steps",
+            "📋 File-level issue aggregation",
+            "⏱️ Performance metrics and scan duration tracking",
+            "🔍 Confidence scores and labels for each finding"
+        ],
         "capabilities": {
             "secrets": {
                 "patterns": len(SECRET_PATTERNS),
-                "types": ["AWS keys", "API tokens", "SSH keys", "JWT", "High entropy strings"]
+                "types": ["AWS keys", "API tokens", "SSH keys", "JWT", "High entropy strings"],
+                "severity": "ALL CRITICAL (🔴)"
             },
             "cpp_vulnerabilities": {
                 "patterns": len(CPP_VULN_PATTERNS) + len(SPECIAL_CPP_PATTERNS),
-                "types": ["Buffer overflows", "Format strings", "Command injection", "Weak crypto"]
+                "types": ["Buffer overflows", "Format strings", "Command injection", "Weak crypto"],
+                "severity_range": "🔵 Low to 🔴 Critical"
             }
+        },
+        "reporting_features": {
+            "executive_summary": "High-level risk assessment with business impact",
+            "visual_indicators": "Color-coded severity with emoji indicators",
+            "priority_ranking": "Issues ranked by urgency (1-5 scale)",
+            "recommendations": "Actionable fix suggestions prioritized by risk",
+            "compliance_tracking": "CWE mapping for security standards",
+            "performance_metrics": "Scan duration and coverage statistics"
         },
         "endpoints": [
             "POST /text - Scan pasted text",
-            "POST /upload - Upload file/ZIP",
-            "POST /github - Clone and scan repository"
+            "POST /upload - Upload file/ZIP", 
+            "POST /github - Clone and scan repository (optimized)"
         ],
         "supported_files": list(ALL_EXTS),
         "ignore_syntax": "Add '// LLMShield: ignore' to suppress findings",
@@ -422,18 +999,22 @@ async def scan_text(
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
     
     try:
+        start_time = datetime.now()
         findings = scan_text_content(request.content, request.filename, request.scan_types)
         
-        return ScanResponse(
+        stats = {
+            "lines_scanned": len(request.content.splitlines()),
+            "content_size_bytes": len(request.content.encode('utf-8')),
+            "scan_method": "text_paste"
+            # "user": current_user.email  # Commented out for debugging
+        }
+        
+        return create_enhanced_response(
             method="text",
             scan_types=request.scan_types,
-            total_findings=len(findings),
             findings=findings,
-            summary=create_summary(findings),
-            stats={
-                "lines_scanned": len(request.content.splitlines()),
-                # "user": current_user.email  # Commented out for debugging
-            }
+            stats=stats,
+            start_time=start_time
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
@@ -457,6 +1038,8 @@ async def scan_upload(
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
     
     try:
+        start_time = datetime.now()
+        
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             uploaded_file = temp_path / file.filename
@@ -465,7 +1048,7 @@ async def scan_upload(
             uploaded_file.write_bytes(content)
             
             findings = []
-            stats = {"file_size": len(content)}  # Removed user field for debugging
+            stats = {"file_size": len(content), "upload_filename": file.filename}
             
             if uploaded_file.suffix.lower() == ".zip":
                 try:
@@ -473,40 +1056,41 @@ async def scan_upload(
                         extract_path = temp_path / "extracted"
                         zip_ref.extractall(extract_path)
                         
-                        files_scanned = 0
-                        # Scan all extracted files
+                        # Collect files to scan
+                        files_to_scan = []
                         for root, _, files in os.walk(extract_path):
                             for fname in files:
                                 fpath = Path(root) / fname
-                                if fpath.suffix.lower() in ALL_EXTS:
-                                    try:
-                                        file_content = fpath.read_bytes()
-                                        if not is_binary_file(file_content):
-                                            text = file_content.decode('utf-8', errors='ignore')
-                                            rel_path = str(fpath.relative_to(extract_path))
-                                            findings.extend(scan_text_content(text, rel_path, scan_types_list))
-                                            files_scanned += 1
-                                    except Exception:
-                                        continue
+                                if fpath.suffix.lower() in ALL_EXTS and fpath.stat().st_size < MAX_FILE_SIZE:
+                                    files_to_scan.append((fpath, extract_path, scan_types_list, 1.0))
+                        
+                        # Parallel scanning for better performance
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                            results = executor.map(scan_file_parallel, files_to_scan)
+                            for file_findings in results:
+                                findings.extend(file_findings)
+                        
                         stats["archive_type"] = "zip"
-                        stats["files_scanned"] = files_scanned
+                        stats["files_scanned"] = len(files_to_scan)
+                        stats["total_files_in_archive"] = sum(1 for _ in extract_path.rglob("*") if _.is_file())
                 except zipfile.BadZipFile:
                     raise HTTPException(status_code=400, detail="Invalid ZIP file")
             else:
                 if not is_binary_file(content):
                     text = content.decode('utf-8', errors='ignore')
                     findings = scan_text_content(text, file.filename, scan_types_list)
+                    stats["lines_scanned"] = len(text.splitlines())
                 else:
                     raise HTTPException(status_code=400, detail="Binary files not supported")
                 stats["is_binary"] = False
+                stats["files_scanned"] = 1
             
-            return ScanResponse(
+            return create_enhanced_response(
                 method="upload",
                 scan_types=scan_types_list,
-                total_findings=len(findings),
                 findings=findings,
-                summary=create_summary(findings),
-                stats=stats
+                stats=stats,
+                start_time=start_time
             )
     except HTTPException:
         raise
@@ -518,7 +1102,7 @@ async def scan_github(
     request: RepoScanRequest,
     # current_user: User = Depends(get_current_user)  # Commented out for debugging
 ):
-    """Clone and scan GitHub repository."""
+    """Clone and scan GitHub repository - HIGHLY OPTIMIZED VERSION."""
     if not _GIT_OK:
         raise HTTPException(status_code=500, detail="Git not available. Install gitpython: pip install gitpython")
     
@@ -526,7 +1110,12 @@ async def scan_github(
     if not all(t in valid_types for t in request.scan_types):
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
     
+    max_file_size_mb = request.max_file_size_mb or 0.5  # Reduced default to 0.5MB
+    max_files = request.max_files or 200  # Reduced default to 200 files
+    
     try:
+        start_time = datetime.now()
+        
         with tempfile.TemporaryDirectory() as temp_dir:
             repo_path = Path(temp_dir) / "repo"
             
@@ -535,46 +1124,133 @@ async def scan_github(
             if request.token and repo_url.startswith("https://"):
                 repo_url = repo_url.replace("https://", f"https://{request.token}@")
             
-            # Clone repository
-            Repo.clone_from(repo_url, repo_path, branch=request.branch, depth=1)
+            # Clone repository with minimal depth and no tags
+            print(f"Cloning {request.repo_url} (shallow)...")
+            Repo.clone_from(
+                repo_url, 
+                repo_path, 
+                branch=request.branch, 
+                depth=1,  # Shallow clone
+                single_branch=True,  # Only clone specified branch
+                no_tags=True  # Don't fetch tags
+            )
             
             scan_target = repo_path / (request.subdir or "")
             if not scan_target.exists():
                 raise HTTPException(status_code=400, detail=f"Subdirectory not found: {request.subdir}")
             
-            findings = []
-            files_scanned = 0
+            # Pre-filter files more aggressively
+            files_to_scan = []
+            files_checked = 0
+            files_skipped = 0
             
-            # Scan repository files
+            # Prioritize certain file types for scanning
+            priority_exts = {".c", ".cc", ".cpp", ".h", ".env", ".key", ".pem", ".cfg", ".ini"}
+            secondary_exts = ALL_EXTS - priority_exts
+            
+            # First pass: priority files
             for root, dirs, files in os.walk(scan_target):
-                # Skip common non-source directories
-                dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "__pycache__", ".vscode", "build", "dist"}]
+                # Skip even more directories for speed
+                dirs[:] = [d for d in dirs if d not in {
+                    ".git", "node_modules", "__pycache__", ".vscode", 
+                    "build", "dist", "vendor", ".idea", "target", 
+                    "bin", "obj", ".gradle", ".mvn", "out", "cmake-build",
+                    "deps", "external", "third_party", "packages",
+                    ".tox", ".pytest_cache", ".coverage", "htmlcov",
+                    "docs", "documentation", "test", "tests", "spec"
+                }]
                 
                 for fname in files:
+                    if files_checked >= max_files:
+                        break
+                        
                     fpath = Path(root) / fname
-                    if fpath.suffix.lower() in ALL_EXTS:
+                    files_checked += 1
+                    
+                    # Quick size check
+                    try:
+                        file_stat = fpath.stat()
+                        if file_stat.st_size == 0:  # Skip empty files
+                            files_skipped += 1
+                            continue
+                        if file_stat.st_size > max_file_size_mb * 1024 * 1024:
+                            files_skipped += 1
+                            continue
+                    except:
+                        continue
+                    
+                    # Extension check with priority
+                    if fpath.suffix.lower() in priority_exts:
+                        files_to_scan.append((fpath, repo_path, request.scan_types, max_file_size_mb))
+                    elif fpath.suffix.lower() in secondary_exts and len(files_to_scan) < max_files // 2:
+                        files_to_scan.append((fpath, repo_path, request.scan_types, max_file_size_mb))
+                
+                if files_checked >= max_files:
+                    break
+            
+            print(f"Scanning {len(files_to_scan)} files (checked {files_checked}, skipped {files_skipped})...")
+            
+            # Batch processing for better performance
+            findings = []
+            batch_size = 20  # Process files in batches
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:  # Increased workers
+                # Submit jobs in batches to avoid overwhelming the system
+                for i in range(0, len(files_to_scan), batch_size):
+                    batch = files_to_scan[i:i+batch_size]
+                    
+                    # Use shorter timeout for individual files
+                    future_to_file = {
+                        executor.submit(scan_file_parallel, file_info): file_info 
+                        for file_info in batch
+                    }
+                    
+                    # Collect results with timeout
+                    for future in concurrent.futures.as_completed(future_to_file, timeout=30):
                         try:
-                            file_content = fpath.read_bytes()
-                            if not is_binary_file(file_content):
-                                text = file_content.decode('utf-8', errors='ignore')
-                                rel_path = str(fpath.relative_to(repo_path))
-                                findings.extend(scan_text_content(text, rel_path, request.scan_types))
-                                files_scanned += 1
-                        except Exception:
+                            file_findings = future.result(timeout=2)  # 2 second timeout per file
+                            if file_findings:
+                                findings.extend(file_findings)
+                        except (concurrent.futures.TimeoutError, Exception):
                             continue
             
-            return ScanResponse(
+            # Deduplicate and sort findings
+            seen = set()
+            unique_findings = []
+            for finding in findings:
+                key = (finding.file, finding.line, finding.type)
+                if key not in seen:
+                    seen.add(key)
+                    unique_findings.append(finding)
+            
+            # Sort by priority rank and severity
+            unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.file, x.line))
+            
+            # Limit total findings to prevent huge responses
+            max_findings = 500
+            truncated = len(unique_findings) > max_findings
+            if truncated:
+                unique_findings = unique_findings[:max_findings]
+            
+            stats = {
+                "repo_url": request.repo_url,
+                "branch": request.branch or "default",
+                "files_scanned": len(files_to_scan),
+                "files_checked": files_checked,
+                "files_skipped": files_skipped,
+                "max_file_size_mb": max_file_size_mb,
+                "max_files": max_files,
+                "performance": "optimized_parallel_scanning",
+                "truncated": truncated,
+                "scan_method": "github_clone"
+            }
+            
+            return create_enhanced_response(
                 method="github",
                 scan_types=request.scan_types,
-                total_findings=len(findings),
-                findings=findings,
-                summary=create_summary(findings),
-                stats={
-                    "repo_url": request.repo_url,
-                    "branch": request.branch or "default",
-                    "files_scanned": files_scanned,
-                    # "user": current_user.email  # Commented out for debugging
-                }
+                findings=unique_findings,
+                stats=stats,
+                start_time=start_time
             )
             
     except HTTPException:
@@ -586,12 +1262,29 @@ async def scan_github(
 async def scanner_health():
     """Scanner service health check."""
     return {
-        "status": "healthy",
-        "scanner_engine": "LLMShield-Unified",
-        "git_available": _GIT_OK,
-        "patterns_loaded": {
-            "secrets": len(SECRET_PATTERNS),
-            "cpp_vulnerabilities": len(CPP_VULN_PATTERNS) + len(SPECIAL_CPP_PATTERNS)
+        "status": "healthy ✅",
+        "scanner_engine": "LLMShield-Unified-v3.0",
+        "timestamp": datetime.now().isoformat(),
+        "capabilities": {
+            "git_available": _GIT_OK,
+            "patterns_loaded": {
+                "secrets": len(SECRET_PATTERNS),
+                "cpp_vulnerabilities": len(CPP_VULN_PATTERNS) + len(SPECIAL_CPP_PATTERNS)
+            },
+            "supported_extensions": list(ALL_EXTS)
         },
-        "supported_extensions": list(ALL_EXTS)
+        "features": {
+            "visual_reporting": "✅ Enhanced with emojis and indicators",
+            "priority_ranking": "✅ Issues ranked by urgency",
+            "executive_summary": "✅ Risk assessment included",
+            "recommendations": "✅ Actionable fix suggestions",
+            "performance_tracking": "✅ Scan duration metrics"
+        },
+        "optimizations": [
+            "🚀 Parallel file scanning",
+            "📏 File size limits",
+            "🔴 Critical severity for all secrets",
+            "💡 Specific remediation guidance",
+            "📊 Enhanced reporting visuals"
+        ]
     }
