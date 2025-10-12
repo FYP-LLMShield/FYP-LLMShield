@@ -5,6 +5,7 @@ Handles text scanning, file uploads, and GitHub repository analysis.
 Enhanced version with improved visual reporting and better readability.
 """
 
+
 import os
 import re
 import math
@@ -2060,11 +2061,5 @@ async def scanner_health():
             "recommendations": "✅ Actionable fix suggestions",
             "performance_tracking": "✅ Scan duration metrics"
         },
-        "optimizations": [
-            "🚀 Parallel file scanning",
-            "📏 File size limits",
-            "🔴 Critical severity for all secrets",
-            "💡 Specific remediation guidance",
-            "📊 Enhanced reporting visuals"
-        ]
+        "supported_extensions": list(ALL_EXTS)
     }
