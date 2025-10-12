@@ -1,6 +1,5 @@
 # FYP-LLMShield
 A Unified Threat Detection Framework for Mitigating Prompt Injection, Model Poisoning, and RAG Embedding Risks.
-# LLMShield Security Platform
 
 <div align="center">
   <img src="LLMShield-Backend/llmshield_logo.png" alt="LLMShield Logo" width="200"/>
