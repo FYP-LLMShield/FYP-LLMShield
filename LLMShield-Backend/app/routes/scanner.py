@@ -5,7 +5,6 @@ Handles text scanning, file uploads, and GitHub repository analysis.
 Enhanced version with improved visual reporting and better readability.
 """
 
-
 import os
 import re
 import math
@@ -2053,6 +2052,16 @@ async def scanner_health():
                 "cpp_vulnerabilities": len(CPP_VULN_PATTERNS) + len(SPECIAL_CPP_PATTERNS)
             },
             "supported_extensions": list(ALL_EXTS)
+<<<<<<< HEAD
+        },
+        "features": {
+            "visual_reporting": "✅ Enhanced with emojis and indicators",
+            "priority_ranking": "✅ Issues ranked by urgency",
+            "executive_summary": "✅ Risk assessment included",
+            "recommendations": "✅ Actionable fix suggestions",
+            "performance_tracking": "✅ Scan duration metrics"
+=======
+>>>>>>> 0ba065b9036229c0066e61844c0f4c0bc71942f9
         },
         "features": {
             "visual_reporting": "✅ Enhanced with emojis and indicators",
@@ -2061,5 +2070,11 @@ async def scanner_health():
             "recommendations": "✅ Actionable fix suggestions",
             "performance_tracking": "✅ Scan duration metrics"
         },
-        "supported_extensions": list(ALL_EXTS)
+        "optimizations": [
+            "🚀 Parallel file scanning",
+            "📏 File size limits",
+            "🔴 Critical severity for all secrets",
+            "💡 Specific remediation guidance",
+            "📊 Enhanced reporting visuals"
+        ]
     }
