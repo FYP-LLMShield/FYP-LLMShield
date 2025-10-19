@@ -1,121 +1,337 @@
+"""
+Email service for sending verification and notification emails
+"""
+
 import smtplib
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.core.config import settings
-import logging
+from email.mime.base import MIMEBase
+from email import encoders
+from typing import List, Optional
+from datetime import datetime, timedelta
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from bson import ObjectId
+import os
+
+from app.models.email_verification import EmailVerificationToken
+from app.core.database import get_database
 
 logger = logging.getLogger(__name__)
 
+
+class EmailConfig:
+    """Email configuration settings"""
+
+    # Gmail SMTP Configuration
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("EMAIL_USERNAME", "")  # Your Gmail address
+    SMTP_PASSWORD = os.getenv("EMAIL_PASSWORD", "")  # Your Gmail App Password (16 characters)
+    DEFAULT_FROM_EMAIL = os.getenv("EMAIL_USERNAME", "")  # Your Gmail address
+
+    @classmethod
+    def is_configured(cls) -> bool:
+        """Check if email is properly configured"""
+        return bool(cls.SMTP_USERNAME and cls.SMTP_PASSWORD and cls.DEFAULT_FROM_EMAIL)
+
+
 class EmailService:
-    def __init__(self):
-        self.smtp_server = "smtp.gmail.com"  # You can change this
-        self.smtp_port = 587
-        # For testing, we'll just print emails to console
-        # In production, you'd use real email credentials
-        
-    async def send_verification_email(self, email: str, verification_token: str, full_name: str):
-        """Send email verification email"""
+    """Service for sending emails and managing verification tokens"""
+
+    def __init__(self, db: AsyncIOMotorDatabase):
+        self.db = db
+        self.config = EmailConfig()
+        self.smtp_server = None
+        self.verification_collection = self.db.email_verification_tokens
+
+    async def send_verification_email(self, email: str, code: str) -> bool:
+        """Send verification email with code"""
         try:
-            subject = "Verify Your LLMShield Account"
-            verification_link = f"http://localhost:8000/api/v1/auth/verify-email/{verification_token}"
-            
-            html_body = f"""
-            <html>
-                <body>
-                    <h2>Welcome to LLMShield, {full_name}!</h2>
-                    <p>Thank you for registering. Please click the link below to verify your email address:</p>
-                    <p><a href="{verification_link}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email</a></p>
-                    <p>Or copy and paste this link in your browser:</p>
-                    <p>{verification_link}</p>
-                    <p>This link will expire in 24 hours.</p>
-                    <br>
-                    <p>If you didn't create this account, please ignore this email.</p>
-                    <p>Best regards,<br>LLMShield Team</p>
-                </body>
-            </html>
+            if not EmailConfig.is_configured():
+                logger.error("Email configuration is missing")
+                return False
+
+            subject = "Email Verification Code - LLMShield"
+            message = f"""
+            Welcome to LLMShield!
+
+            Your email verification code is: {code}
+
+            This code will expire in 10 minutes.
+
+            If you didn't request this verification, please ignore this email.
+
+            Best regards,
+            LLMShield Team
             """
-            
-            # For development, we'll just print the email content
-            print("\n" + "="*50)
-            print("📧 VERIFICATION EMAIL")
-            print("="*50)
-            print(f"To: {email}")
-            print(f"Subject: {subject}")
-            print(f"Verification Link: {verification_link}")
-            print("="*50 + "\n")
-            
-            # In production, uncomment this to send real emails:
-            # await self._send_email(email, subject, html_body)
-            
-            return True
-            
+
+            return self._send_email(
+                to_email=email,
+                subject=subject,
+                message=message
+            )
+
         except Exception as e:
-            logger.error(f"Failed to send verification email: {e}")
-            return False
-    
-    async def send_password_reset_email(self, email: str, reset_token: str, full_name: str):
-        """Send password reset email"""
-        try:
-            subject = "Reset Your LLMShield Password"
-            reset_link = f"http://localhost:3000/reset-password?token={reset_token}"  # Your frontend URL
-            
-            html_body = f"""
-            <html>
-                <body>
-                    <h2>Password Reset Request</h2>
-                    <p>Hello {full_name},</p>
-                    <p>You requested to reset your password. Click the link below to reset it:</p>
-                    <p><a href="{reset_link}" style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
-                    <p>Or copy and paste this link in your browser:</p>
-                    <p>{reset_link}</p>
-                    <p>This link will expire in 1 hour.</p>
-                    <br>
-                    <p>If you didn't request this, please ignore this email.</p>
-                    <p>Best regards,<br>LLMShield Team</p>
-                </body>
-            </html>
-            """
-            
-            # For development, we'll just print the email content
-            print("\n" + "="*50)
-            print("📧 PASSWORD RESET EMAIL")
-            print("="*50)
-            print(f"To: {email}")
-            print(f"Subject: {subject}")
-            print(f"Reset Link: {reset_link}")
-            print("="*50 + "\n")
-            
-            # In production, uncomment this to send real emails:
-            # await self._send_email(email, subject, html_body)
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to send reset email: {e}")
-            return False
-    
-    async def _send_email(self, to_email: str, subject: str, html_body: str):
-        """Send actual email (for production)"""
-        try:
-            # This would be used in production with real SMTP credentials
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = "noreply@llmshield.com"
-            msg['To'] = to_email
-            
-            msg.attach(MIMEText(html_body, 'html'))
-            
-            # Connect to server and send email
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            # server.login(settings.EMAIL_USERNAME, settings.EMAIL_PASSWORD)
-            server.send_message(msg)
-            server.quit()
-            
-            return True
-        except Exception as e:
-            logger.error(f"SMTP Error: {e}")
+            logger.error(f"Failed to send verification email to {email}: {e}")
             return False
 
-# Create single instance
-email_service = EmailService()
+    async def send_scan_report_email(self, to_email: str, scan_target: str, scan_type: str, pdf_path: str) -> bool:
+        """Send scan report PDF via email"""
+        try:
+            if not EmailConfig.is_configured():
+                logger.error("Email configuration is missing")
+                return False
+
+            if not os.path.exists(pdf_path):
+                logger.error(f"PDF file not found: {pdf_path}")
+                return False
+
+            subject = f"LLMShield Security Scan Report - {scan_target}"
+
+            # Create email body
+            message = f"""
+Security Scan Report - LLMShield
+
+Target: {scan_target}
+Scan Type: {scan_type.title()}
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Your comprehensive network security assessment report is attached to this email.
+
+The report includes:
+• Executive summary and security posture assessment
+• Detailed vulnerability analysis with CVE information
+• Open ports and services analysis
+• Prioritized security recommendations
+• Risk assessment and remediation guidance
+
+Please review the findings and implement the recommended security measures to enhance your network security posture.
+
+If you have any questions about the report findings, please contact our security team.
+
+Best regards,
+LLMShield Security Team
+
+---
+This is an automated report generated by LLMShield.
+For support, visit: https://llmshield.com/support
+            """
+
+            return self._send_email_with_attachment(
+                to_email=to_email,
+                subject=subject,
+                message=message,
+                attachment_path=pdf_path,
+                attachment_name=os.path.basename(pdf_path)
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to send scan report email to {to_email}: {e}")
+            return False
+
+    def _send_email(self, to_email: str, subject: str, message: str) -> bool:
+        """Send email using SMTP"""
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = EmailConfig.DEFAULT_FROM_EMAIL
+            msg['To'] = to_email
+            msg['Subject'] = subject
+
+            # Add body to email
+            msg.attach(MIMEText(message, 'plain'))
+
+            # Gmail SMTP configuration with timeout for faster response
+            logger.info(f"Connecting to Gmail SMTP for {to_email}")
+            server = smtplib.SMTP(EmailConfig.SMTP_SERVER, EmailConfig.SMTP_PORT, timeout=10)
+            server.starttls()  # Enable security
+
+            logger.info(f"Authenticating with Gmail for {to_email}")
+            server.login(EmailConfig.SMTP_USERNAME, EmailConfig.SMTP_PASSWORD)
+
+            # Send email
+            logger.info(f"Sending email to {to_email}")
+            text = msg.as_string()
+            server.sendmail(EmailConfig.DEFAULT_FROM_EMAIL, to_email, text)
+            server.quit()
+
+            logger.info(f"Email sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send email to {to_email}: {e}")
+            return False
+
+    def _send_email_with_attachment(self, to_email: str, subject: str, message: str, attachment_path: str, attachment_name: str) -> bool:
+        """Send email with PDF attachment using SMTP"""
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = EmailConfig.DEFAULT_FROM_EMAIL
+            msg['To'] = to_email
+            msg['Subject'] = subject
+
+            # Add body to email
+            msg.attach(MIMEText(message, 'plain'))
+
+            # Add PDF attachment
+            with open(attachment_path, "rb") as attachment:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(attachment.read())
+
+            # Encode file in ASCII characters to send by email
+            encoders.encode_base64(part)
+
+            # Add header as key/value pair to attachment part
+            part.add_header(
+                'Content-Disposition',
+                f'attachment; filename= {attachment_name}',
+            )
+
+            # Attach the part to message
+            msg.attach(part)
+
+            # Gmail SMTP configuration with timeout
+            logger.info(f"Connecting to Gmail SMTP for sending report to {to_email}")
+            server = smtplib.SMTP(EmailConfig.SMTP_SERVER, EmailConfig.SMTP_PORT, timeout=15)
+            server.starttls()  # Enable security
+
+            logger.info(f"Authenticating with Gmail for report email to {to_email}")
+            server.login(EmailConfig.SMTP_USERNAME, EmailConfig.SMTP_PASSWORD)
+
+            # Send email
+            logger.info(f"Sending scan report email with PDF attachment to {to_email}")
+            text = msg.as_string()
+            server.sendmail(EmailConfig.DEFAULT_FROM_EMAIL, to_email, text)
+            server.quit()
+
+            logger.info(f"Scan report email with PDF sent successfully to {to_email}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send email with attachment to {to_email}: {e}")
+            return False
+
+    async def create_verification_token(self, email: str, username: str, password: str) -> Optional[EmailVerificationToken]:
+        """Create and store verification token"""
+        try:
+            # Check if user already has pending verification
+            existing = await self.verification_collection.find_one({"email": email})
+            if existing:
+                # Delete existing token
+                await self.verification_collection.delete_one({"email": email})
+
+            # Create new token
+            token = EmailVerificationToken.create_for_registration(email, username, password)
+
+            # Store in database
+            result = await self.verification_collection.insert_one(token.to_dict())
+
+            if result.inserted_id:
+                token.id = str(result.inserted_id)
+                return token
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to create verification token for {email}: {e}")
+            return None
+
+    async def verify_email_code(self, email: str, code: str) -> Optional[EmailVerificationToken]:
+        """Verify email code and return token if valid"""
+        try:
+            logger.info(f"Searching for verification token: email={email}, code={code}")
+
+            # Find token
+            token_doc = await self.verification_collection.find_one({
+                "email": email,
+                "code": code
+            })
+
+            if not token_doc:
+                logger.warning(f"No verification token found for email={email}, code={code}")
+                # Let's also check if there's any token for this email
+                any_token = await self.verification_collection.find_one({"email": email})
+                if any_token:
+                    logger.info(f"Found token for email but wrong code. Expected: {any_token.get('code')}, Got: {code}")
+                else:
+                    logger.warning(f"No token exists for email: {email}")
+                return None
+
+            logger.info(f"Found verification token for email: {email}")
+
+            # Convert to model
+            token_doc["id"] = str(token_doc["_id"])
+            del token_doc["_id"]
+            token = EmailVerificationToken(**token_doc)
+
+            # Check if valid
+            if not token.is_valid():
+                logger.warning(f"Token expired for email: {email}, expires_at: {token.expires_at}")
+                # Delete expired token
+                await self.verification_collection.delete_one({"email": email})
+                return None
+
+            logger.info(f"Token is valid for email: {email}")
+            return token
+
+        except Exception as e:
+            logger.error(f"Failed to verify email code for {email}: {e}")
+            return None
+
+    async def delete_verification_token(self, email: str) -> bool:
+        """Delete verification token after successful verification"""
+        try:
+            result = await self.verification_collection.delete_one({"email": email})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f"Failed to delete verification token for {email}: {e}")
+            return False
+
+    async def resend_verification_code(self, email: str) -> Optional[str]:
+        """Generate new code and resend verification email"""
+        try:
+            # Find existing token
+            existing = await self.verification_collection.find_one({"email": email})
+            if not existing:
+                return None
+
+            # Generate new code
+            import random
+            new_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+            # Update token with new code and extended expiry
+            new_expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+            await self.verification_collection.update_one(
+                {"email": email},
+                {
+                    "$set": {
+                        "code": new_code,
+                        "expires_at": new_expires_at
+                    }
+                }
+            )
+
+            # Send new email
+            if await self.send_verification_email(email, new_code):
+                return new_code
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to resend verification code for {email}: {e}")
+            return None
+
+    async def cleanup_expired_tokens(self) -> int:
+        """Clean up expired verification tokens"""
+        try:
+            result = await self.verification_collection.delete_many({
+                "expires_at": {"$lt": datetime.utcnow()}
+            })
+            logger.info(f"Cleaned up {result.deleted_count} expired verification tokens")
+            return result.deleted_count
+        except Exception as e:
+            logger.error(f"Failed to cleanup expired tokens: {e}")
+            return 0
