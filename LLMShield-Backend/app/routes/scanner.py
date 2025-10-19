@@ -2060,6 +2060,13 @@ async def scanner_health():
             "recommendations": "✅ Actionable fix suggestions",
             "performance_tracking": "✅ Scan duration metrics"
         },
+        "features": {
+            "visual_reporting": "✅ Enhanced with emojis and indicators",
+            "priority_ranking": "✅ Issues ranked by urgency",
+            "executive_summary": "✅ Risk assessment included",
+            "recommendations": "✅ Actionable fix suggestions",
+            "performance_tracking": "✅ Scan duration metrics"
+        },
         "optimizations": [
             "🚀 Parallel file scanning",
             "📏 File size limits",
