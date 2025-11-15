@@ -2,7 +2,7 @@
 A Unified Threat Detection Framework for Mitigating Prompt Injection, Model Poisoning, and RAG Embedding Risks.
 
 <div align="center">
-  <img src="Frontend/public/images/logo.svg" alt="LLMShield Logo" width="200"/>
+  <img src="LLMShield-Frontend/public/images/logo.svg" alt="LLMShield Logo" width="200"/>
   
   **A Comprehensive AI Security Testing Platform**
   
