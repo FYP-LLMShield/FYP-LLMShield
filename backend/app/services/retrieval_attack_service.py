@@ -351,7 +351,7 @@ class RetrievalAttackSimulator:
                     query=query,
                     variant_type=variant_type,
                     variant_query=variant_query,
-                    target_vector_id=comp.vector_id,
+                    target_vector_id=str(comp.vector_id),  # Ensure string for Pydantic
                     baseline_rank=comp.baseline_rank,
                     adversarial_rank=comp.adversarial_rank,
                     rank_shift=comp.rank_shift,
@@ -359,7 +359,7 @@ class RetrievalAttackSimulator:
                     metadata=meta,
                     confidence=confidence,
                     description=description,
-                    responsible_vectors=[comp.vector_id],
+                    responsible_vectors=[str(comp.vector_id)],  # Ensure string for Pydantic
                     recommended_action="Review vector content for adversarial patterns; consider re-embedding or quarantine"
                 ))
         

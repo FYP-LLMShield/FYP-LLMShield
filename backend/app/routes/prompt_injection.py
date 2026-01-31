@@ -4323,7 +4323,9 @@ async def run_retrieval_attack_simulation(
                 continue
             embeddings.append(embedding)
             metadata_list.append(vec_data.get("metadata", {}))
-            record_ids.append(vec_data.get("vector_id", f"vec_{len(embeddings)-1}"))
+            # Convert vector_id to string for Pydantic validation
+            vector_id = vec_data.get("vector_id", f"vec_{len(embeddings)-1}")
+            record_ids.append(str(vector_id))
         
         if not embeddings:
             raise HTTPException(status_code=400, detail="No valid embeddings found in snapshot")
