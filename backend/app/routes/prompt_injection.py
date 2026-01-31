@@ -4434,11 +4434,209 @@ async def run_retrieval_attack_simulation(
 class RetrievalAttackExportRequest(BaseModel):
     """Request for exporting simulation report."""
     scan_id: str
-    format: str = "json"  # "json" or "csv"
+    report_data: Dict[str, Any]  # Full simulation result
+    format: str = "json"  # "json", "csv", or "pdf"
 
 
 # In-memory cache for scan results (in production, use Redis or DB)
 _scan_results_cache: Dict[str, RetrievalAttackResponse] = {}
+
+
+def _generate_retrieval_attack_csv(report_data: Dict[str, Any]) -> str:
+    """Generate comprehensive CSV report with all metrics."""
+    import csv
+    from io import StringIO
+    
+    output = StringIO()
+    
+    # Summary Metrics
+    output.write("=== RETRIEVAL ATTACK SIMULATION REPORT ===\n")
+    output.write(f"Scan ID: {report_data.get('scan_id', 'N/A')}\n")
+    output.write(f"Timestamp: {report_data.get('scan_timestamp', 'N/A')}\n")
+    output.write("\n")
+    
+    # Overall Metrics
+    output.write("=== OVERALL METRICS ===\n")
+    writer = csv.writer(output)
+    writer.writerow(["Metric", "Value"])
+    writer.writerow(["Attack Success Rate (ASR)", f"{report_data.get('attack_success_rate', 0) * 100:.2f}%"])
+    writer.writerow(["Total Queries", report_data.get('total_queries', 0)])
+    writer.writerow(["Successful Queries", report_data.get('successful_queries', 0)])
+    writer.writerow(["Failed Queries", report_data.get('failed_queries', 0)])
+    writer.writerow(["Total Findings", len(report_data.get('findings', []))])
+    writer.writerow(["Behavioral Impacts", len(report_data.get('behavioral_impacts', []))])
+    output.write("\n")
+    
+    # Rank-Shift Metrics
+    output.write("=== RANK-SHIFT METRICS ===\n")
+    findings = report_data.get('findings', [])
+    if findings:
+        rank_shifts = [f.get('rank_shift', 0) for f in findings]
+        avg_shift = sum(rank_shifts) / len(rank_shifts)
+        max_shift = max(rank_shifts)
+        min_shift = min(rank_shifts)
+        
+        writer.writerow(["Average Rank Shift", f"{avg_shift:.2f}"])
+        writer.writerow(["Max Rank Shift", max_shift])
+        writer.writerow(["Min Rank Shift", min_shift])
+        writer.writerow(["Moves Into Top-K", sum(1 for f in findings if f.get('baseline_rank') is None)])
+        writer.writerow(["Significant Shifts", sum(1 for s in rank_shifts if abs(s) >= 5)])
+    output.write("\n")
+    
+    # Reproducible Parameters
+    output.write("=== REPRODUCIBLE PARAMETERS ===\n")
+    params = report_data.get('parameters', {})
+    writer.writerow(["Parameter", "Value"])
+    writer.writerow(["Top-K", params.get('top_k', 'N/A')])
+    writer.writerow(["Similarity Threshold", params.get('similarity_threshold', 'N/A')])
+    writer.writerow(["Rank Shift Threshold", params.get('rank_shift_threshold', 'N/A')])
+    writer.writerow(["Variant Types", ', '.join(params.get('variant_types', []))])
+    writer.writerow(["Model Inference Enabled", params.get('enable_model_inference', False)])
+    writer.writerow(["Embedding Model", params.get('embedding_model', 'cosine-similarity')])
+    writer.writerow(["Similarity Metric", params.get('similarity_metric', 'cosine')])
+    output.write("\n")
+    
+    # Implicated Vectors
+    output.write("=== IMPLICATED VECTORS ===\n")
+    implicated = set()
+    for finding in findings:
+        implicated.add(finding.get('target_vector_id', 'N/A'))
+        implicated.update(finding.get('responsible_vectors', []))
+    
+    writer.writerow(["Vector ID", "Occurrences"])
+    vector_counts = {}
+    for finding in findings:
+        vid = finding.get('target_vector_id', 'N/A')
+        vector_counts[vid] = vector_counts.get(vid, 0) + 1
+    
+    for vid, count in sorted(vector_counts.items(), key=lambda x: x[1], reverse=True):
+        writer.writerow([vid, count])
+    output.write("\n")
+    
+    # Detailed Findings
+    output.write("=== DETAILED FINDINGS ===\n")
+    writer.writerow(["Query", "Variant Type", "Target Vector", "Baseline Rank", "Adversarial Rank", "Rank Shift", "Confidence", "Description"])
+    for finding in findings[:100]:  # Limit to first 100
+        writer.writerow([
+            finding.get('query', '')[:50],
+            finding.get('variant_type', ''),
+            finding.get('target_vector_id', ''),
+            finding.get('baseline_rank', 'N/A'),
+            finding.get('adversarial_rank', 'N/A'),
+            finding.get('rank_shift', 0),
+            f"{finding.get('confidence', 0):.2f}",
+            finding.get('description', '')[:100]
+        ])
+    
+    return output.getvalue()
+
+
+def _generate_retrieval_attack_pdf(report_data: Dict[str, Any]) -> bytes:
+    """Generate PDF report for retrieval attack simulation."""
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from io import BytesIO
+    except ImportError:
+        raise HTTPException(status_code=500, detail="ReportLab not installed")
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#ff6b35'),
+        spaceAfter=30
+    )
+    story.append(Paragraph("Retrieval Attack Simulation Report", title_style))
+    story.append(Spacer(1, 0.2 * inch))
+    
+    # Summary Info
+    summary_data = [
+        ["Scan ID:", report_data.get('scan_id', 'N/A')],
+        ["Timestamp:", report_data.get('scan_timestamp', 'N/A')],
+        ["Total Queries:", str(report_data.get('total_queries', 0))],
+        ["Successful:", str(report_data.get('successful_queries', 0))],
+        ["Failed:", str(report_data.get('failed_queries', 0))],
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[2*inch, 4*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#2d3748')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#1a202c')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.white),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('PADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 0.3 * inch))
+    
+    # Key Metrics
+    story.append(Paragraph("Key Metrics", styles['Heading2']))
+    asr = report_data.get('attack_success_rate', 0) * 100
+    findings_count = len(report_data.get('findings', []))
+    
+    metrics_data = [
+        ["Metric", "Value"],
+        ["Attack Success Rate (ASR)", f"{asr:.1f}%"],
+        ["Total Findings", str(findings_count)],
+        ["Behavioral Impacts", str(len(report_data.get('behavioral_impacts', [])))],
+    ]
+    
+    metrics_table = Table(metrics_data, colWidths=[3*inch, 3*inch])
+    metrics_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ff6b35')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('PADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(metrics_table)
+    story.append(Spacer(1, 0.3 * inch))
+    
+    # Findings Summary (first 10)
+    findings = report_data.get('findings', [])
+    if findings:
+        story.append(Paragraph("Top Findings", styles['Heading2']))
+        findings_data = [["Query", "Variant", "Rank Shift", "Confidence"]]
+        for f in findings[:10]:
+            findings_data.append([
+                Paragraph(f.get('query', '')[:40], styles['Normal']),
+                f.get('variant_type', ''),
+                str(f.get('rank_shift', 0)),
+                f"{f.get('confidence', 0):.2f}"
+            ])
+        
+        findings_table = Table(findings_data, colWidths=[2.5*inch, 1.2*inch, 1*inch, 1*inch])
+        findings_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a5568')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(findings_table)
+    
+    doc.build(story)
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    return pdf_data
 
 
 @router.post("/retrieval-attack-simulation/export")
@@ -4451,44 +4649,67 @@ async def export_retrieval_attack_report(
     
     Returns a downloadable report with:
     - ASR (attack success rate)
-    - Rank-shift metrics
-    - Implicated vector IDs
-    - Reproducible parameters
+    - Rank-shift metrics (average, max, min, distribution)
+    - Implicated vector IDs with occurrence counts
+    - Reproducible parameters (index version, embedding model, k, similarity metric)
+    - Detailed findings table
+    - Behavioral impacts (if model inference enabled)
+    
+    Formats: JSON, CSV, PDF
     """
-    # For now, return a template (actual implementation would retrieve from cache/DB)
-    export_data = {
-        "report_id": request.scan_id,
-        "export_timestamp": datetime.now().isoformat(),
-        "format": request.format,
-        "metrics": {
-            "attack_success_rate": 0.0,
-            "total_findings": 0,
-            "avg_rank_shift": 0.0
-        },
-        "implicated_vectors": [],
-        "parameters": {
-            "index_version": "snapshot",
-            "embedding_model": "unknown",
-            "k": 10,
-            "similarity_metric": "cosine"
-        },
-        "note": "Full report data available after running simulation"
-    }
-    
-    if request.format == "csv":
-        # Return CSV format
-        import csv
-        from io import StringIO
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["Metric", "Value"])
-        for key, value in export_data["metrics"].items():
-            writer.writerow([key, value])
+    try:
+        report_data = request.report_data
         
-        return Response(
-            content=output.getvalue(),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=retrieval_attack_{request.scan_id}.csv"}
+        if request.format == "csv":
+            csv_content = _generate_retrieval_attack_csv(report_data)
+            return Response(
+                content=csv_content,
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename=retrieval_attack_{request.scan_id}.csv"}
+            )
+        
+        elif request.format == "pdf":
+            pdf_content = _generate_retrieval_attack_pdf(report_data)
+            return Response(
+                content=pdf_content,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=retrieval_attack_{request.scan_id}.pdf"}
+            )
+        
+        else:  # JSON (default)
+            # Enhanced JSON export with all metrics
+            export_data = {
+                "report_id": request.scan_id,
+                "export_timestamp": datetime.now().isoformat(),
+                "scan_timestamp": report_data.get('scan_timestamp'),
+                "summary": {
+                    "attack_success_rate": report_data.get('attack_success_rate'),
+                    "total_queries": report_data.get('total_queries'),
+                    "successful_queries": report_data.get('successful_queries'),
+                    "failed_queries": report_data.get('failed_queries'),
+                    "total_findings": len(report_data.get('findings', [])),
+                    "behavioral_impacts": len(report_data.get('behavioral_impacts', []))
+                },
+                "rank_shift_metrics": {
+                    "average": sum(f.get('rank_shift', 0) for f in report_data.get('findings', [])) / max(len(report_data.get('findings', [])), 1),
+                    "max": max((f.get('rank_shift', 0) for f in report_data.get('findings', [])), default=0),
+                    "min": min((f.get('rank_shift', 0) for f in report_data.get('findings', [])), default=0),
+                    "moves_into_top_k": sum(1 for f in report_data.get('findings', []) if f.get('baseline_rank') is None),
+                    "significant_shifts": sum(1 for f in report_data.get('findings', []) if abs(f.get('rank_shift', 0)) >= 5)
+                },
+                "implicated_vectors": list(set(f.get('target_vector_id') for f in report_data.get('findings', []))),
+                "parameters": report_data.get('parameters', {}),
+                "findings": report_data.get('findings', []),
+                "behavioral_impacts": report_data.get('behavioral_impacts', []),
+                "query_results": report_data.get('query_results', []),
+                "recommendations": report_data.get('recommendations', [])
+            }
+            
+            return export_data
+            
+    except Exception as e:
+        logger.error(f"Error exporting retrieval attack report: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Export failed: {str(e)}"
         )
-    
-    return export_data

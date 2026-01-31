@@ -424,11 +424,36 @@ export const promptInjectionAPI = {
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
     })
   },
-  exportRetrievalAttackReport: (scanId: string, format: string = 'json') =>
-    apiClient.request('/prompt-injection/retrieval-attack-simulation/export', {
+  exportRetrievalAttackReport: (scanId: string, reportData: any, format: string = 'json') => {
+    return fetch(`${API_BASE}/prompt-injection/retrieval-attack-simulation/export`, {
       method: 'POST',
-      body: { scan_id: scanId, format }
-    }),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : {})
+      },
+      body: JSON.stringify({ scan_id: scanId, report_data: reportData, format })
+    }).then(async (res) => {
+      if (!res.ok) {
+        const error = await res.text()
+        return { success: false, error }
+      }
+      
+      if (format === 'json') {
+        const data = await res.json()
+        return { success: true, data }
+      } else {
+        // For CSV/PDF, return blob for download
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `retrieval_attack_${scanId}.${format}`
+        a.click()
+        URL.revokeObjectURL(url)
+        return { success: true, data: null }
+      }
+    })
+  },
 }
 
 
