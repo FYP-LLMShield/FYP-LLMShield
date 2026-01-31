@@ -4017,7 +4017,9 @@ async def analyze_vector_store(
             
             embeddings.append(embedding)
             metadata_list.append(vec_data.get("metadata", {}))
-            record_ids.append(vec_data.get("vector_id", f"vec_{len(embeddings)-1}"))
+            # Convert vector_id to string for Pydantic validation
+            vector_id = vec_data.get("vector_id", f"vec_{len(embeddings)-1}")
+            record_ids.append(str(vector_id))
         
         if not embeddings:
             raise HTTPException(
@@ -4074,11 +4076,11 @@ async def analyze_vector_store(
         # Enrich findings with nearest neighbors and additional details
         enriched_findings = []
         for finding in all_findings:
-            # Add record IDs
+            # Add record IDs (ensure strings for Pydantic validation)
             if finding.get("vector_id") is not None:
                 vec_idx = finding["vector_id"]
                 if vec_idx < len(record_ids):
-                    finding["record_id"] = record_ids[vec_idx]
+                    finding["record_id"] = str(record_ids[vec_idx])
                     # Add source doc/chunk from metadata
                     if vec_idx < len(metadata_list):
                         meta = metadata_list[vec_idx]
@@ -4088,13 +4090,13 @@ async def analyze_vector_store(
                         finding["source_chunk"] = str(chunk_id) if chunk_id is not None else None
             
             if finding.get("vector_ids"):
-                finding["record_ids"] = [record_ids[i] for i in finding["vector_ids"] if i < len(record_ids)]
+                finding["record_ids"] = [str(record_ids[i]) for i in finding["vector_ids"] if i < len(record_ids)]
             
             if finding.get("vector_id_a") is not None and finding.get("vector_id_b") is not None:
                 if finding["vector_id_a"] < len(record_ids):
-                    finding["record_id_a"] = record_ids[finding["vector_id_a"]]
+                    finding["record_id_a"] = str(record_ids[finding["vector_id_a"]])
                 if finding["vector_id_b"] < len(record_ids):
-                    finding["record_id_b"] = record_ids[finding["vector_id_b"]]
+                    finding["record_id_b"] = str(record_ids[finding["vector_id_b"]])
             
             # Add nearest neighbors for single vector findings
             if finding.get("vector_id") is not None and finding.get("vector_id_a") is None:

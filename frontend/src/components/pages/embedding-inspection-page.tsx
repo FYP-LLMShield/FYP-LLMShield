@@ -225,7 +225,11 @@ export const EmbeddingInspectionPage: React.FC = () => {
   const handleQuickSanitize = (finding: EmbeddingFinding) => {
     // Add finding to masked list
     const key = `${finding.chunk_id}-${finding.reason_label}`
-    setMaskedFindings(prev => new Set([...prev, key]))
+    setMaskedFindings(prev => {
+      const newSet = new Set(Array.from(prev))
+      newSet.add(key)
+      return newSet
+    })
     // Also add to custom patterns if it's a specific pattern
     if (finding.snippet && finding.snippet.length < 100) {
       const pattern = finding.snippet.substring(0, 50).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -235,7 +239,11 @@ export const EmbeddingInspectionPage: React.FC = () => {
 
   const handleMaskFinding = (finding: EmbeddingFinding) => {
     const key = `${finding.chunk_id}-${finding.reason_label}`
-    setMaskedFindings(prev => new Set([...prev, key]))
+    setMaskedFindings(prev => {
+      const newSet = new Set(Array.from(prev))
+      newSet.add(key)
+      return newSet
+    })
   }
 
   const handleExcludeFinding = (finding: EmbeddingFinding) => {
