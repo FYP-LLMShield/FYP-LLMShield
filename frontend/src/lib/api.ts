@@ -265,6 +265,64 @@ export const promptInjectionAPI = {
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
     })
   },
+
+  // Multi-source vector store analysis (supports Pinecone and other cloud DBs)
+  vectorStoreAnalysisMultiSource: (opts: {
+    source_type: 'json_upload' | 'pinecone' | 'pinecone_env';
+    file?: File;
+    pinecone_api_key?: string;
+    pinecone_index_name?: string;
+    pinecone_environment?: string;
+    pinecone_host?: string;
+    pinecone_namespace?: string;
+    sample_size?: number;
+    batch_size?: number;
+    enable_clustering?: boolean;
+    enable_collision_detection?: boolean;
+    enable_outlier_detection?: boolean;
+    enable_trigger_detection?: boolean;
+    collision_threshold?: number;
+  }) => {
+    const formData = new FormData()
+    formData.append("source_type", opts.source_type)
+    if (opts.file) formData.append("file", opts.file)
+    if (opts.pinecone_api_key) formData.append("pinecone_api_key", opts.pinecone_api_key)
+    if (opts.pinecone_index_name) formData.append("pinecone_index_name", opts.pinecone_index_name)
+    if (opts.pinecone_environment) formData.append("pinecone_environment", opts.pinecone_environment)
+    if (opts.pinecone_host) formData.append("pinecone_host", opts.pinecone_host)
+    if (opts.pinecone_namespace) formData.append("pinecone_namespace", opts.pinecone_namespace)
+    if (opts.sample_size) formData.append("sample_size", String(opts.sample_size))
+    if (opts.batch_size) formData.append("batch_size", String(opts.batch_size))
+    if (opts.enable_clustering !== undefined) formData.append("enable_clustering", String(opts.enable_clustering))
+    if (opts.enable_collision_detection !== undefined) formData.append("enable_collision_detection", String(opts.enable_collision_detection))
+    if (opts.enable_outlier_detection !== undefined) formData.append("enable_outlier_detection", String(opts.enable_outlier_detection))
+    if (opts.enable_trigger_detection !== undefined) formData.append("enable_trigger_detection", String(opts.enable_trigger_detection))
+    if (opts.collision_threshold !== undefined) formData.append("collision_threshold", String(opts.collision_threshold))
+    return fetch(`${API_BASE}/prompt-injection/vector-store-analysis-multi-source`, {
+      method: "POST",
+      body: formData,
+      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+    }).then(async (res) => {
+      const data = await res.json().catch(() => null)
+      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
+    })
+  },
+
+  // Get supported vector DB sources
+  getVectorDBSources: () => apiClient.request("/prompt-injection/vector-db/supported-sources"),
+
+  // Test connection to a vector database
+  testVectorDBConnection: (opts: {
+    source_type: 'pinecone' | 'pinecone_env';
+    pinecone_api_key?: string;
+    pinecone_index_name?: string;
+    pinecone_environment?: string;
+    pinecone_host?: string;
+    pinecone_namespace?: string;
+  }) => apiClient.request("/prompt-injection/vector-db/test-connection", {
+    method: "POST",
+    body: opts
+  }),
   embeddingSanitizePreview: (file: File, opts?: {
     chunk_size?: number;
     chunk_overlap?: number;

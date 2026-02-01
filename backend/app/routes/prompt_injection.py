@@ -4189,6 +4189,354 @@ async def analyze_vector_store(
         )
 
 
+# ==================== Multi-Source Vector Store Analysis ====================
+
+from app.services.vector_db_connectors import (
+    VectorDBType,
+    VectorDBConnectorFactory,
+    PineconeConnector,
+    JSONUploadConnector,
+    create_pinecone_connector_from_env
+)
+
+
+class VectorDBSourceType(str, Enum):
+    """Supported vector database source types."""
+    JSON_UPLOAD = "json_upload"
+    PINECONE = "pinecone"
+    PINECONE_ENV = "pinecone_env"  # Use environment variables
+
+
+class VectorDBSourceConfig(BaseModel):
+    """Configuration for vector database source."""
+    source_type: VectorDBSourceType = VectorDBSourceType.JSON_UPLOAD
+    # Pinecone specific
+    pinecone_api_key: Optional[str] = None
+    pinecone_index_name: Optional[str] = None
+    pinecone_environment: Optional[str] = None
+    pinecone_host: Optional[str] = None
+    pinecone_namespace: Optional[str] = None
+
+
+class TestConnectionRequest(BaseModel):
+    """Request to test vector DB connection."""
+    source_type: VectorDBSourceType
+    pinecone_api_key: Optional[str] = None
+    pinecone_index_name: Optional[str] = None
+    pinecone_environment: Optional[str] = None
+    pinecone_host: Optional[str] = None
+    pinecone_namespace: Optional[str] = None
+
+
+class TestConnectionResponse(BaseModel):
+    """Response from connection test."""
+    success: bool
+    message: str
+    total_vectors: int = 0
+    index_info: Dict[str, Any] = Field(default_factory=dict)
+
+
+@router.get("/vector-db/supported-sources")
+async def get_supported_vector_db_sources():
+    """Get list of supported vector database sources."""
+    return {
+        "sources": VectorDBConnectorFactory.get_supported_types()
+    }
+
+
+@router.post("/vector-db/test-connection", response_model=TestConnectionResponse)
+async def test_vector_db_connection(
+    request: TestConnectionRequest,
+    current_user: Optional[UserInDB] = Depends(get_optional_user)
+):
+    """
+    Test connection to a vector database.
+    
+    Supports:
+    - Pinecone (cloud)
+    - More coming soon (Qdrant, Weaviate, Chroma)
+    """
+    try:
+        if request.source_type == VectorDBSourceType.PINECONE:
+            if not request.pinecone_api_key or not request.pinecone_index_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Pinecone API key and index name are required"
+                )
+            
+            connector = PineconeConnector(
+                api_key=request.pinecone_api_key,
+                index_name=request.pinecone_index_name,
+                environment=request.pinecone_environment,
+                host=request.pinecone_host,
+                namespace=request.pinecone_namespace
+            )
+            
+        elif request.source_type == VectorDBSourceType.PINECONE_ENV:
+            try:
+                connector = create_pinecone_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported source type for connection test: {request.source_type}"
+            )
+        
+        result = await connector.test_connection()
+        
+        return TestConnectionResponse(
+            success=result.success,
+            message=result.message,
+            total_vectors=result.total_vectors,
+            index_info=result.index_info
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Connection test failed: {str(e)}", exc_info=True)
+        return TestConnectionResponse(
+            success=False,
+            message=f"Connection failed: {str(e)}"
+        )
+
+
+@router.post("/vector-store-analysis-multi-source", response_model=VectorStoreAnalysisResponse)
+async def analyze_vector_store_multi_source(
+    # Source selection
+    source_type: str = Form("json_upload"),  # json_upload, pinecone, pinecone_env
+    # JSON upload (optional if using cloud DB)
+    file: Optional[UploadFile] = File(None),
+    # Pinecone credentials (optional if using JSON or env)
+    pinecone_api_key: Optional[str] = Form(None),
+    pinecone_index_name: Optional[str] = Form(None),
+    pinecone_environment: Optional[str] = Form(None),
+    pinecone_host: Optional[str] = Form(None),
+    pinecone_namespace: Optional[str] = Form(None),
+    # Analysis parameters
+    sample_size: Optional[int] = Form(None),
+    batch_size: int = Form(1000),
+    enable_clustering: bool = Form(True),
+    enable_collision_detection: bool = Form(True),
+    enable_outlier_detection: bool = Form(True),
+    enable_trigger_detection: bool = Form(True),
+    collision_threshold: float = Form(0.95),
+    current_user: Optional[UserInDB] = Depends(get_optional_user)
+):
+    """
+    Vector Store Anomaly Detection with multi-source support.
+    
+    Supports:
+    - JSON file upload (local analysis)
+    - Pinecone cloud connection (direct scanning)
+    - Environment-based Pinecone config
+    
+    Analyzes vectors for:
+    - Dense clusters spanning unrelated sources/tenants (poisoning)
+    - High-similarity collisions across different labels/topics
+    - Extreme-norm/outlier vectors
+    - Vectors tied to known trigger patterns
+    """
+    scan_id = str(uuid.uuid4())
+    
+    try:
+        embeddings = []
+        metadata_list = []
+        record_ids = []
+        source_info = {}
+        
+        # ========== SOURCE: JSON Upload ==========
+        if source_type == "json_upload":
+            if not file:
+                raise HTTPException(status_code=400, detail="File is required for JSON upload source")
+            
+            content = await file.read()
+            if len(content) > MAX_FILE_SIZE * 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File too large. Maximum size: {MAX_FILE_SIZE * 2 / (1024*1024):.1f}MB"
+                )
+            
+            try:
+                data = json.loads(content.decode('utf-8'))
+            except json.JSONDecodeError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+            
+            connector = JSONUploadConnector(data)
+            source_info = {"type": "json_upload", "filename": file.filename}
+        
+        # ========== SOURCE: Pinecone (with credentials) ==========
+        elif source_type == "pinecone":
+            if not pinecone_api_key or not pinecone_index_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Pinecone API key and index name are required"
+                )
+            
+            connector = PineconeConnector(
+                api_key=pinecone_api_key,
+                index_name=pinecone_index_name,
+                environment=pinecone_environment,
+                host=pinecone_host,
+                namespace=pinecone_namespace
+            )
+            source_info = {"type": "pinecone", "index_name": pinecone_index_name}
+        
+        # ========== SOURCE: Pinecone (from environment) ==========
+        elif source_type == "pinecone_env":
+            try:
+                connector = create_pinecone_connector_from_env()
+                source_info = {
+                    "type": "pinecone_env",
+                    "index_name": os.getenv("PINECONE_INDEX_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported source type: {source_type}")
+        
+        # ========== Fetch vectors ==========
+        fetch_result = await connector.fetch_vectors(
+            limit=sample_size or batch_size,
+            namespace=pinecone_namespace,
+            include_metadata=True
+        )
+        
+        if not fetch_result.success:
+            raise HTTPException(status_code=500, detail=fetch_result.message)
+        
+        if not fetch_result.vectors:
+            raise HTTPException(status_code=400, detail="No vectors found in the source")
+        
+        # Convert to numpy arrays
+        for vec in fetch_result.vectors:
+            embeddings.append(vec.embedding)
+            metadata_list.append(vec.metadata)
+            record_ids.append(vec.vector_id)
+        
+        total_vectors = fetch_result.total_available
+        vectors_analyzed = len(embeddings)
+        coverage_percentage = (vectors_analyzed / total_vectors * 100) if total_vectors > 0 else 100.0
+        
+        # ========== Run Analysis (same as original) ==========
+        detector = VectorStoreAnomalyDetector(collision_threshold=collision_threshold)
+        distribution_stats = detector.compute_distribution_stats(embeddings, metadata_list)
+        
+        all_findings = []
+        
+        if enable_clustering:
+            cluster_findings = detector.detect_dense_clusters(embeddings, metadata_list)
+            all_findings.extend(cluster_findings)
+        
+        if enable_collision_detection:
+            collision_findings = detector.detect_collisions(embeddings, metadata_list)
+            all_findings.extend(collision_findings)
+        
+        if enable_outlier_detection:
+            outlier_findings = detector.detect_outliers(embeddings, metadata_list)
+            all_findings.extend(outlier_findings)
+        
+        if enable_trigger_detection:
+            trigger_findings = detector.detect_trigger_patterns(embeddings, metadata_list)
+            all_findings.extend(trigger_findings)
+        
+        # Enrich findings with record IDs (ensure strings)
+        enriched_findings = []
+        for finding in all_findings:
+            if finding.get("vector_id") is not None:
+                vec_idx = finding["vector_id"]
+                if vec_idx < len(record_ids):
+                    finding["record_id"] = str(record_ids[vec_idx])
+                    if vec_idx < len(metadata_list):
+                        meta = metadata_list[vec_idx]
+                        finding["source_doc"] = meta.get("source_doc") or meta.get("source", "unknown")
+                        chunk_id = meta.get("chunk_id") or meta.get("chunk")
+                        finding["source_chunk"] = str(chunk_id) if chunk_id is not None else None
+            
+            if finding.get("vector_ids"):
+                finding["record_ids"] = [str(record_ids[i]) for i in finding["vector_ids"] if i < len(record_ids)]
+            
+            if finding.get("vector_id_a") is not None and finding.get("vector_id_b") is not None:
+                if finding["vector_id_a"] < len(record_ids):
+                    finding["record_id_a"] = str(record_ids[finding["vector_id_a"]])
+                if finding["vector_id_b"] < len(record_ids):
+                    finding["record_id_b"] = str(record_ids[finding["vector_id_b"]])
+            
+            enriched_findings.append(AnomalyFinding(**finding))
+        
+        # Generate recommendations
+        recommendations = []
+        category_counts = {}
+        severity_counts = {"high": 0, "medium": 0, "low": 0}
+        
+        for finding in enriched_findings:
+            category_counts[finding.category] = category_counts.get(finding.category, 0) + 1
+            if finding.confidence >= 0.8:
+                severity_counts["high"] += 1
+            elif finding.confidence >= 0.5:
+                severity_counts["medium"] += 1
+            else:
+                severity_counts["low"] += 1
+        
+        if severity_counts["high"] > 0:
+            recommendations.append(f"Found {severity_counts['high']} high-severity anomalies requiring immediate review")
+        if "high_similarity_collision" in category_counts:
+            recommendations.append("Review collision vectors for potential data poisoning or duplication issues")
+        if "extreme_norm_outlier" in category_counts:
+            recommendations.append("Investigate outlier vectors - may indicate corrupted or adversarial embeddings")
+        if "dense_cluster_poisoning" in category_counts:
+            recommendations.append("Analyze dense clusters spanning multiple sources - possible coordinated attack")
+        
+        if not recommendations:
+            recommendations.append("No critical issues detected - vector store appears healthy")
+        
+        # Build response
+        sampling_info = {
+            "source_type": source_type,
+            "source_info": source_info,
+            "total_available": total_vectors,
+            "fetched": vectors_analyzed,
+            "coverage": coverage_percentage
+        }
+        
+        if fetch_result.metadata:
+            sampling_info.update(fetch_result.metadata)
+        
+        response = VectorStoreAnalysisResponse(
+            scan_id=scan_id,
+            scan_timestamp=datetime.now().isoformat(),
+            total_vectors=total_vectors,
+            vectors_analyzed=vectors_analyzed,
+            coverage_percentage=coverage_percentage,
+            confidence=0.85 if vectors_analyzed >= 10 else 0.6,
+            distribution_stats=distribution_stats,
+            findings=enriched_findings,
+            summary={
+                "total_findings": len(enriched_findings),
+                "category_counts": category_counts,
+                "severity_counts": severity_counts,
+                "anomaly_rate": len(enriched_findings) / vectors_analyzed if vectors_analyzed > 0 else 0.0,
+                "source_type": source_type
+            },
+            recommendations=recommendations,
+            sampling_info=sampling_info
+        )
+        
+        return response
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during multi-source vector store analysis: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Vector store analysis failed: {str(e)}"
+        )
+
+
 # ==================== Retrieval Attack Simulation ====================
 
 from app.services.retrieval_attack_service import (
