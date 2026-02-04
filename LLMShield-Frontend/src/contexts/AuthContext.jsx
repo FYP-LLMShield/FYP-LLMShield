@@ -43,10 +43,10 @@ export const AuthProvider = ({ children }) => {
         const userData = {
           id: response.data.user.id || null,
           email: response.data.user.email || email,
-          name: response.data.user.full_name || email.split('@')[0],
+          name: response.data.user.name || email.split('@')[0],
           plan: "free", // Default plan
           isVerified: response.data.user.is_verified || false,
-          mfaEnabled: false // Will be updated after fetching MFA status
+          mfaEnabled: response.data.user.mfa_enabled || false
         }
         
         setUser(userData)
