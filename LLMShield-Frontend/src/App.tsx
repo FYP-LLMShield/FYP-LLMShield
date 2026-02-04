@@ -27,7 +27,6 @@ const ContactPage = React.lazy(() => import('./pages/ContactPage'));
 
 // Lazy load dashboard pages
 const PromptInjectionPage = React.lazy(() => import('./components/pages/prompt-injection-page').then(module => ({ default: module.PromptInjectionPage })));
-const ModelPoisoningPage = React.lazy(() => import('./components/pages/model-poisoning-page').then(module => ({ default: module.ModelPoisoningPage })));
 const VectorEmbeddingsPage = React.lazy(() => import('./components/pages/vector-embedding-page').then(module => ({ default: module.VectorEmbeddingPage })));
 const CodeScannerPage = React.lazy(() => import('./components/pages/code-scanning-page').then(module => ({ default: module.CodeScanningPage })));
 const SettingsPage = React.lazy(() => import('./components/pages/settings-page').then(module => ({ default: module.SettingsPage })));
@@ -115,16 +114,6 @@ function App() {
                 <ProtectedRoute>
                   <DashboardLayout>
                     <PromptInjectionPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/model-poisoning"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <ModelPoisoningPage />
                   </DashboardLayout>
                 </ProtectedRoute>
               }

@@ -185,14 +185,14 @@ export const MainDashboard = memo(() => {
             ]}
           />
           <HeroCard
-            title="Model Poisoning"
+            title="Data Poisoning"
             accent="red"
-            href="/dashboard/model-poisoning"
+            href="/dashboard/data-poisoning"
             artSrc="/art/model.png"
-            icon={AlertTriangle}
+            icon={Database}
             kpis={[
-              { label: "Suspected Models", value: "3" },
-              { label: "Incidents", value: "12" },
+              { label: "Models Tested", value: "3" },
+              { label: "Comparisons", value: "12" },
             ]}
           />
           <HeroCard
