@@ -29,6 +29,7 @@ from app.routes.profile import router as profile_router
 from app.routes.scanner import router as scanner_router
 from app.routes.scan_history import router as scan_history_router
 from app.routes.prompt_injection import router as prompt_injection_router
+from app.routes.data_poisoning import router as data_poisoning_router
 
 
 @asynccontextmanager
@@ -44,14 +45,14 @@ async def lifespan(app: FastAPI):
     for name, instance in mcp_instances.items():
         app.mount(f"/mcp/{name}", instance.get_app())
     
-    print("🚀 Database connected successfully")
-    print("🛡️  Security scanner modules loaded")
+    print("[OK] Database connected successfully")
+    print("[OK] Security scanner modules loaded")
     yield
-    
+
     # Shutdown
     await mcp_registry.stop_all()
     await close_mongo_connection()
-    print("📴 Database connection closed")
+    print("[OK] Database connection closed")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -108,9 +109,14 @@ app.include_router(
     tags=["Profile Management"]
 )
 app.include_router(
-    prompt_injection_router, 
-    prefix=f"{settings.API_V1_STR}/prompt-injection", 
+    prompt_injection_router,
+    prefix=f"{settings.API_V1_STR}/prompt-injection",
     tags=["Prompt Injection Testing"]
+)
+app.include_router(
+    data_poisoning_router,
+    prefix=f"{settings.API_V1_STR}/data-poisoning",
+    tags=["Data Poisoning Detection"]
 )
 
 
