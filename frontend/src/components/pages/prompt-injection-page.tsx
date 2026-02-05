@@ -252,7 +252,6 @@ export function PromptInjectionPage() {
     max_concurrent: 5,
     custom_prompts: []
   })
-  const [useGrokEvaluation, setUseGrokEvaluation] = useState(false)
 
   // Category preset configurations
   const categoryPresets = {
@@ -924,8 +923,7 @@ export function PromptInjectionPage() {
         probe_categories: testConfig.probe_categories,
         custom_prompts: [],
         max_concurrent: 3,
-        perturbations: selectedPerturbations,
-        use_grok_evaluation: useGrokEvaluation
+        perturbations: selectedPerturbations
       }
 
       console.log('Sending test data:', JSON.stringify(testData, null, 2))
@@ -2065,23 +2063,6 @@ export function PromptInjectionPage() {
                               </label>
                             ))}
                           </div>
-                        </div>
-
-                        {/* Grok LLM Evaluation Toggle */}
-                        <div className="pt-4 border-t border-slate-700/50">
-                          <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-white font-medium text-xs flex items-center gap-2">
-                              <Brain className="h-4 w-4 text-amber-500" />
-                              Use Grok for evaluation
-                            </span>
-                            <input
-                              type="checkbox"
-                              checked={useGrokEvaluation}
-                              onChange={(e) => setUseGrokEvaluation(e.target.checked)}
-                              className="rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500"
-                            />
-                          </label>
-                          <p className="text-[10px] text-gray-500 mt-1">Let Grok LLM judge if prompt injection attacks passed or failed (requires XAI_API_KEY in .env)</p>
                         </div>
 
                         {/* Perturbation Selection */}

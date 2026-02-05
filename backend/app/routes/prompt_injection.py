@@ -134,7 +134,6 @@ class TestRequest(BaseModel):
     custom_prompts: List[str] = []
     max_concurrent: int = 3
     perturbations: List[str] = []
-    use_grok_evaluation: bool = False
 
 class BenchmarkRequest(BaseModel):
     models: List[ModelConfig]
@@ -1543,8 +1542,8 @@ async def test_model(request: TestRequest, current_user: Optional[UserInDB] = De
                 logger.error(f"Failed to get response from model for probe {i+1}: {str(e)}")
                 actual_response = f"Connection Error: {str(e)}"
             
-            # Analyze response for violations
-            use_grok = request.use_grok_evaluation and settings.XAI_API_KEY
+            # Analyze response for violations (Grok when available, else probe engine)
+            use_grok = bool(settings.XAI_API_KEY)
             if use_grok:
                 try:
                     from app.services.grok_evaluator import grok_evaluate
@@ -2454,8 +2453,8 @@ async def test_model_stream(request: TestRequest, current_user: Optional[UserInD
                 except Exception as e:
                     actual_response = f"Connection Error: {str(e)}"
                 
-                # Analyze response for violations
-                use_grok = request.use_grok_evaluation and settings.XAI_API_KEY
+                # Analyze response for violations (Grok when available, else probe engine)
+                use_grok = bool(settings.XAI_API_KEY)
                 if use_grok:
                     try:
                         from app.services.grok_evaluator import grok_evaluate
