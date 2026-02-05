@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
-import { Upload, FileText, Zap, Settings, Play, RotateCcw, CheckCircle, AlertCircle, Loader2, Shield, Target, Brain, Eye, Download, Trash2, X, Link, MessageCircle, AlertTriangle, Key, Globe, ChevronDown, ChevronUp, Copy, MessageSquare, Bot, BookOpen, Database, User, Search, BarChart2, Activity, Layers, Terminal } from "lucide-react"
+import { Upload, Zap, Settings, Play, RotateCcw, CheckCircle, AlertCircle, Loader2, Shield, Target, Brain, Eye, Download, Trash2, X, Link, MessageCircle, AlertTriangle, Key, Globe, ChevronDown, ChevronUp, Copy, MessageSquare, Bot, BookOpen, Database, User, Search, BarChart2, Activity, Layers, Terminal } from "lucide-react"
 import { promptInjectionAPI, ModelConfig, profileAPI, ModelConfigurationResponse, ProfileResponse, ProfileWithConfigs, RobustDetectionResult } from "../../lib/api"
 import apiClient from "../../lib/api"
 import { useAuth } from "../../contexts/AuthContext"
@@ -168,7 +168,6 @@ export function PromptInjectionPage() {
   const { user } = useAuth()
 
   // Tab and UI states
-  const [activeTab, setActiveTab] = useState("connect")
   const [isScanning, setIsScanning] = useState(false)
   const [scanComplete, setScanComplete] = useState(false)
   const [scanProgress, setScanProgress] = useState(0)
@@ -195,7 +194,6 @@ export function PromptInjectionPage() {
   }, [user])
 
   // Upload Document states
-  const [file, setFile] = useState<File | null>(null)
   // State for enhanced report features
   const [expandedProbes, setExpandedProbes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'severity' | 'confidence' | 'timestamp'>('severity')
@@ -254,6 +252,7 @@ export function PromptInjectionPage() {
     max_concurrent: 5,
     custom_prompts: []
   })
+  const [useGrokEvaluation, setUseGrokEvaluation] = useState(false)
 
   // Category preset configurations
   const categoryPresets = {
@@ -327,70 +326,6 @@ export function PromptInjectionPage() {
     { id: "claude-3", name: "Claude 3", provider: "Anthropic", status: "active" },
     { id: "gemini-pro", name: "Gemini Pro", provider: "Google", status: "inactive" }
   ]
-
-  const tabs = [
-    { id: "connect", label: "Model Injection Testing", icon: Zap },
-    { id: "upload", label: "Document Scan", icon: FileText },
-    { id: "rag", label: "RAG Simulation", icon: Target },
-  ]
-
-  // File upload handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    console.log("File selected:", selectedFile)
-
-    if (selectedFile) {
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'application/msword']
-      const allowedExtensions = ['.pdf', '.txt', '.docx', '.md', '.doc']
-      const fileExtension = '.' + selectedFile.name.split('.').pop()?.toLowerCase()
-
-      if (!allowedTypes.includes(selectedFile.type) && !allowedExtensions.includes(fileExtension)) {
-        setError("Please select a valid file type (PDF, TXT, DOCX, MD, DOC)")
-        return
-      }
-
-      // Validate file size (10MB limit)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setError("File size must be less than 10MB")
-        return
-      }
-
-      setFile(selectedFile)
-      setError(null)
-    }
-  }
-
-  // Drag and drop handlers
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    const droppedFile = e.dataTransfer.files[0]
-
-    if (droppedFile) {
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'application/msword']
-      const allowedExtensions = ['.pdf', '.txt', '.docx', '.md', '.doc']
-      const fileExtension = '.' + droppedFile.name.split('.').pop()?.toLowerCase()
-
-      if (!allowedTypes.includes(droppedFile.type) && !allowedExtensions.includes(fileExtension)) {
-        setError("Please select a valid file type (PDF, TXT, DOCX, MD, DOC)")
-        return
-      }
-
-      // Validate file size (10MB limit)
-      if (droppedFile.size > 10 * 1024 * 1024) {
-        setError("File size must be less than 10MB")
-        return
-      }
-
-      setFile(droppedFile)
-      setError(null)
-    }
-  }
 
   // Available perturbations
   const perturbationOptions = [
@@ -598,81 +533,6 @@ export function PromptInjectionPage() {
       setError('Failed to configure model: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setIsConnecting(false)
-    }
-  }
-
-  // Document scanning function
-  const scanDocument = async () => {
-    if (!file) {
-      setError("Please select a file to scan")
-      return
-    }
-
-    setIsScanning(true)
-    setScanProgress(0)
-    setError("")
-    setScanComplete(false)
-
-    try {
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setScanProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
-          }
-          return prev + 10
-        })
-      }, 500)
-
-      // Create FormData for file upload
-      const formData = new FormData()
-      formData.append('file', file)
-
-      // Use the prompt injection API
-      const response = await promptInjectionAPI.testDocuments([file], {
-        model_config: {
-          provider: "openai",
-          model_id: "gpt-3.5-turbo",
-          api_key: null,
-          base_url: undefined,
-          temperature: 0.7,
-          max_tokens: 500,
-          top_p: 1.0
-        },
-        probe_categories: ["prompt_injection"],
-        test_intensity: 'moderate' as const
-      })
-
-      clearInterval(progressInterval)
-      setScanProgress(100)
-
-      if (response.success && response.data) {
-        console.log('Document scan result:', response.data)
-        // Map backend response to frontend format
-        const mappedResults: ScanResults = {
-          vulnerabilities: response.data.probe_results?.map((probe: any) => ({
-            pattern: probe.technique,
-            type: probe.category,
-            severity: probe.risk_level,
-            description: probe.explanation,
-            evidence: probe.response,
-            trigger: probe.prompt
-          })) || [],
-          risk_level: response.data.results?.overall_risk?.toLowerCase() || 'low',
-          total_tests: response.data.results?.total_probes || 0
-        }
-        setScanResults(mappedResults)
-        setScanComplete(true)
-      } else {
-        console.error('Document scan error:', response.error)
-        setError(response.error || 'Failed to scan document')
-      }
-    } catch (error) {
-      console.error('Document scan error:', error)
-      setError('Failed to connect to server')
-    } finally {
-      setIsScanning(false)
     }
   }
 
@@ -1064,7 +924,8 @@ export function PromptInjectionPage() {
         probe_categories: testConfig.probe_categories,
         custom_prompts: [],
         max_concurrent: 3,
-        perturbations: selectedPerturbations
+        perturbations: selectedPerturbations,
+        use_grok_evaluation: useGrokEvaluation
       }
 
       console.log('Sending test data:', JSON.stringify(testData, null, 2))
@@ -1260,18 +1121,10 @@ export function PromptInjectionPage() {
     }
   }
 
-  // Start scan based on active tab
+  // Start scan
   const startScan = () => {
-    if (isScanning) return // Prevent multiple clicks during scanning
-
-    if (activeTab === "upload") {
-      scanDocument()
-    } else if (activeTab === "connect") {
-      runPromptInjectionTest()
-    } else if (activeTab === "rag") {
-      // RAG simulation - to be implemented
-      setError("RAG Simulation coming soon!")
-    }
+    if (isScanning) return
+    runPromptInjectionTest()
   }
 
   // Multi-model Benchmark Handler
@@ -1380,27 +1233,14 @@ export function PromptInjectionPage() {
     setError("")
     setScanResults(null)
     setInjectionResults(null)
-    if (activeTab === "upload") {
-      setFile(null)
-    } else {
-      setTestPrompt("")
-    }
+    setTestPrompt("")
   }
 
   // Get scan button state
-  const getScanButtonState = () => {
-    if (activeTab === "upload") {
-      return {
-        disabled: isScanning || !file,
-        text: isScanning ? "Scanning Document..." : "Scan Document"
-      }
-    } else {
-      return {
-        disabled: isScanning || !connectedModel || !testPrompt.trim(),
-        text: isScanning ? "Testing Model..." : "Test Injection"
-      }
-    }
-  }
+  const getScanButtonState = () => ({
+    disabled: isScanning || !connectedModel || !testPrompt.trim(),
+    text: isScanning ? "Testing Model..." : "Test Injection"
+  })
 
   const buttonState = getScanButtonState()
 
@@ -1997,113 +1837,52 @@ export function PromptInjectionPage() {
 
       {!isScanning && !scanComplete && (
         <div className="animate-fadeIn max-w-7xl mx-auto">
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-2 mb-0 border-b border-slate-700/50">
-            {tabs.map((tab) => {
-              const IconComponent = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-3 font-medium transition-all duration-300 relative group ${
-                    activeTab === tab.id
-                      ? "text-white bg-gradient-to-br from-teal-500/20 to-blue-500/20 border-t-2 border-x border-teal-500 rounded-t-lg shadow-lg"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 rounded-t-lg border-t-2 border-transparent"
-                  }`}
-                  style={activeTab === tab.id ? { borderBottom: '2px solid transparent', marginBottom: '-2px' } : {}}
-                >
-                  <IconComponent className={`w-5 h-5 transition-colors ${
-                    activeTab === tab.id ? "text-teal-400" : "text-slate-500 group-hover:text-slate-300"
-                  }`} />
-                  <span className="text-sm font-semibold">{tab.label}</span>
-                  {activeTab === tab.id && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-teal-400 to-blue-400"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          {/* Model Injection Testing Content */}
+          <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/50 backdrop-blur-md border border-slate-700/50 shadow-2xl rounded-lg p-8">
 
-          {/* Tab Content Container */}
-          <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/50 backdrop-blur-md border border-slate-700/50 shadow-2xl rounded-b-lg rounded-tr-lg p-8">
-
-            {/* Step Indicator */}
-            {activeTab === "connect" && (
+            {/* Step Indicator - steps turn green only when completed in sequence */}
+            {(
               <div className="mb-8 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
-                <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
-                  <span className={`flex items-center gap-2 transition-colors ${connectedModel ? "text-green-400 font-semibold" : ""}`}>
-                    {connectedModel && <CheckCircle className="w-4 h-4" />}
-                    Step 1: Connect Model
-                  </span>
-                  <span className={`flex items-center gap-2 transition-colors ${testPrompt.trim() ? "text-green-400 font-semibold" : ""}`}>
-                    {testPrompt.trim() && <CheckCircle className="w-4 h-4" />}
-                    Step 2: Enter Prompt
-                  </span>
-                  <span className={`flex items-center gap-2 transition-colors ${testConfig.probe_categories.length > 0 ? "text-green-400 font-semibold" : ""}`}>
-                    {testConfig.probe_categories.length > 0 && <CheckCircle className="w-4 h-4" />}
-                    Step 3: Select Tests
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${connectedModel ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
-                  <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${testPrompt.trim() ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
-                  <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${testConfig.probe_categories.length > 0 ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
-                </div>
+                {(() => {
+                  const step1Done = !!connectedModel
+                  const step2Done = step1Done && !!testPrompt.trim()
+                  const step3Done = step2Done && testConfig.probe_categories.length > 0
+                  const currentStep = !step1Done ? 1 : !step2Done ? 2 : !step3Done ? 3 : 0
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <span className={`flex items-center gap-2 transition-colors ${
+                          step1Done ? "text-green-400 font-semibold" : currentStep === 1 ? "text-teal-400 font-semibold" : "text-gray-500"
+                        }`}>
+                          {step1Done ? <CheckCircle className="w-4 h-4" /> : currentStep === 1 ? <span className="w-4 h-4 rounded-full border-2 border-teal-400" /> : null}
+                          Step 1: Connect Model
+                        </span>
+                        <span className={`flex items-center gap-2 transition-colors ${
+                          step2Done ? "text-green-400 font-semibold" : currentStep === 2 ? "text-teal-400 font-semibold" : "text-gray-500"
+                        }`}>
+                          {step2Done ? <CheckCircle className="w-4 h-4" /> : currentStep === 2 ? <span className="w-4 h-4 rounded-full border-2 border-teal-400" /> : null}
+                          Step 2: Enter Prompt
+                        </span>
+                        <span className={`flex items-center gap-2 transition-colors ${
+                          step3Done ? "text-green-400 font-semibold" : currentStep === 3 ? "text-teal-400 font-semibold" : "text-gray-500"
+                        }`}>
+                          {step3Done ? <CheckCircle className="w-4 h-4" /> : currentStep === 3 ? <span className="w-4 h-4 rounded-full border-2 border-teal-400" /> : null}
+                          Step 3: Select Tests
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step1Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
+                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step2Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
+                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step3Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             )}
 
             <AnimatePresence mode="wait">
-                  {activeTab === "upload" && (
-                    <motion.div
-                      key="upload"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-4"
-                    >
-                      <label className="block text-white font-medium mb-2">Upload Document:</label>
-                      <div
-                        className="border-2 border-dashed border-teal-700 rounded-lg p-8 text-center hover:border-teal-600 transition-colors cursor-pointer"
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop}
-                        onClick={() => document.getElementById('file-input')?.click()}
-                      >
-                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-300 mb-2">Drop your file here or click to browse</p>
-                        <p className="text-gray-500 text-sm">Supports PDF, TXT, DOCX, MD, DOC files (Max 10MB)</p>
-                        <input
-                          type="file"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          accept=".pdf,.txt,.docx,.md,.doc"
-                          id="file-input"
-                        />
-                      </div>
-
-                      {file && (
-                        <div className="bg-slate-800/50 rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <FileText className="h-5 w-5 text-teal-400" />
-                            <span className="text-white">{file.name}</span>
-                            <span className="text-gray-400 text-sm">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                          </div>
-                          <button
-                            onClick={() => setFile(null)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-
-                  {activeTab === "connect" && (
+                  {(
                     <motion.div
                       key="connect"
                       initial={{ opacity: 0, x: 20 }}
@@ -2288,6 +2067,23 @@ export function PromptInjectionPage() {
                           </div>
                         </div>
 
+                        {/* Grok LLM Evaluation Toggle */}
+                        <div className="pt-4 border-t border-slate-700/50">
+                          <label className="flex items-center justify-between cursor-pointer group">
+                            <span className="text-white font-medium text-xs flex items-center gap-2">
+                              <Brain className="h-4 w-4 text-amber-500" />
+                              Use Grok for evaluation
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={useGrokEvaluation}
+                              onChange={(e) => setUseGrokEvaluation(e.target.checked)}
+                              className="rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500"
+                            />
+                          </label>
+                          <p className="text-[10px] text-gray-500 mt-1">Let Grok LLM judge if prompt injection attacks passed or failed (requires XAI_API_KEY in .env)</p>
+                        </div>
+
                         {/* Perturbation Selection */}
                         <div className="pt-4 border-t border-slate-700/50">
                           <div className="flex items-center justify-between mb-3">
@@ -2386,27 +2182,6 @@ export function PromptInjectionPage() {
                       </div>
                     </motion.div>
                   )}
-
-                  {activeTab === "rag" && (
-                    <motion.div
-                      key="rag"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
-                      <div className="bg-orange-900/10 border border-orange-500/30 rounded-lg p-6 text-center">
-                        <Target className="w-16 h-16 text-orange-400 mx-auto mb-4" />
-                        <h3 className="text-2xl font-bold text-white mb-2">RAG Retrieval Injection Simulation</h3>
-                        <p className="text-gray-400 mb-4">Simulate retrieval and inference to detect combined injection paths</p>
-                        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4 max-w-2xl mx-auto">
-                          <p className="text-yellow-300 text-sm">
-                            🚧 This feature is planned for Epic 3.7 and will simulate adversarial queries that manipulate retrieval ranking or return poisoned passages.
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
                 </AnimatePresence>
 
             {/* Error Display - Only show if error exists and is not empty */}
@@ -2447,7 +2222,7 @@ export function PromptInjectionPage() {
               <RadarPulse />
               <div className="relative z-10">
                 <h3 className="text-2xl font-bold text-white mb-4">
-                  {activeTab === "upload" ? "Scanning Document..." : "Testing Model..."}
+                  Testing Model...
                 </h3>
                 <div className="flex items-center justify-center space-x-3">
                   <div className="text-5xl font-black text-green-400 drop-shadow-lg">

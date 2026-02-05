@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
     GROQ_MODEL: Optional[str] = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     
+    # xAI Grok - for LLM-based prompt injection evaluation
+    XAI_API_KEY: Optional[str] = os.getenv("XAI_API_KEY")
+    
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     

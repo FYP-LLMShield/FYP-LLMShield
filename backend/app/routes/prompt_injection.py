@@ -55,6 +55,7 @@ from fastapi.responses import Response, StreamingResponse
 from app.utils.auth import get_current_user
 from app.models.user import UserInDB
 from ..services.model_validator import model_validator
+from app.core.config import settings
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Optional authentication for development
@@ -133,6 +134,7 @@ class TestRequest(BaseModel):
     custom_prompts: List[str] = []
     max_concurrent: int = 3
     perturbations: List[str] = []
+    use_grok_evaluation: bool = False
 
 class BenchmarkRequest(BaseModel):
     models: List[ModelConfig]
@@ -1542,9 +1544,22 @@ async def test_model(request: TestRequest, current_user: Optional[UserInDB] = De
                 actual_response = f"Connection Error: {str(e)}"
             
             # Analyze response for violations
-            is_violation, confidence, violation_type = probe_engine.analyze_response(
-                probe, actual_response, category
-            )
+            use_grok = request.use_grok_evaluation and settings.XAI_API_KEY
+            if use_grok:
+                try:
+                    from app.services.grok_evaluator import grok_evaluate
+                    is_violation, confidence, violation_type = await asyncio.to_thread(
+                        grok_evaluate, probe, actual_response, category.value
+                    )
+                except Exception as e:
+                    logger.warning(f"Grok evaluation failed, falling back to probe engine: {e}")
+                    is_violation, confidence, violation_type = probe_engine.analyze_response(
+                        probe, actual_response, category
+                    )
+            else:
+                is_violation, confidence, violation_type = probe_engine.analyze_response(
+                    probe, actual_response, category
+                )
             
             if is_violation:
                 violations_found += 1
@@ -2323,7 +2338,7 @@ def _generate_pdf(data: ExportPayload) -> bytes:
 
 
 @router.post('/export/pdf/{test_id}')
-async def export_pdf(test_id: str, payload: ExportPayload = None, current_user: UserInDB = Depends(get_current_user)):
+async def export_pdf(test_id: str, payload: ExportPayload = None, current_user: Optional[UserInDB] = Depends(get_optional_user)):
     try:
         data = payload or ExportPayload(test_id=test_id, status='completed')
         pdf = _generate_pdf(data)
@@ -2351,7 +2366,7 @@ async def test_export_pdf(test_id: str, payload: ExportPayload = None):
 
 
 @router.post('/export/json/{test_id}')
-async def export_json(test_id: str, payload: ExportPayload = None, current_user: UserInDB = Depends(get_current_user)):
+async def export_json(test_id: str, payload: ExportPayload = None, current_user: Optional[UserInDB] = Depends(get_optional_user)):
     try:
         data = payload or ExportPayload(test_id=test_id, status='completed')
         filename = f'LLMShield_PromptInjection_Report_{test_id}.json'
@@ -2440,9 +2455,22 @@ async def test_model_stream(request: TestRequest, current_user: Optional[UserInD
                     actual_response = f"Connection Error: {str(e)}"
                 
                 # Analyze response for violations
-                is_violation, confidence, violation_type = probe_engine.analyze_response(
-                    probe, actual_response, category
-                )
+                use_grok = request.use_grok_evaluation and settings.XAI_API_KEY
+                if use_grok:
+                    try:
+                        from app.services.grok_evaluator import grok_evaluate
+                        is_violation, confidence, violation_type = await asyncio.to_thread(
+                            grok_evaluate, probe, actual_response, category.value
+                        )
+                    except Exception as e:
+                        logger.warning(f"Grok evaluation failed, falling back to probe engine: {e}")
+                        is_violation, confidence, violation_type = probe_engine.analyze_response(
+                            probe, actual_response, category
+                        )
+                else:
+                    is_violation, confidence, violation_type = probe_engine.analyze_response(
+                        probe, actual_response, category
+                    )
                 
                 if is_violation:
                     violations_found += 1
@@ -3907,6 +3935,25 @@ class AnomalyFinding(BaseModel):
     z_score: Optional[float] = None
     similarity: Optional[float] = None
 
+# Categories that indicate poisoned or adversarial vectors
+POISONED_VECTOR_CATEGORIES = {
+    "dense_cluster_poisoning",
+    "instruction_payload_detected",
+    "trigger_phrase_detected",
+    "obfuscated_token_detected",
+    "isolation_forest_outlier",
+}
+
+class PoisonedVectorSummary(BaseModel):
+    """Summary of a poisoned vector for the report."""
+    record_id: Optional[str] = None
+    record_ids: Optional[List[str]] = None  # For cluster findings
+    category: str
+    description: str
+    recommended_action: str
+    source_doc: Optional[str] = None
+    confidence: float
+
 class VectorStoreAnalysisResponse(BaseModel):
     """Complete response for vector store anomaly detection."""
     scan_id: str
@@ -3920,6 +3967,7 @@ class VectorStoreAnalysisResponse(BaseModel):
     summary: Dict[str, Any]
     recommendations: List[str]
     sampling_info: Optional[Dict[str, Any]] = None
+    poisoned_vectors: Optional[List[PoisonedVectorSummary]] = None  # Explicit list for report
 
 @router.post("/vector-store-analysis", response_model=VectorStoreAnalysisResponse)
 async def analyze_vector_store(
@@ -4138,21 +4186,51 @@ async def analyze_vector_store(
             else:
                 severity_counts["low"] += 1
         
-        # Generate recommendations
+        # Extract poisoned vectors for dedicated report section
+        poisoned_vectors_list: List[PoisonedVectorSummary] = []
+        for f in enriched_findings:
+            if f.category in POISONED_VECTOR_CATEGORIES:
+                if f.vector_ids and f.record_ids:
+                    poisoned_vectors_list.append(PoisonedVectorSummary(
+                        record_ids=f.record_ids,
+                        category=f.category,
+                        description=f.description,
+                        recommended_action=f.recommended_action,
+                        source_doc=f.source_doc,
+                        confidence=f.confidence
+                    ))
+                else:
+                    rid = f.record_id or (str(f.vector_id) if f.vector_id is not None else None)
+                    poisoned_vectors_list.append(PoisonedVectorSummary(
+                        record_id=rid,
+                        category=f.category,
+                        description=f.description,
+                        recommended_action=f.recommended_action,
+                        source_doc=f.source_doc,
+                        confidence=f.confidence
+                    ))
+        
+        # Generate user-friendly recommendations
         recommendations = []
+        if poisoned_vectors_list:
+            recommendations.append(f"We found {len(poisoned_vectors_list)} suspicious vector(s) in your store. Details are listed above.")
+            recommendations.append("Isolate them: Remove these vectors from live search, or move to a separate index until fixed.")
+            recommendations.append("Clean and re-embed: Use Document Inspection to sanitize the source files, then create new embeddings.")
+            recommendations.append("Trace the source: Find which documents produced these vectors and fix or remove harmful content.")
+            recommendations.append("Strengthen your pipeline: Block known injection phrases and validate content before embedding.")
         if category_counts.get("dense_cluster_poisoning", 0) > 0:
-            recommendations.append("Quarantine dense clusters spanning multiple tenants/sources")
-            recommendations.append("Investigate source documents for potential poisoning")
+            recommendations.append("Isolate suspicious clusters that span multiple sources — they may indicate coordinated poisoning.")
         if category_counts.get("high_similarity_collision", 0) > 0:
-            recommendations.append("Review high-similarity collisions; consider re-embedding with different model")
-        if category_counts.get("extreme_norm_outlier", 0) > 0:
-            recommendations.append("Review outlier vectors; may indicate corrupted embeddings")
-        if category_counts.get("trigger_pattern_detected", 0) > 0:
-            recommendations.append("Remove vectors with trigger patterns from vector store")
-            recommendations.append("Tighten metadata filters to prevent injection-like content")
+            recommendations.append("Review vectors that look too similar across different topics — consider re-embedding with a different model.")
+        if category_counts.get("extreme_norm_outlier", 0) > 0 or category_counts.get("isolation_forest_outlier", 0) > 0:
+            recommendations.append("Check outlier vectors — they may be corrupted or manipulated.")
+        for cat in ("instruction_payload_detected", "trigger_phrase_detected", "obfuscated_token_detected"):
+            if category_counts.get(cat, 0) > 0 and not poisoned_vectors_list:
+                recommendations.append("Remove vectors containing jailbreak or instruction-like text from your store.")
+                break
         
         if not recommendations:
-            recommendations.append("No critical anomalies detected. Vector store appears healthy.")
+            recommendations.append("No critical issues detected. Your vector store appears healthy.")
         
         # Calculate overall confidence
         overall_confidence = 1.0 - (len(enriched_findings) / max(vectors_analyzed, 1) * 0.1)
@@ -4171,9 +4249,11 @@ async def analyze_vector_store(
                 "total_findings": len(enriched_findings),
                 "category_counts": category_counts,
                 "severity_counts": severity_counts,
-                "anomaly_rate": len(enriched_findings) / vectors_analyzed if vectors_analyzed > 0 else 0.0
+                "anomaly_rate": len(enriched_findings) / vectors_analyzed if vectors_analyzed > 0 else 0.0,
+                "poisoned_vector_count": len(poisoned_vectors_list)
             },
             recommendations=recommendations,
+            poisoned_vectors=poisoned_vectors_list if poisoned_vectors_list else None,
             sampling_info=sampling_info
         )
         
@@ -4195,16 +4275,41 @@ from app.services.vector_db_connectors import (
     VectorDBType,
     VectorDBConnectorFactory,
     PineconeConnector,
+    ChromaDBConnector,
+    QdrantConnector,
+    WeaviateConnector,
     JSONUploadConnector,
-    create_pinecone_connector_from_env
+    create_pinecone_connector_from_env,
+    create_chroma_local_connector_from_env,
+    create_chroma_cloud_connector_from_env,
+    create_qdrant_local_connector_from_env,
+    create_qdrant_cloud_connector_from_env,
+    create_weaviate_local_connector_from_env,
+    create_weaviate_cloud_connector_from_env
 )
 
 
 class VectorDBSourceType(str, Enum):
     """Supported vector database source types."""
     JSON_UPLOAD = "json_upload"
+    # Pinecone
     PINECONE = "pinecone"
-    PINECONE_ENV = "pinecone_env"  # Use environment variables
+    PINECONE_ENV = "pinecone_env"
+    # ChromaDB
+    CHROMA_LOCAL = "chroma_local"
+    CHROMA_CLOUD = "chroma_cloud"
+    CHROMA_LOCAL_ENV = "chroma_local_env"
+    CHROMA_CLOUD_ENV = "chroma_cloud_env"
+    # Qdrant
+    QDRANT_LOCAL = "qdrant_local"
+    QDRANT_CLOUD = "qdrant_cloud"
+    QDRANT_LOCAL_ENV = "qdrant_local_env"
+    QDRANT_CLOUD_ENV = "qdrant_cloud_env"
+    # Weaviate
+    WEAVIATE_LOCAL = "weaviate_local"
+    WEAVIATE_CLOUD = "weaviate_cloud"
+    WEAVIATE_LOCAL_ENV = "weaviate_local_env"
+    WEAVIATE_CLOUD_ENV = "weaviate_cloud_env"
 
 
 class VectorDBSourceConfig(BaseModel):
@@ -4216,16 +4321,57 @@ class VectorDBSourceConfig(BaseModel):
     pinecone_environment: Optional[str] = None
     pinecone_host: Optional[str] = None
     pinecone_namespace: Optional[str] = None
+    # ChromaDB specific
+    chroma_host: Optional[str] = None
+    chroma_port: Optional[int] = None
+    chroma_persist_directory: Optional[str] = None
+    chroma_collection_name: Optional[str] = None
+    chroma_api_key: Optional[str] = None
+    chroma_tenant: Optional[str] = None
+    chroma_database: Optional[str] = None
+    # Qdrant specific
+    qdrant_host: Optional[str] = None
+    qdrant_port: Optional[int] = None
+    qdrant_url: Optional[str] = None
+    qdrant_api_key: Optional[str] = None
+    qdrant_collection_name: Optional[str] = None
+    # Weaviate specific
+    weaviate_host: Optional[str] = None
+    weaviate_port: Optional[int] = None
+    weaviate_url: Optional[str] = None
+    weaviate_api_key: Optional[str] = None
+    weaviate_class_name: Optional[str] = None
 
 
 class TestConnectionRequest(BaseModel):
     """Request to test vector DB connection."""
     source_type: VectorDBSourceType
+    # Pinecone
     pinecone_api_key: Optional[str] = None
     pinecone_index_name: Optional[str] = None
     pinecone_environment: Optional[str] = None
     pinecone_host: Optional[str] = None
     pinecone_namespace: Optional[str] = None
+    # ChromaDB
+    chroma_host: Optional[str] = None
+    chroma_port: Optional[int] = None
+    chroma_persist_directory: Optional[str] = None
+    chroma_collection_name: Optional[str] = None
+    chroma_api_key: Optional[str] = None
+    chroma_tenant: Optional[str] = None
+    chroma_database: Optional[str] = None
+    # Qdrant
+    qdrant_host: Optional[str] = None
+    qdrant_port: Optional[int] = None
+    qdrant_url: Optional[str] = None
+    qdrant_api_key: Optional[str] = None
+    qdrant_collection_name: Optional[str] = None
+    # Weaviate
+    weaviate_host: Optional[str] = None
+    weaviate_port: Optional[int] = None
+    weaviate_url: Optional[str] = None
+    weaviate_api_key: Optional[str] = None
+    weaviate_class_name: Optional[str] = None
 
 
 class TestConnectionResponse(BaseModel):
@@ -4254,9 +4400,12 @@ async def test_vector_db_connection(
     
     Supports:
     - Pinecone (cloud)
-    - More coming soon (Qdrant, Weaviate, Chroma)
+    - ChromaDB (local and cloud)
     """
     try:
+        connector = None
+        
+        # ========== Pinecone ==========
         if request.source_type == VectorDBSourceType.PINECONE:
             if not request.pinecone_api_key or not request.pinecone_index_name:
                 raise HTTPException(
@@ -4275,6 +4424,156 @@ async def test_vector_db_connection(
         elif request.source_type == VectorDBSourceType.PINECONE_ENV:
             try:
                 connector = create_pinecone_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== ChromaDB Local ==========
+        elif request.source_type == VectorDBSourceType.CHROMA_LOCAL:
+            if not request.chroma_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ChromaDB collection name is required"
+                )
+            
+            connector = ChromaDBConnector(
+                host=request.chroma_host or "localhost",
+                port=request.chroma_port or 8000,
+                persist_directory=request.chroma_persist_directory,
+                collection_name=request.chroma_collection_name,
+                is_cloud=False
+            )
+        
+        elif request.source_type == VectorDBSourceType.CHROMA_LOCAL_ENV:
+            try:
+                connector = create_chroma_local_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== ChromaDB Cloud ==========
+        elif request.source_type == VectorDBSourceType.CHROMA_CLOUD:
+            if not request.chroma_api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ChromaDB Cloud API key is required"
+                )
+            if not request.chroma_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ChromaDB collection name is required"
+                )
+            
+            connector = ChromaDBConnector(
+                api_key=request.chroma_api_key,
+                tenant=request.chroma_tenant or "default_tenant",
+                database=request.chroma_database or "default_database",
+                collection_name=request.chroma_collection_name,
+                is_cloud=True
+            )
+        
+        elif request.source_type == VectorDBSourceType.CHROMA_CLOUD_ENV:
+            try:
+                connector = create_chroma_cloud_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== Qdrant Local ==========
+        elif request.source_type == VectorDBSourceType.QDRANT_LOCAL:
+            if not request.qdrant_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant collection name is required"
+                )
+            
+            connector = QdrantConnector(
+                host=request.qdrant_host or "localhost",
+                port=request.qdrant_port or 6333,
+                api_key=request.qdrant_api_key,
+                collection_name=request.qdrant_collection_name,
+                is_cloud=False
+            )
+        
+        elif request.source_type == VectorDBSourceType.QDRANT_LOCAL_ENV:
+            try:
+                connector = create_qdrant_local_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== Qdrant Cloud ==========
+        elif request.source_type == VectorDBSourceType.QDRANT_CLOUD:
+            if not request.qdrant_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant Cloud URL is required"
+                )
+            if not request.qdrant_api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant Cloud API key is required"
+                )
+            if not request.qdrant_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant collection name is required"
+                )
+            
+            connector = QdrantConnector(
+                url=request.qdrant_url,
+                api_key=request.qdrant_api_key,
+                collection_name=request.qdrant_collection_name,
+                is_cloud=True
+            )
+        
+        elif request.source_type == VectorDBSourceType.QDRANT_CLOUD_ENV:
+            try:
+                connector = create_qdrant_cloud_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== Weaviate Local ==========
+        elif request.source_type == VectorDBSourceType.WEAVIATE_LOCAL:
+            if not request.weaviate_class_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Weaviate class name is required"
+                )
+            
+            connector = WeaviateConnector(
+                host=request.weaviate_host or "localhost",
+                port=request.weaviate_port or 8080,
+                api_key=request.weaviate_api_key,
+                class_name=request.weaviate_class_name,
+                is_cloud=False
+            )
+        
+        elif request.source_type == VectorDBSourceType.WEAVIATE_LOCAL_ENV:
+            try:
+                connector = create_weaviate_local_connector_from_env()
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== Weaviate Cloud ==========
+        elif request.source_type == VectorDBSourceType.WEAVIATE_CLOUD:
+            if not request.weaviate_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Weaviate Cloud URL is required"
+                )
+            if not request.weaviate_class_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Weaviate class name is required"
+                )
+            
+            connector = WeaviateConnector(
+                url=request.weaviate_url,
+                api_key=request.weaviate_api_key,
+                class_name=request.weaviate_class_name,
+                is_cloud=True
+            )
+        
+        elif request.source_type == VectorDBSourceType.WEAVIATE_CLOUD_ENV:
+            try:
+                connector = create_weaviate_cloud_connector_from_env()
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
         
@@ -4306,7 +4605,7 @@ async def test_vector_db_connection(
 @router.post("/vector-store-analysis-multi-source", response_model=VectorStoreAnalysisResponse)
 async def analyze_vector_store_multi_source(
     # Source selection
-    source_type: str = Form("json_upload"),  # json_upload, pinecone, pinecone_env
+    source_type: str = Form("json_upload"),
     # JSON upload (optional if using cloud DB)
     file: Optional[UploadFile] = File(None),
     # Pinecone credentials (optional if using JSON or env)
@@ -4315,6 +4614,26 @@ async def analyze_vector_store_multi_source(
     pinecone_environment: Optional[str] = Form(None),
     pinecone_host: Optional[str] = Form(None),
     pinecone_namespace: Optional[str] = Form(None),
+    # ChromaDB credentials (optional)
+    chroma_host: Optional[str] = Form(None),
+    chroma_port: Optional[int] = Form(None),
+    chroma_persist_directory: Optional[str] = Form(None),
+    chroma_collection_name: Optional[str] = Form(None),
+    chroma_api_key: Optional[str] = Form(None),
+    chroma_tenant: Optional[str] = Form(None),
+    chroma_database: Optional[str] = Form(None),
+    # Qdrant credentials (optional)
+    qdrant_host: Optional[str] = Form(None),
+    qdrant_port: Optional[int] = Form(None),
+    qdrant_url: Optional[str] = Form(None),
+    qdrant_api_key: Optional[str] = Form(None),
+    qdrant_collection_name: Optional[str] = Form(None),
+    # Weaviate credentials (optional)
+    weaviate_host: Optional[str] = Form(None),
+    weaviate_port: Optional[int] = Form(None),
+    weaviate_url: Optional[str] = Form(None),
+    weaviate_api_key: Optional[str] = Form(None),
+    weaviate_class_name: Optional[str] = Form(None),
     # Analysis parameters
     sample_size: Optional[int] = Form(None),
     batch_size: int = Form(1000),
@@ -4331,7 +4650,11 @@ async def analyze_vector_store_multi_source(
     Supports:
     - JSON file upload (local analysis)
     - Pinecone cloud connection (direct scanning)
-    - Environment-based Pinecone config
+    - ChromaDB local (HTTP server or persistent storage)
+    - ChromaDB Cloud
+    - Qdrant local and cloud
+    - Weaviate local and cloud
+    - Environment-based configuration for all providers
     
     Analyzes vectors for:
     - Dense clusters spanning unrelated sources/tenants (poisoning)
@@ -4391,6 +4714,219 @@ async def analyze_vector_store_multi_source(
                 source_info = {
                     "type": "pinecone_env",
                     "index_name": os.getenv("PINECONE_INDEX_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== SOURCE: ChromaDB Local (HTTP or Persistent) ==========
+        elif source_type == "chroma_local":
+            if not chroma_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ChromaDB collection name is required"
+                )
+            
+            connector = ChromaDBConnector(
+                host=chroma_host or "localhost",
+                port=chroma_port or 8000,
+                persist_directory=chroma_persist_directory,
+                collection_name=chroma_collection_name,
+                is_cloud=False
+            )
+            source_info = {
+                "type": "chroma_local",
+                "collection_name": chroma_collection_name,
+                "host": chroma_host or "localhost",
+                "port": chroma_port or 8000
+            }
+        
+        # ========== SOURCE: ChromaDB Local (from environment) ==========
+        elif source_type == "chroma_local_env":
+            try:
+                connector = create_chroma_local_connector_from_env()
+                source_info = {
+                    "type": "chroma_local_env",
+                    "collection_name": os.getenv("CHROMA_COLLECTION_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== SOURCE: ChromaDB Cloud ==========
+        elif source_type == "chroma_cloud":
+            if not chroma_api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ChromaDB Cloud API key is required"
+                )
+            if not chroma_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ChromaDB collection name is required"
+                )
+            
+            connector = ChromaDBConnector(
+                api_key=chroma_api_key,
+                tenant=chroma_tenant or "default_tenant",
+                database=chroma_database or "default_database",
+                collection_name=chroma_collection_name,
+                is_cloud=True
+            )
+            source_info = {
+                "type": "chroma_cloud",
+                "collection_name": chroma_collection_name,
+                "tenant": chroma_tenant or "default_tenant"
+            }
+        
+        # ========== SOURCE: ChromaDB Cloud (from environment) ==========
+        elif source_type == "chroma_cloud_env":
+            try:
+                connector = create_chroma_cloud_connector_from_env()
+                source_info = {
+                    "type": "chroma_cloud_env",
+                    "collection_name": os.getenv("CHROMA_COLLECTION_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== SOURCE: Qdrant Local ==========
+        elif source_type == "qdrant_local":
+            if not qdrant_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant collection name is required"
+                )
+            
+            connector = QdrantConnector(
+                host=qdrant_host or "localhost",
+                port=qdrant_port or 6333,
+                api_key=qdrant_api_key,
+                collection_name=qdrant_collection_name,
+                is_cloud=False
+            )
+            source_info = {
+                "type": "qdrant_local",
+                "collection_name": qdrant_collection_name,
+                "host": qdrant_host or "localhost",
+                "port": qdrant_port or 6333
+            }
+        
+        # ========== SOURCE: Qdrant Local (from environment) ==========
+        elif source_type == "qdrant_local_env":
+            try:
+                connector = create_qdrant_local_connector_from_env()
+                source_info = {
+                    "type": "qdrant_local_env",
+                    "collection_name": os.getenv("QDRANT_COLLECTION_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== SOURCE: Qdrant Cloud ==========
+        elif source_type == "qdrant_cloud":
+            if not qdrant_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant Cloud URL is required"
+                )
+            if not qdrant_api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant Cloud API key is required"
+                )
+            if not qdrant_collection_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Qdrant collection name is required"
+                )
+            
+            connector = QdrantConnector(
+                url=qdrant_url,
+                api_key=qdrant_api_key,
+                collection_name=qdrant_collection_name,
+                is_cloud=True
+            )
+            source_info = {
+                "type": "qdrant_cloud",
+                "collection_name": qdrant_collection_name,
+                "url": qdrant_url
+            }
+        
+        # ========== SOURCE: Qdrant Cloud (from environment) ==========
+        elif source_type == "qdrant_cloud_env":
+            try:
+                connector = create_qdrant_cloud_connector_from_env()
+                source_info = {
+                    "type": "qdrant_cloud_env",
+                    "collection_name": os.getenv("QDRANT_COLLECTION_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== SOURCE: Weaviate Local ==========
+        elif source_type == "weaviate_local":
+            if not weaviate_class_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Weaviate class name is required"
+                )
+            
+            connector = WeaviateConnector(
+                host=weaviate_host or "localhost",
+                port=weaviate_port or 8080,
+                api_key=weaviate_api_key,
+                class_name=weaviate_class_name,
+                is_cloud=False
+            )
+            source_info = {
+                "type": "weaviate_local",
+                "class_name": weaviate_class_name,
+                "host": weaviate_host or "localhost",
+                "port": weaviate_port or 8080
+            }
+        
+        # ========== SOURCE: Weaviate Local (from environment) ==========
+        elif source_type == "weaviate_local_env":
+            try:
+                connector = create_weaviate_local_connector_from_env()
+                source_info = {
+                    "type": "weaviate_local_env",
+                    "class_name": os.getenv("WEAVIATE_CLASS_NAME", "unknown")
+                }
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # ========== SOURCE: Weaviate Cloud ==========
+        elif source_type == "weaviate_cloud":
+            if not weaviate_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Weaviate Cloud URL is required"
+                )
+            if not weaviate_class_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Weaviate class name is required"
+                )
+            
+            connector = WeaviateConnector(
+                url=weaviate_url,
+                api_key=weaviate_api_key,
+                class_name=weaviate_class_name,
+                is_cloud=True
+            )
+            source_info = {
+                "type": "weaviate_cloud",
+                "class_name": weaviate_class_name,
+                "url": weaviate_url
+            }
+        
+        # ========== SOURCE: Weaviate Cloud (from environment) ==========
+        elif source_type == "weaviate_cloud_env":
+            try:
+                connector = create_weaviate_cloud_connector_from_env()
+                source_info = {
+                    "type": "weaviate_cloud_env",
+                    "class_name": os.getenv("WEAVIATE_CLASS_NAME", "unknown")
                 }
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
@@ -4467,7 +5003,31 @@ async def analyze_vector_store_multi_source(
             
             enriched_findings.append(AnomalyFinding(**finding))
         
-        # Generate recommendations
+        # Extract poisoned vectors for dedicated report section
+        poisoned_vectors_list: List[PoisonedVectorSummary] = []
+        for f in enriched_findings:
+            if f.category in POISONED_VECTOR_CATEGORIES:
+                if f.vector_ids and f.record_ids:
+                    poisoned_vectors_list.append(PoisonedVectorSummary(
+                        record_ids=f.record_ids,
+                        category=f.category,
+                        description=f.description,
+                        recommended_action=f.recommended_action,
+                        source_doc=f.source_doc,
+                        confidence=f.confidence
+                    ))
+                else:
+                    rid = f.record_id or (str(f.vector_id) if f.vector_id is not None else None)
+                    poisoned_vectors_list.append(PoisonedVectorSummary(
+                        record_id=rid,
+                        category=f.category,
+                        description=f.description,
+                        recommended_action=f.recommended_action,
+                        source_doc=f.source_doc,
+                        confidence=f.confidence
+                    ))
+        
+        # Generate recommendations including poisoned vector remediation
         recommendations = []
         category_counts = {}
         severity_counts = {"high": 0, "medium": 0, "low": 0}
@@ -4481,17 +5041,23 @@ async def analyze_vector_store_multi_source(
             else:
                 severity_counts["low"] += 1
         
+        if poisoned_vectors_list:
+            recommendations.append(f"We found {len(poisoned_vectors_list)} suspicious vector(s) in your store. Details are listed above.")
+            recommendations.append("Isolate them: Remove these vectors from live search, or move to a separate index until fixed.")
+            recommendations.append("Clean and re-embed: Use Document Inspection to sanitize the source files, then create new embeddings.")
+            recommendations.append("Trace the source: Find which documents produced these vectors and fix or remove harmful content.")
+            recommendations.append("Strengthen your pipeline: Block known injection phrases and validate content before embedding.")
         if severity_counts["high"] > 0:
-            recommendations.append(f"Found {severity_counts['high']} high-severity anomalies requiring immediate review")
+            recommendations.append(f"Prioritize {severity_counts['high']} high-risk finding(s) for immediate review.")
         if "high_similarity_collision" in category_counts:
-            recommendations.append("Review collision vectors for potential data poisoning or duplication issues")
-        if "extreme_norm_outlier" in category_counts:
-            recommendations.append("Investigate outlier vectors - may indicate corrupted or adversarial embeddings")
-        if "dense_cluster_poisoning" in category_counts:
-            recommendations.append("Analyze dense clusters spanning multiple sources - possible coordinated attack")
+            recommendations.append("Review vectors that look too similar across different topics — consider re-embedding with a different model.")
+        if "extreme_norm_outlier" in category_counts or "isolation_forest_outlier" in category_counts:
+            recommendations.append("Check outlier vectors — they may be corrupted or manipulated.")
+        if "dense_cluster_poisoning" in category_counts and not poisoned_vectors_list:
+            recommendations.append("Isolate suspicious clusters spanning multiple sources — possible coordinated attack.")
         
         if not recommendations:
-            recommendations.append("No critical issues detected - vector store appears healthy")
+            recommendations.append("No critical issues detected. Your vector store appears healthy.")
         
         # Build response
         sampling_info = {
@@ -4519,9 +5085,11 @@ async def analyze_vector_store_multi_source(
                 "category_counts": category_counts,
                 "severity_counts": severity_counts,
                 "anomaly_rate": len(enriched_findings) / vectors_analyzed if vectors_analyzed > 0 else 0.0,
-                "source_type": source_type
+                "source_type": source_type,
+                "poisoned_vector_count": len(poisoned_vectors_list)
             },
             recommendations=recommendations,
+            poisoned_vectors=poisoned_vectors_list if poisoned_vectors_list else None,
             sampling_info=sampling_info
         )
         
