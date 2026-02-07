@@ -13,9 +13,17 @@ const frontendEnvPath = path.resolve(__dirname, '..', '.env');
 
 console.log('🔄 Syncing environment variables from root .env to frontend .env...');
 
+// On Vercel (or when root .env is missing), skip sync - CRA uses env vars from the build environment
 if (!fs.existsSync(rootEnvPath)) {
-  console.error('❌ Root .env file not found at:', rootEnvPath);
-  process.exit(1);
+  console.log('⚠️ Root .env not found (e.g. Vercel). Using build environment variables only.');
+  const fallbackContent = [
+    '# Frontend env - no root .env (e.g. Vercel). Set REACT_APP_* in Vercel Project Settings.',
+    '# REACT_APP_API_URL=https://your-api.com/api/v1',
+    '# REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id',
+  ].join('\n') + '\n';
+  fs.writeFileSync(frontendEnvPath, fallbackContent, 'utf8');
+  console.log('✅ Wrote placeholder frontend .env. Build will use Vercel env vars.');
+  process.exit(0);
 }
 
 // Read root .env file
