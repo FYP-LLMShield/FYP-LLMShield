@@ -266,15 +266,37 @@ export const promptInjectionAPI = {
     })
   },
 
-  // Multi-source vector store analysis (supports Pinecone and other cloud DBs)
+  // Multi-source vector store analysis (supports all cloud DBs)
   vectorStoreAnalysisMultiSource: (opts: {
-    source_type: 'json_upload' | 'pinecone' | 'pinecone_env';
+    source_type: string;
     file?: File;
+    // Pinecone
     pinecone_api_key?: string;
     pinecone_index_name?: string;
     pinecone_environment?: string;
     pinecone_host?: string;
     pinecone_namespace?: string;
+    // ChromaDB
+    chroma_host?: string;
+    chroma_port?: number;
+    chroma_persist_directory?: string;
+    chroma_collection_name?: string;
+    chroma_api_key?: string;
+    chroma_tenant?: string;
+    chroma_database?: string;
+    // Qdrant
+    qdrant_host?: string;
+    qdrant_port?: number;
+    qdrant_url?: string;
+    qdrant_api_key?: string;
+    qdrant_collection_name?: string;
+    // Weaviate
+    weaviate_host?: string;
+    weaviate_port?: number;
+    weaviate_url?: string;
+    weaviate_api_key?: string;
+    weaviate_class_name?: string;
+    // Analysis params
     sample_size?: number;
     batch_size?: number;
     enable_clustering?: boolean;
@@ -285,12 +307,35 @@ export const promptInjectionAPI = {
   }) => {
     const formData = new FormData()
     formData.append("source_type", opts.source_type)
+    // File
     if (opts.file) formData.append("file", opts.file)
+    // Pinecone
     if (opts.pinecone_api_key) formData.append("pinecone_api_key", opts.pinecone_api_key)
     if (opts.pinecone_index_name) formData.append("pinecone_index_name", opts.pinecone_index_name)
     if (opts.pinecone_environment) formData.append("pinecone_environment", opts.pinecone_environment)
     if (opts.pinecone_host) formData.append("pinecone_host", opts.pinecone_host)
     if (opts.pinecone_namespace) formData.append("pinecone_namespace", opts.pinecone_namespace)
+    // ChromaDB
+    if (opts.chroma_host) formData.append("chroma_host", opts.chroma_host)
+    if (opts.chroma_port) formData.append("chroma_port", String(opts.chroma_port))
+    if (opts.chroma_persist_directory) formData.append("chroma_persist_directory", opts.chroma_persist_directory)
+    if (opts.chroma_collection_name) formData.append("chroma_collection_name", opts.chroma_collection_name)
+    if (opts.chroma_api_key) formData.append("chroma_api_key", opts.chroma_api_key)
+    if (opts.chroma_tenant) formData.append("chroma_tenant", opts.chroma_tenant)
+    if (opts.chroma_database) formData.append("chroma_database", opts.chroma_database)
+    // Qdrant
+    if (opts.qdrant_host) formData.append("qdrant_host", opts.qdrant_host)
+    if (opts.qdrant_port) formData.append("qdrant_port", String(opts.qdrant_port))
+    if (opts.qdrant_url) formData.append("qdrant_url", opts.qdrant_url)
+    if (opts.qdrant_api_key) formData.append("qdrant_api_key", opts.qdrant_api_key)
+    if (opts.qdrant_collection_name) formData.append("qdrant_collection_name", opts.qdrant_collection_name)
+    // Weaviate
+    if (opts.weaviate_host) formData.append("weaviate_host", opts.weaviate_host)
+    if (opts.weaviate_port) formData.append("weaviate_port", String(opts.weaviate_port))
+    if (opts.weaviate_url) formData.append("weaviate_url", opts.weaviate_url)
+    if (opts.weaviate_api_key) formData.append("weaviate_api_key", opts.weaviate_api_key)
+    if (opts.weaviate_class_name) formData.append("weaviate_class_name", opts.weaviate_class_name)
+    // Analysis params
     if (opts.sample_size) formData.append("sample_size", String(opts.sample_size))
     if (opts.batch_size) formData.append("batch_size", String(opts.batch_size))
     if (opts.enable_clustering !== undefined) formData.append("enable_clustering", String(opts.enable_clustering))
@@ -313,12 +358,33 @@ export const promptInjectionAPI = {
 
   // Test connection to a vector database
   testVectorDBConnection: (opts: {
-    source_type: 'pinecone' | 'pinecone_env';
+    source_type: string;
+    // Pinecone
     pinecone_api_key?: string;
     pinecone_index_name?: string;
     pinecone_environment?: string;
     pinecone_host?: string;
     pinecone_namespace?: string;
+    // ChromaDB
+    chroma_host?: string;
+    chroma_port?: number;
+    chroma_persist_directory?: string;
+    chroma_collection_name?: string;
+    chroma_api_key?: string;
+    chroma_tenant?: string;
+    chroma_database?: string;
+    // Qdrant
+    qdrant_host?: string;
+    qdrant_port?: number;
+    qdrant_url?: string;
+    qdrant_api_key?: string;
+    qdrant_collection_name?: string;
+    // Weaviate
+    weaviate_host?: string;
+    weaviate_port?: number;
+    weaviate_url?: string;
+    weaviate_api_key?: string;
+    weaviate_class_name?: string;
   }) => apiClient.request("/prompt-injection/vector-db/test-connection", {
     method: "POST",
     body: opts
@@ -603,6 +669,16 @@ export interface AnomalyFinding {
   similarity?: number
 }
 
+export interface PoisonedVectorSummary {
+  record_id?: string
+  record_ids?: string[]
+  category: string
+  description: string
+  recommended_action: string
+  source_doc?: string
+  confidence: number
+}
+
 export interface VectorStoreAnalysisResponse {
   scan_id: string
   scan_timestamp: string
@@ -617,8 +693,10 @@ export interface VectorStoreAnalysisResponse {
     category_counts: Record<string, number>
     severity_counts: Record<string, number>
     anomaly_rate: number
+    poisoned_vector_count?: number
   }
   recommendations: string[]
+  poisoned_vectors?: PoisonedVectorSummary[]
   sampling_info?: {
     method: string
     sample_size: number
@@ -783,171 +861,6 @@ export interface RetrievalAttackParams {
   rank_shift_threshold?: number
   variants?: string  // Comma-separated: paraphrase,unicode,homoglyph,trigger
   enable_model_inference?: boolean
-}
-
-// Vector Embedding Evaluation Types
-export interface EvaluationRequest {
-  collection_name: string
-  embedding_model?: string
-  k?: number
-  chunk_size?: number
-  overlap?: number
-  reranker_enabled?: boolean
-}
-
-export interface EvaluationMetrics {
-  hit_rate: number
-  mrr: number
-  ndcg: number
-  total_queries: number
-  processed_queries: number
-}
-
-export interface EvaluationResponse {
-  evaluation_id: string
-  collection_name: string
-  embedding_model: string
-  evaluation_timestamp: string
-  metrics: EvaluationMetrics
-  chunk_length_distribution?: {
-    bins: string[]
-    counts: number[]
-    mean: number
-    median: number
-    std: number
-    min: number
-    max: number
-  }
-  drift_detection?: {
-    drift_score: number
-    drift_detected: boolean
-    baseline_period: string
-    current_period: string
-    metric_changes: Record<string, number>
-    recommendations: string[]
-  }
-  poor_performing_queries: Array<{
-    query_id: string
-    query_text: string
-    hit_rate: number
-    mrr: number
-    ndcg: number
-    issue: string
-    suggestions: string[]
-  }>
-  orphan_documents: Array<{
-    document_id: string
-    title: string
-    last_accessed?: string
-    embedding_count: number
-    reason: string
-    action: string
-  }>
-  duplicate_clusters: Array<{
-    cluster_id: string
-    size: number
-    avg_similarity: number
-    representative_text: string
-    sources: string[]
-    vector_ids: string[]
-    action: string
-  }>
-  query_results: Array<{
-    query_id: string
-    query_text: string
-    retrieved_vectors: string[]
-    relevance_scores: number[]
-    similarity_scores: number[]
-    hit: boolean
-    rank_of_first_hit?: number
-    ndcg_score: number
-  }>
-  top_k_scores: Record<string, number>
-  recommendations: string[]
-}
-
-export const vectorEmbeddingEvaluationAPI = {
-  evaluate: (request: EvaluationRequest, vectorsFile: File, queriesFile?: File) => {
-    const formData = new FormData()
-    formData.append("vectors_file", vectorsFile)
-    if (queriesFile) formData.append("queries_file", queriesFile)
-    formData.append("collection_name", request.collection_name)
-    if (request.embedding_model) formData.append("embedding_model", request.embedding_model)
-    if (request.k) formData.append("k", String(request.k))
-    if (request.chunk_size) formData.append("chunk_size", String(request.chunk_size))
-    if (request.overlap) formData.append("overlap", String(request.overlap))
-    if (request.reranker_enabled !== undefined) formData.append("reranker_enabled", String(request.reranker_enabled))
-    
-    return fetch(`${API_BASE}/vector-embedding-evaluation/evaluate`, {
-      method: "POST",
-      body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-    }).then(async (res) => {
-      const data = await res.json().catch(() => null)
-      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
-    })
-  },
-  detectDrift: (baselineMetrics: Record<string, number>, currentMetrics: Record<string, number>) => {
-    const formData = new FormData()
-    formData.append("baseline_metrics", JSON.stringify(baselineMetrics))
-    formData.append("current_metrics", JSON.stringify(currentMetrics))
-    
-    return fetch(`${API_BASE}/vector-embedding-evaluation/detect-drift`, {
-      method: "POST",
-      body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-    }).then(async (res) => {
-      const data = await res.json().catch(() => null)
-      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
-    })
-  },
-  analyzeChunks: (vectorsFile: File) => {
-    const formData = new FormData()
-    formData.append("vectors_file", vectorsFile)
-    
-    return fetch(`${API_BASE}/vector-embedding-evaluation/analyze-chunks`, {
-      method: "POST",
-      body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-    }).then(async (res) => {
-      const data = await res.json().catch(() => null)
-      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
-    })
-  },
-  detectDuplicates: (vectorsFile: File, similarityThreshold?: number, minClusterSize?: number) => {
-    const formData = new FormData()
-    formData.append("vectors_file", vectorsFile)
-    if (similarityThreshold !== undefined) formData.append("similarity_threshold", String(similarityThreshold))
-    if (minClusterSize !== undefined) formData.append("min_cluster_size", String(minClusterSize))
-    
-    return fetch(`${API_BASE}/vector-embedding-evaluation/detect-duplicates`, {
-      method: "POST",
-      body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-    }).then(async (res) => {
-      const data = await res.json().catch(() => null)
-      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
-    })
-  },
-  exportReport: async (evaluation: EvaluationResponse, format: "json" | "pdf" = "pdf") => {
-    const res = await fetch(`${API_BASE}/vector-embedding-evaluation/export`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : {}),
-      },
-      body: JSON.stringify({ evaluation, format }),
-    })
-    const blob = await res.blob()
-    const filename = `vector_evaluation_${evaluation.evaluation_id}.${format}`
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    a.click()
-    window.URL.revokeObjectURL(url)
-    return res.ok ? { success: true } : { success: false, error: "Export failed" }
-  },
 }
 
 export default apiClient

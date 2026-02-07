@@ -1,10 +1,9 @@
 import React from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
-import { Shield, Database, Target, BarChart3 } from "lucide-react"
+import { Shield, Database, Target } from "lucide-react"
 import { EmbeddingInspectionPage } from "./embedding-inspection-page"
 import { VectorStoreAnalysisPage } from "./vector-store-analysis-page"
 import { RetrievalAttackPage } from "./retrieval-attack-page"
-import { VectorEmbeddingPage } from "./vector-embedding-page"
 
 export const VectorSecurityPage: React.FC = () => {
   return (
@@ -15,7 +14,7 @@ export const VectorSecurityPage: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-white">Vector Security</h1>
             <p className="text-gray-400 text-sm">
-              Comprehensive vector security: document inspection, anomaly detection, attack simulation, and quality evaluation.
+              Comprehensive vector security: document inspection, anomaly detection, and attack simulation.
             </p>
           </div>
         </div>
@@ -33,9 +32,6 @@ export const VectorSecurityPage: React.FC = () => {
             <TabsTrigger value="retrieval" className="data-[state=active]:bg-orange-600">
               <Target className="w-4 h-4 mr-2" /> Attack Simulation
             </TabsTrigger>
-            <TabsTrigger value="evaluation" className="data-[state=active]:bg-purple-600">
-              <BarChart3 className="w-4 h-4 mr-2" /> Quality Evaluation
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="inspection" className="mt-0">
@@ -48,10 +44,6 @@ export const VectorSecurityPage: React.FC = () => {
 
           <TabsContent value="retrieval" className="mt-0">
             <RetrievalAttackPage />
-          </TabsContent>
-
-          <TabsContent value="evaluation" className="mt-0">
-            <VectorEmbeddingPage />
           </TabsContent>
         </Tabs>
       </div>
