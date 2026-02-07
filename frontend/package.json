@@ -83,7 +83,6 @@
   "scripts": {
     "sync-env": "node scripts/sync-env.js",
     "prestart": "npm run sync-env",
-    "prebuild": "npm run sync-env",
     "start": "react-app-rewired start",
     "build": "react-app-rewired build",
     "test": "react-scripts test",
