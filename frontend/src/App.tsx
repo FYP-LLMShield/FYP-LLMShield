@@ -27,12 +27,8 @@ const ContactPage = React.lazy(() => import('./pages/ContactPage'));
 
 // Lazy load dashboard pages
 const PromptInjectionPage = React.lazy(() => import('./components/pages/prompt-injection-page').then(module => ({ default: module.PromptInjectionPage })));
-<<<<<<<< HEAD:LLMShield-Frontend/src/App.tsx
-const VectorEmbeddingsPage = React.lazy(() => import('./components/pages/vector-embedding-page').then(module => ({ default: module.VectorEmbeddingPage })));
-========
 const ModelPoisoningPage = React.lazy(() => import('./components/pages/model-poisoning-page').then(module => ({ default: module.ModelPoisoningPage })));
 const VectorSecurityPage = React.lazy(() => import('./components/pages/vector-security-page').then(module => ({ default: module.VectorSecurityPage })));
->>>>>>>> frontend:frontend/src/App.tsx
 const CodeScannerPage = React.lazy(() => import('./components/pages/code-scanning-page').then(module => ({ default: module.CodeScanningPage })));
 const SettingsPage = React.lazy(() => import('./components/pages/settings-page').then(module => ({ default: module.SettingsPage })));
 const HistoryPage = React.lazy(() => import('./components/pages/history-page').then(module => ({ default: module.HistoryPage })));
@@ -124,9 +120,6 @@ function App() {
               }
             />
             <Route
-<<<<<<<< HEAD:LLMShield-Frontend/src/App.tsx
-              path="/dashboard/vector-embedding"
-========
               path="/dashboard/model-poisoning"
               element={
                 <ProtectedRoute>
@@ -138,7 +131,6 @@ function App() {
             />
             <Route
               path="/dashboard/vector-security"
->>>>>>>> frontend:frontend/src/App.tsx
               element={
                 <ProtectedRoute>
                   <DashboardLayout>
