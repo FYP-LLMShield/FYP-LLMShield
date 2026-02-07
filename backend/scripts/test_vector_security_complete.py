@@ -31,7 +31,6 @@ class VectorSecurityTester:
             "embedding_inspection": {},
             "vector_store_analysis": {},
             "retrieval_attack": {},
-            "vector_embedding_eval": {}
         }
     
     def print_header(self, text: str):
@@ -41,16 +40,16 @@ class VectorSecurityTester:
         print("=" * 80 + "\n")
     
     def print_success(self, text: str):
-        """Print success message"""
-        print(f"✅ {text}")
+        """Print success message (ASCII-safe for Windows)"""
+        print(f"[OK] {text}")
     
     def print_error(self, text: str):
-        """Print error message"""
-        print(f"❌ {text}")
+        """Print error message (ASCII-safe for Windows)"""
+        print(f"[FAIL] {text}")
     
     def print_info(self, text: str):
-        """Print info message"""
-        print(f"ℹ️  {text}")
+        """Print info message (ASCII-safe for Windows)"""
+        print(f"[INFO] {text}")
     
     # ==================== Test 1: Document-to-Embedding Inspection ====================
     
@@ -120,7 +119,7 @@ class VectorSecurityTester:
                     if recommendations:
                         print(f"\n  Recommendations:")
                         for rec in recommendations[:3]:
-                            print(f"    • {rec}")
+                            print(f"    - {rec}")
                     
                     return True
                 else:
@@ -392,7 +391,7 @@ class VectorSecurityTester:
                     if recommendations:
                         print(f"\n  Recommendations:")
                         for rec in recommendations[:3]:
-                            print(f"    • {rec}")
+                            print(f"    - {rec}")
                     
                     return True
                 else:
@@ -534,7 +533,6 @@ class VectorSecurityTester:
         results['test1'] = self.test_embedding_inspection()
         results['test2'] = self.test_vector_store_analysis()
         results['test3'] = self.test_retrieval_attack_simulation()
-        results['test4'] = self.test_vector_embedding_evaluation()
         
         # Summary
         self.print_header("TEST SUMMARY")
@@ -549,21 +547,20 @@ class VectorSecurityTester:
             "Document-to-Embedding Inspection",
             "Vector Store Anomaly Detection",
             "Retrieval Attack Simulation",
-            "Vector Embedding Evaluation"
         ]
         
         for i, (test_key, passed_status) in enumerate(results.items(), 1):
-            status = "✅ PASS" if passed_status else "❌ FAIL"
+            status = "[PASS]" if passed_status else "[FAIL]"
             print(f"  {i}. {test_names[i-1]}: {status}")
         
         print("\n" + "=" * 80)
         
         # Use the 'passed' count calculated earlier, not the loop variable
         if passed == total:
-            print("\n🎉 ALL TESTS PASSED! Vector security backend is ready for demo.\n")
+            print("\n[SUCCESS] ALL TESTS PASSED! Vector security backend is ready for demo.\n")
             return True
         else:
-            print(f"\n⚠️  {total - passed} test(s) failed. Please review the errors above.\n")
+            print(f"\n[WARNING] {total - passed} test(s) failed. Please review the errors above.\n")
             return False
 
 

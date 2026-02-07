@@ -232,7 +232,7 @@ def main():
     print()
     print("Next steps:")
     print("1. Run: python scripts/export_vector_snapshot.py")
-    print("2. Upload the exported JSON to Vector Embedding Evaluation")
+    print("2. Upload the exported JSON to Vector Security (Anomaly Detection or Attack Simulation)")
     print()
     print("To add more documents, use:")
     print("  python scripts/add_documents.py")

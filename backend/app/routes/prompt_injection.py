@@ -2337,7 +2337,7 @@ def _generate_pdf(data: ExportPayload) -> bytes:
 
 
 @router.post('/export/pdf/{test_id}')
-async def export_pdf(test_id: str, payload: ExportPayload = None, current_user: Optional[UserInDB] = Depends(get_optional_user)):
+async def export_pdf(test_id: str, payload: ExportPayload = None):
     try:
         data = payload or ExportPayload(test_id=test_id, status='completed')
         pdf = _generate_pdf(data)
@@ -2365,7 +2365,7 @@ async def test_export_pdf(test_id: str, payload: ExportPayload = None):
 
 
 @router.post('/export/json/{test_id}')
-async def export_json(test_id: str, payload: ExportPayload = None, current_user: Optional[UserInDB] = Depends(get_optional_user)):
+async def export_json(test_id: str, payload: ExportPayload = None):
     try:
         data = payload or ExportPayload(test_id=test_id, status='completed')
         filename = f'LLMShield_PromptInjection_Report_{test_id}.json'

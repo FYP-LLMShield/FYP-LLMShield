@@ -2,7 +2,7 @@
 Export Vector Database Snapshot
 ================================
 Exports your ChromaDB collection to a JSON snapshot file
-that can be used with the Vector Embedding Evaluation API.
+that can be used with Vector Security (Anomaly Detection or Attack Simulation).
 """
 
 import os
@@ -117,7 +117,7 @@ def main():
         print(f"Snapshot saved to: {output_path}")
         print()
         print("Next steps:")
-        print("1. Use this file with Vector Embedding Evaluation API")
+        print("1. Use this file with Vector Security (Anomaly Detection or Attack Simulation)")
         print("2. Upload via frontend UI or use the API directly")
         print()
 
