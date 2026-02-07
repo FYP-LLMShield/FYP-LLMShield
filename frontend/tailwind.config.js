@@ -31,6 +31,9 @@ module.exports = {
         'float-4': 'float-4 4s ease-in-out infinite',
         'float-6': 'float-6 6s ease-in-out infinite',
         'float-8': 'float-8 8s ease-in-out infinite',
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        'caret-blink': 'caret-blink 1.25s ease-out infinite',
       },
       keyframes: {
         'float': {
@@ -99,11 +102,23 @@ module.exports = {
             opacity: '0.3'
           }
         },
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
+        'caret-blink': {
+          '0%, 70%, 100%': { opacity: '1' },
+          '20%, 50%': { opacity: '0' },
+        },
       },
       transitionDuration: {
         '300': '300ms',
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [],
 }

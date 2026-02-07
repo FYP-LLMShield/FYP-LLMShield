@@ -301,15 +301,9 @@ export function CodeScanningPage() {
         });
       }
       
-<<<<<<<< HEAD:LLMShield-Frontend/src/components/pages/code-scanning-page.tsx
-      if (pdfBlob && pdfBlob.success && pdfBlob.data) {
-        // Create a download link for the PDF
-        const url = URL.createObjectURL(pdfBlob.data);
-========
       if ((pdfBlob as any)?.success && (pdfBlob as any)?.data) {
         // Create a download link for the PDF
         const url = URL.createObjectURL((pdfBlob as any).data);
->>>>>>>> frontend:frontend/src/components/pages/code-scanning-page.tsx
         const a = document.createElement('a');
         a.href = url;
         a.download = `llmshield-scan-report-${new Date().toISOString().slice(0, 10)}.pdf`;
