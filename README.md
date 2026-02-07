@@ -1,313 +1,218 @@
 # FYP-LLMShield
+
 A Unified Threat Detection Framework for Mitigating Prompt Injection, Model Poisoning, and RAG Embedding Risks.
 
 <div align="center">
-  <img src="LLMShield-Frontend/public/images/logo.svg" alt="LLMShield Logo" width="200"/>
-  
+  <img src="frontend/public/images/logo.svg" alt="LLMShield Logo" width="200"/>
+
   **A Comprehensive AI Security Testing Platform**
-  
+
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)](https://fastapi.tiangolo.com/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
   [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+
 </div>
 
-## 🛡️ Overview
+## Overview
 
-LLMShield is a comprehensive security testing platform designed to identify and mitigate vulnerabilities in Large Language Models (LLMs) and AI systems. The platform provides specialized tools for detecting prompt injection attacks, model poisoning, vector embedding vulnerabilities, and code security issues.
+LLMShield is a security testing platform for Large Language Models (LLMs) and AI systems. It helps detect prompt injection attacks, model poisoning, vector embedding vulnerabilities, and code security issues.
 
 ### Key Features
 
-- **🎯 Prompt Injection Testing**: Advanced detection of prompt injection attacks, jailbreaks, and system prompt leaks
-- **🧪 Model Poisoning Detection**: Comprehensive analysis for backdoor triggers and behavioral anomalies
-- **📊 Vector Embedding Analysis**: Similarity collision detection and suspicious pattern identification
-- **🔍 Code Security Scanning**: C/C++ vulnerability detection with CWE mapping and secret detection
-- **📈 Real-time Dashboard**: Interactive security metrics and threat monitoring
-- **🔗 Multi-Provider Support**: Integration with OpenAI, Anthropic, Google, Ollama, and custom APIs
-- **📱 Responsive Design**: Optimized for desktop and mobile security workflows
-- **🔐 Enterprise Security**: Comprehensive authentication, authorization, and audit logging
+- **Prompt Injection Testing** — Detection of prompt injection, jailbreaks, and system prompt leaks
+- **Model Poisoning Detection** — Safe vs poisoned model comparison (Llama, Qwen, TinyLlama)
+- **Vector Store Analysis** — Anomaly detection, similarity collisions, trigger patterns
+- **Document Embedding Inspection** — Pre-embedding poisoning pattern detection
+- **Code Security Scanning** — C/C++ vulnerabilities, secret detection, CWE mapping
+- **Authentication** — JWT, MFA, Google OAuth, email verification
+- **Dashboard** — Security metrics, scan history, threat timeline
 
-## 🏗️ Architecture
+## Prerequisites
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Styling**: Tailwind CSS with custom design system
-- **UI Components**: Radix UI primitives for accessibility
-- **State Management**: React Context API
-- **Routing**: React Router DOM
-- **Animations**: Framer Motion
-- **Data Visualization**: Recharts
-- **Form Handling**: React Hook Form with Zod validation
-
-### Backend Architecture
-- **Framework**: FastAPI with Python 3.8+
-- **Database**: MongoDB with Motor async driver
-- **Authentication**: JWT with bcrypt password hashing
-- **API Integration**: Multi-provider LLM support
-- **File Processing**: PDF, DOCX, and text document analysis
-- **Security**: Rate limiting, CORS, and input validation
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** 16.x or higher
-- **Python** 3.8 or higher
-- **MongoDB** (local or cloud instance)
+- **Node.js** 16+
+- **Python** 3.12 or 3.13 (3.14 has compatibility issues with some packages)
+- **MongoDB** (local or Atlas)
 - **Git**
 
-### Installation
+## Quick Start
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/llmshield.git
-   cd llmshield
-   ```
+### 1. Clone the repository
 
-2. **Backend Setup**
-   ```bash
-   cd LLMShield-Backend
-   
-   # Create virtual environment
-   python -m venv venv
-   
-   # Activate virtual environment
-   # Windows
-   venv\Scripts\activate
-   # macOS/Linux
-   source venv/bin/activate
-   
-   # Install dependencies
-   pip install -r requirements.txt
-   
-   # Configure environment variables
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+```bash
+git clone https://github.com/yourusername/FYP-LLMShield.git
+cd FYP-LLMShield
+```
 
-3. **Frontend Setup**
-   ```bash
-   cd ../LLMShield-Frontend
-   
-   # Install dependencies
-   npm install
-   
-   # Configure environment variables
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+### 2. Backend Setup
 
-### Environment Configuration
+```bash
+cd backend
 
-#### Backend (.env)
+# Create virtual environment (use Python 3.12 or 3.13)
+python -m venv venv
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy and configure environment
+cp .env.example .env
+# Edit .env with your MongoDB URL and API keys
+```
+
+### 3. Frontend Setup
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Set REACT_APP_API_BASE_URL=http://localhost:8000
+```
+
+### 4. Run the Application
+
+**Terminal 1 – Backend:**
+
+```bash
+cd backend
+python run.py
+```
+
+API: `http://localhost:8000`
+
+**Terminal 2 – Frontend:**
+
+```bash
+cd frontend
+npm start
+```
+
+App: `http://localhost:3000`
+
+## Environment Configuration
+
+### Backend (.env)
+
 ```env
-# Database
-MONGODB_URL=mongodb://localhost:27017/llmshield
-
-# JWT Configuration
-SECRET_KEY=your-secret-key-here
+MONGODB_URL=mongodb://localhost:27017
+DATABASE_NAME=llmshield_db
+SECRET_KEY=your-secret-key-change-in-production
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# API Keys (optional - configure as needed)
+# Optional – for LLM providers
 OPENAI_API_KEY=your-openai-key
 ANTHROPIC_API_KEY=your-anthropic-key
-GOOGLE_API_KEY=your-google-key
+GROQ_API_KEY=your-groq-key
 
-# Server Configuration
-HOST=0.0.0.0
-PORT=8000
+# Optional – for Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id
 ```
 
-#### Frontend (.env)
+### Frontend (.env)
+
 ```env
-REACT_APP_API_URL=http://localhost:8000
+REACT_APP_API_BASE_URL=http://localhost:8000
+REACT_APP_API_URL=http://localhost:8000/api/v1
 REACT_APP_ENVIRONMENT=development
 ```
 
-### Running the Application
+## Usage
 
-1. **Start the Backend**
-   ```bash
-   cd LLMShield-Backend
-   python run.py
-   ```
-   The API will be available at `http://localhost:8000`
+### Dashboard
 
-2. **Start the Frontend**
-   ```bash
-   cd LLMShield-Frontend
-   npm start
-   ```
-   The application will be available at `http://localhost:3000`
-
-## 📖 Usage
-
-### Dashboard Overview
-
-The main dashboard provides:
-- **Security Metrics**: Real-time vulnerability counts and severity distribution
-- **Threat Timeline**: Historical security events and trends
-- **Quick Actions**: Direct access to all security scanners
-- **Recent Alerts**: Latest security findings and recommendations
+After login, the dashboard shows security metrics, quick actions, and recent scans.
 
 ### Security Scanners
 
-#### Prompt Injection Testing
-1. Navigate to **Prompt Injection** scanner
-2. Configure your LLM provider and model
-3. Enter test prompts or upload documents
-4. Select probe categories (Injection, Jailbreak, System Leak, etc.)
-5. Run tests and review detailed results
-
-#### Model Poisoning Detection
-1. Access **Model Poisoning** scanner
-2. Configure model version and test parameters
-3. Upload trigger test cases
-4. Analyze behavioral anomalies and backdoor detection results
-
-#### Vector Embedding Analysis
-1. Open **Vector Embeddings** scanner
-2. Upload documents for embedding analysis
-3. Configure similarity thresholds
-4. Review collision detection and suspicious patterns
-
-#### Code Security Scanning
-1. Use **Code Scanner** for vulnerability detection
-2. Upload files or connect GitHub repositories
-3. Scan for C/C++ vulnerabilities and secrets
-4. Review CWE-mapped findings with remediation guidance
+| Scanner               | Path                                 | Description                                                                          |
+| --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| Prompt Injection      | `/dashboard/prompt-injection`      | Test prompts and documents for injection, jailbreak, system leak                     |
+| Model Poisoning       | `/dashboard/data-poisoning`        | Compare safe vs poisoned model outputs (requires GGUF models in `CompleteModels/`) |
+| Vector Store Analysis | `/dashboard/vector-store-analysis` | Upload vector snapshot JSON; detect anomalies and collisions                         |
+| Embedding Inspection  | `/dashboard/embedding-inspection`  | Inspect documents before embedding for poisoning patterns                            |
+| Code Scanner          | `/dashboard/code-scanning`         | Scan C/C++ code and detect secrets                                                   |
 
 ### API Documentation
 
-Interactive API documentation is available at:
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`
 
-## 🧪 Testing
+## Project Structure
 
-### Frontend Testing
-```bash
-cd LLMShield-Frontend
-npm test
 ```
-
-### Backend Testing
-```bash
-cd LLMShield-Backend
-pytest
-```
-
-### Integration Testing
-The platform includes comprehensive integration tests for:
-- API endpoint validation
-- Multi-provider LLM integration
-- Security scanner functionality
-- Authentication and authorization
-- File upload and processing
-
-## 🔧 Development
-
-### Project Structure
-```
-llmshield/
-├── LLMShield-Backend/          # FastAPI backend
+FYP-LLMShield/
+├── backend/           # FastAPI backend
 │   ├── app/
-│   │   ├── core/              # Core configuration
-│   │   ├── models/            # Database models
-│   │   ├── routes/            # API endpoints
-│   │   ├── services/          # Business logic
-│   │   └── utils/             # Utility functions
-│   ├── requirements.txt       # Python dependencies
-│   └── run.py                # Application entry point
-├── LLMShield-Frontend/        # React frontend
+│   │   ├── core/      # Config
+│   │   ├── models/    # DB models
+│   │   ├── routes/    # API endpoints
+│   │   ├── services/  # Business logic
+│   │   └── langgraph/ # Workflows
+│   ├── accuracy_evaluation/
+│   ├── scripts/       # Setup, tests
+│   ├── requirements.txt
+│   └── run.py
+├── frontend/          # React + TypeScript
 │   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── pages/            # Page components
-│   │   ├── contexts/         # React contexts
-│   │   ├── hooks/            # Custom hooks
-│   │   └── lib/              # Utility libraries
-│   ├── package.json          # Node.js dependencies
-│   └── tailwind.config.js    # Tailwind configuration
-└── README.md                 # This file
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── contexts/
+│   └── package.json
+├── CompleteModels/    # GGUF models (Llama, Qwen, TinyLlama)
+├── samples/           # Sample data for testing
+├── scripts/           # Project scripts
+├── README.md          # This file
+└── PROJECT_MANUAL.md  # Implementation details for developers
 ```
 
-### Contributing Guidelines
+## Testing
 
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes** following the coding standards
-4. **Add tests** for new functionality
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to the branch**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request**
+```bash
+# Backend health
+curl http://localhost:8000/health
 
-### Code Style
+# Run backend tests
+cd backend && pytest
 
-- **Frontend**: ESLint + Prettier configuration
-- **Backend**: Black formatter + isort for imports
-- **TypeScript**: Strict type checking enabled
-- **Python**: PEP 8 compliance with type hints
+# Run frontend tests
+cd frontend && npm test
+```
 
-## 🔒 Security Considerations
+## Optional: Supabase (Email)
 
-- **Authentication**: JWT-based authentication with secure token handling
-- **Input Validation**: Comprehensive validation using Pydantic and Zod
-- **Rate Limiting**: API rate limiting to prevent abuse
-- **CORS**: Properly configured cross-origin resource sharing
-- **Encryption**: HTTPS enforcement and secure credential storage
-- **Audit Logging**: Comprehensive security event logging
+For email verification and password reset, configure Supabase. Add to `.env`:
 
-## 📊 Performance
+```env
+SUPABASE_DB_URL=postgresql://...
+SUPABASE_PROJECT_URL=https://...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_KEY=...
+```
 
-- **Response Times**: Sub-second response for dashboard metrics
-- **Concurrent Users**: Tested for multi-user scenarios
-- **Scalability**: Designed for horizontal scaling
-- **Resource Management**: Optimized memory and CPU usage
+Create `emails` and `email_verifications` tables in Supabase. See `PROJECT_MANUAL.md` for schema details. If Supabase is not configured, the app falls back to SMTP or skips email features.
 
-## 🤝 Contributing
+## Troubleshooting
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+- **Python 3.14 errors** — Use Python 3.12 or 3.13
+- **MongoDB connection failed** — Ensure MongoDB is running and `MONGODB_URL` is correct
+- **Port in use** — Change `PORT` in backend or use a different frontend port
+- **Model poisoning not loading** — Ensure `CompleteModels/` contains the GGUF model files
 
-### Development Setup
+## License
 
-1. Follow the installation instructions above
-2. Install development dependencies:
-   ```bash
-   # Frontend
-   cd LLMShield-Frontend
-   npm install --include=dev
-   
-   # Backend
-   cd LLMShield-Backend
-   pip install -r requirements-dev.txt
-   ```
+MIT License — see [LICENSE](LICENSE) for details.
 
-3. Set up pre-commit hooks:
-   ```bash
-   pre-commit install
-   ```
+## Support
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Security Research Community** for vulnerability disclosure and testing
-- **Open Source Contributors** for the amazing libraries and frameworks
-- **AI Safety Researchers** for guidance on LLM security best practices
-
-## 📞 Support
-
-- **Documentation**: [Wiki](https://github.com/yourusername/llmshield/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/llmshield/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/llmshield/discussions)
-- **Email**: support@llmshield.com
+- **Issues**: [GitHub Issues](https://github.com/yourusername/FYP-LLMShield/issues)
+- **Project details**: See [PROJECT_MANUAL.md](PROJECT_MANUAL.md) for implementation status and developer reference
 
 ---
 
 <div align="center">
-  <strong>Built with ❤️ for AI Security</strong>
+  <strong>Built for AI Security</strong>
 </div>
