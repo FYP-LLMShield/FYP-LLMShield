@@ -4,14 +4,15 @@ A Unified Threat Detection Framework for Mitigating Prompt Injection, Model Pois
 
 <div align="center">
   <img src="frontend/public/images/logo.svg" alt="LLMShield Logo" width="200"/>
-  
+
   **A Comprehensive AI Security Testing Platform**
-  
+
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)](https://fastapi.tiangolo.com/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
   [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+
 </div>
 
 ## Overview
@@ -74,17 +75,21 @@ cp .env.example .env
 ### 4. Run the Application
 
 **Terminal 1 – Backend:**
+
 ```bash
 cd backend
 python run.py
 ```
+
 API: `http://localhost:8000`
 
 **Terminal 2 – Frontend:**
+
 ```bash
 cd frontend
 npm start
 ```
+
 App: `http://localhost:3000`
 
 ## Environment Configuration
@@ -123,13 +128,13 @@ After login, the dashboard shows security metrics, quick actions, and recent sca
 
 ### Security Scanners
 
-| Scanner | Path | Description |
-|---------|------|-------------|
-| Prompt Injection | `/dashboard/prompt-injection` | Test prompts and documents for injection, jailbreak, system leak |
-| Model Poisoning | `/dashboard/data-poisoning` | Compare safe vs poisoned model outputs (requires GGUF models in `CompleteModels/`) |
-| Vector Store Analysis | `/dashboard/vector-store-analysis` | Upload vector snapshot JSON; detect anomalies and collisions |
-| Embedding Inspection | `/dashboard/embedding-inspection` | Inspect documents before embedding for poisoning patterns |
-| Code Scanner | `/dashboard/code-scanning` | Scan C/C++ code and detect secrets |
+| Scanner               | Path                                 | Description                                                                          |
+| --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| Prompt Injection      | `/dashboard/prompt-injection`      | Test prompts and documents for injection, jailbreak, system leak                     |
+| Model Poisoning       | `/dashboard/data-poisoning`        | Compare safe vs poisoned model outputs (requires GGUF models in `CompleteModels/`) |
+| Vector Store Analysis | `/dashboard/vector-store-analysis` | Upload vector snapshot JSON; detect anomalies and collisions                         |
+| Embedding Inspection  | `/dashboard/embedding-inspection`  | Inspect documents before embedding for poisoning patterns                            |
+| Code Scanner          | `/dashboard/code-scanning`         | Scan C/C++ code and detect secrets                                                   |
 
 ### API Documentation
 

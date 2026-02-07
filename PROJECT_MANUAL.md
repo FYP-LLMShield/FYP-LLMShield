@@ -35,8 +35,6 @@ Developer reference for implementation status, architecture, and code locations.
 
 **Document Embedding Inspection** — Upload PDF/DOCX/TXT/MD; chunking; pattern detection (instruction payloads, trigger phrases, obfuscation, repetition); sanitization preview; re-analysis after exclusions; structured remediation.
 
-**Vector Embedding Evaluation** — Hit Rate, MRR, nDCG; chunk length distribution; drift detection; poor-performing queries; orphan documents; duplicate clusters; export JSON/PDF; real OpenAI embeddings when API key configured.
-
 ---
 
 ## Architecture
