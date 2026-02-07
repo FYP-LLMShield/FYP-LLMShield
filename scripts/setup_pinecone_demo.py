@@ -32,12 +32,23 @@ import numpy as np
 from dotenv import load_dotenv
 
 # Load environment variables
-env_path = Path(__file__).parent.parent / "backend" / ".env"
-if env_path.exists():
-    load_dotenv(env_path)
-else:
-    print("[ERROR] No .env file found at:", env_path)
-    print("Create backend/.env with your Pinecone credentials first.")
+# Try project root first, then backend/
+env_paths = [
+    Path(__file__).parent.parent / ".env",
+    Path(__file__).parent.parent / "backend" / ".env"
+]
+
+loaded = False
+for env_path in env_paths:
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"[INFO] Loaded .env from: {env_path}")
+        loaded = True
+        break
+
+if not loaded:
+    print("[ERROR] No .env file found at project root or backend/ folder.")
+    print("Please create a .env file with your Pinecone credentials.")
     sys.exit(1)
 
 # Get Pinecone credentials
