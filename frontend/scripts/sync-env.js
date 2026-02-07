@@ -2,27 +2,35 @@
 
 /**
  * Script to sync REACT_APP_ environment variables from root .env to frontend .env
- * This ensures the frontend has access to all environment variables from the unified root .env
+ * On Vercel (no root .env), writes a placeholder and exits 0 so build continues.
  */
 
 const fs = require('fs');
 const path = require('path');
+
+// On Vercel, Root Directory is "frontend" so there is no repo root .env - never fail
+if (process.env.VERCEL === '1') {
+  const frontendEnvPath = path.resolve(__dirname, '..', '.env');
+  const fallbackContent = [
+    '# Vercel build - REACT_APP_* are set in Project Settings → Environment Variables',
+  ].join('\n') + '\n';
+  fs.writeFileSync(frontendEnvPath, fallbackContent, 'utf8');
+  console.log('✅ Vercel build: using env vars from Project Settings.');
+  process.exit(0);
+}
 
 const rootEnvPath = path.resolve(__dirname, '..', '..', '.env');
 const frontendEnvPath = path.resolve(__dirname, '..', '.env');
 
 console.log('🔄 Syncing environment variables from root .env to frontend .env...');
 
-// On Vercel (or when root .env is missing), skip sync - CRA uses env vars from the build environment
 if (!fs.existsSync(rootEnvPath)) {
-  console.log('⚠️ Root .env not found (e.g. Vercel). Using build environment variables only.');
+  console.log('⚠️ Root .env not found. Using build environment variables only.');
   const fallbackContent = [
-    '# Frontend env - no root .env (e.g. Vercel). Set REACT_APP_* in Vercel Project Settings.',
-    '# REACT_APP_API_URL=https://your-api.com/api/v1',
-    '# REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id',
+    '# No root .env - set REACT_APP_* in Vercel Project Settings or create root .env for local dev.',
   ].join('\n') + '\n';
   fs.writeFileSync(frontendEnvPath, fallbackContent, 'utf8');
-  console.log('✅ Wrote placeholder frontend .env. Build will use Vercel env vars.');
+  console.log('✅ Wrote placeholder frontend .env.');
   process.exit(0);
 }
 
