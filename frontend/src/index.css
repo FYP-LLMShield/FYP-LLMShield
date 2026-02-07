@@ -1,6 +1,7 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+@import './animate-utils.css';
 
 :root {
   --background: oklch(1 0 0);
