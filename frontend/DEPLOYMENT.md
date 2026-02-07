@@ -6,11 +6,12 @@ This guide makes the frontend deployment-ready for Vercel.
 
 1. Go to [vercel.com](https://vercel.com) and sign in (e.g. with GitHub).
 2. **New Project** → Import your GitHub repo **FYP-LLMShield**.
-3. **Root Directory:** set to **`frontend`** (required — the app lives in this folder).
-4. Leave **Framework Preset** as auto (Create React App is detected).
-5. **Build Command:** `npm run build` (default).
-6. **Output Directory:** `build` (default for CRA).
-7. Deploy.
+3. **Root Directory:** leave **empty** (or `.`) so the **repo-root** `vercel.json` is used. Do **not** set Root Directory to `frontend`.
+4. The repo-root **`vercel.json`** defines:
+   - **Install:** `cd frontend && npm install --legacy-peer-deps`
+   - **Build:** `cd frontend && npx react-app-rewired build` (runs the build directly, so `sync-env` / prebuild never run).
+   - **Output:** `frontend/build`
+5. Deploy.
 
 ## 2. Environment variables (Vercel)
 
@@ -51,7 +52,8 @@ For **local dev only**, copy `frontend/.env.example` to `frontend/.env` and fill
 
 | Issue | Fix |
 |-------|-----|
-| 404 on deploy | Ensure **Root Directory** is `frontend`. |
+| 404 on deploy | Root Directory should be **empty** so root `vercel.json` is used; output is `frontend/build`. |
+| **"Root .env file not found" / prebuild fails** | Root Directory must be **empty** (not `frontend`) so the repo-root **`vercel.json`** is used. That file runs `cd frontend && npx react-app-rewired build` so `npm run build` (and prebuild/sync-env) never run. Then commit, push, and redeploy. |
 | **`npm install` fails (tailwindcss-animate / peer deps)** | 1) In Vercel → **Settings → Environment Variables**, add **`NPM_CONFIG_LEGACY_PEER_DEPS`** = **`true`**. 2) Commit and push **all** frontend changes (especially `package.json`, `package-lock.json`). 3) In Vercel → **Deployments** → **⋯** on latest → **Redeploy** → check **Clear cache and redeploy**. |
 | Build fails (missing .env) | No root `.env` needed on Vercel; set env vars in Vercel Project Settings. |
 | API calls fail in production | Set `REACT_APP_API_URL` (and `REACT_APP_API_BASE_URL` if used) to your live backend URL. |
