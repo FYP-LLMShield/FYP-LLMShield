@@ -18,9 +18,12 @@ In **Project → Settings → Environment Variables**, add:
 
 | Variable | Description | Example (production) |
 |---------|-------------|----------------------|
+| **`NPM_CONFIG_LEGACY_PEER_DEPS`** | **Required for install.** Set to **`true`** so `npm install` does not fail on peer dependency conflicts. | `true` |
 | `REACT_APP_API_URL` | Backend API URL including `/api/v1` | `https://your-backend.vercel.app/api/v1` or your API URL |
 | `REACT_APP_API_BASE_URL` | Backend base URL (no path) | `https://your-backend.vercel.app` |
 | `REACT_APP_GOOGLE_CLIENT_ID` | (Optional) Google OAuth client ID | Your Google OAuth client ID |
+
+**Important:** Add **`NPM_CONFIG_LEGACY_PEER_DEPS` = `true`** first, then redeploy. This makes npm use `--legacy-peer-deps` during install even if config is cached.
 
 For **local dev only**, copy `frontend/.env.example` to `frontend/.env` and fill in values.
 
@@ -49,6 +52,6 @@ For **local dev only**, copy `frontend/.env.example` to `frontend/.env` and fill
 | Issue | Fix |
 |-------|-----|
 | 404 on deploy | Ensure **Root Directory** is `frontend`. |
-| `npm install` fails (peer deps) | Ensure `frontend/.npmrc` has `legacy-peer-deps=true` and `vercel.json` has `installCommand: "npm install --legacy-peer-deps"`. |
+| **`npm install` fails (tailwindcss-animate / peer deps)** | 1) In Vercel → **Settings → Environment Variables**, add **`NPM_CONFIG_LEGACY_PEER_DEPS`** = **`true`**. 2) Commit and push **all** frontend changes (especially `package.json`, `package-lock.json`). 3) In Vercel → **Deployments** → **⋯** on latest → **Redeploy** → check **Clear cache and redeploy**. |
 | Build fails (missing .env) | No root `.env` needed on Vercel; set env vars in Vercel Project Settings. |
 | API calls fail in production | Set `REACT_APP_API_URL` (and `REACT_APP_API_BASE_URL` if used) to your live backend URL. |
