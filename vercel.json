@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd frontend && npx react-app-rewired build",
+  "buildCommand": "cd frontend && npm run build",
   "installCommand": "cd frontend && npm install --legacy-peer-deps",
   "outputDirectory": "frontend/build"
 }
