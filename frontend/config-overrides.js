@@ -1,6 +1,7 @@
 const { addWebpackAlias, override, overrideDevServer } = require('customize-cra');
 const path = require('path');
 const fs = require('fs');
+const webpack = require('webpack');
 
 // Load environment variables from root .env file
 // Root .env is two levels up from frontend directory
@@ -35,8 +36,16 @@ const addWebpackConfig = () => (config) => {
   config.resolve.alias['../../lib/utils'] = utilsPath;
   config.resolve.alias['../../lib/utils.js'] = utilsPath;
   config.resolve.alias['../../lib/utils.ts'] = utilsPath;
-  // Resolved absolute path (webpack may look up by resolved path on some systems)
   config.resolve.alias[path.resolve(srcDir, 'lib', 'utils')] = utilsPath;
+  config.resolve.alias['@/lib/utils'] = utilsPath;
+  // Replace any module request ending with lib/utils so build works when lib/ is missing
+  config.plugins = config.plugins || [];
+  config.plugins.push(
+    new webpack.NormalModuleReplacementPlugin(
+      /[\\/]lib[\\/]utils(\.[^\\/]*)?$/,
+      utilsPath
+    )
+  );
   return config;
 };
 
