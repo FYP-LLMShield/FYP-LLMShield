@@ -31,9 +31,9 @@ const formatErrorMessage = (err: any): string => {
   const lower = rawText.toLowerCase();
   if (
     lower.includes('connection refused') ||
-    lower.includes('socket') && lower.includes('timeout') ||
+    (lower.includes('socket') && lower.includes('timeout')) ||
     lower.includes('winerror') ||
-    lower.includes('topology') && lower.includes('timeout')
+    (lower.includes('topology') && lower.includes('timeout'))
   ) {
     return 'Cannot connect to the server. Please try again in a moment or contact support if this persists.';
   }

@@ -280,7 +280,7 @@ export const ScanResultsDisplay: React.FC<ScanResultsDisplayProps> = ({ scanResu
                   // Extract the risk name and points from the format "memory (132 risk points)"
                   const match = risk.match(/^([a-zA-Z\s-]+)\s*\((\d+)\s*risk\s*points\)$/i);
                   if (match) {
-                    const [_, riskName, riskPoints] = match;
+                    const [, riskName, riskPoints] = match;
                     const riskDescription = getRiskDescription(riskName.trim().toLowerCase());
                     return (
                       <li key={index} className="bg-gray-100 dark:bg-gray-800 p-3 rounded-md border-l-4 border-red-500">
