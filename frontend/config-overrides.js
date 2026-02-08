@@ -48,6 +48,16 @@ class LibUtilsResolvePlugin {
   }
 }
 
+// Disable CSS minimizer to avoid "postcss-discard-comments requires PostCSS 8" (project uses PostCSS 7)
+const disableCssMinimizer = (config) => {
+  if (config.optimization && Array.isArray(config.optimization.minimizer)) {
+    config.optimization.minimizer = config.optimization.minimizer.filter(
+      (plugin) => plugin.constructor.name !== "CssMinimizerPlugin"
+    );
+  }
+  return config;
+};
+
 // Override webpack configuration
 const addWebpackConfig = () => (config) => {
   const srcDir = path.resolve(__dirname, 'src');
@@ -91,7 +101,8 @@ module.exports = {
     addWebpackAlias({
       '@': path.resolve(__dirname, 'src'),
     }),
-    addWebpackConfig()
+    addWebpackConfig(),
+    disableCssMinimizer
   ),
   devServer: overrideDevServer(devServerConfig())
 };
