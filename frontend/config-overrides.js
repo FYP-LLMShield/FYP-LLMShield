@@ -26,19 +26,41 @@ if (fs.existsSync(rootEnvPath)) {
   });
 }
 
+// Custom resolve plugin: redirect any request for lib/utils to src/utils.ts (fixes Vercel "Can't resolve '../../lib/utils'")
+class LibUtilsResolvePlugin {
+  constructor(utilsPath) {
+    this.utilsPath = utilsPath;
+    this.utilsDir = path.dirname(utilsPath);
+    this.utilsFile = path.basename(utilsPath);
+  }
+  apply(resolver) {
+    const target = resolver.ensureHook("resolved");
+    resolver
+      .getHook("resolve")
+      .tapAsync("LibUtilsResolvePlugin", (request, resolveContext, callback) => {
+        const req = request.request;
+        if (!req) return callback();
+        const isLibUtils = req === "../../lib/utils" || req === "@/lib/utils" || /(^|\/)lib\/utils(\.[^/]*)?$/.test(req) || req.endsWith("lib/utils");
+        if (!isLibUtils) return callback();
+        const obj = { ...request, path: this.utilsPath, request: undefined };
+        resolver.doResolve(target, obj, "lib/utils -> src/utils.ts", resolveContext, callback);
+      });
+  }
+}
+
 // Override webpack configuration
 const addWebpackConfig = () => (config) => {
   const srcDir = path.resolve(__dirname, 'src');
+  const utilsPath = path.resolve(srcDir, 'utils.ts');
   config.resolve = config.resolve || {};
   config.resolve.alias = config.resolve.alias || {};
-  // Alias so " Can't resolve '../../lib/utils' " never happens (Vercel / gitignored lib/)
-  const utilsPath = path.resolve(srcDir, 'utils.ts');
   config.resolve.alias['../../lib/utils'] = utilsPath;
   config.resolve.alias['../../lib/utils.js'] = utilsPath;
   config.resolve.alias['../../lib/utils.ts'] = utilsPath;
   config.resolve.alias[path.resolve(srcDir, 'lib', 'utils')] = utilsPath;
   config.resolve.alias['@/lib/utils'] = utilsPath;
-  // Replace any module request ending with lib/utils so build works when lib/ is missing
+  config.resolve.plugins = config.resolve.plugins || [];
+  config.resolve.plugins.push(new LibUtilsResolvePlugin(utilsPath));
   config.plugins = config.plugins || [];
   config.plugins.push(
     new webpack.NormalModuleReplacementPlugin(
