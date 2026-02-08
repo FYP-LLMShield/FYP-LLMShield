@@ -84,7 +84,7 @@
     "sync-env": "node scripts/sync-env.js",
     "prestart": "npm run sync-env",
     "start": "react-app-rewired start",
-    "build": "node scripts/ensure-lib-utils.js && react-app-rewired build",
+    "build": "node scripts/ensure-lib-utils.js && cross-env DISABLE_ESLINT_PLUGIN=true react-app-rewired build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -107,6 +107,7 @@
     ]
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@craco/craco": "^7.1.0",
     "autoprefixer": "^9.8.8",
     "concurrently": "^9.2.1",
