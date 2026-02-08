@@ -27,6 +27,12 @@ if (fs.existsSync(rootEnvPath)) {
 
 // Override webpack configuration
 const addWebpackConfig = () => (config) => {
+  // Ensure ../../lib/utils from components/ui resolves to src/utils (works even if src/lib is missing on deploy)
+  const srcDir = path.resolve(__dirname, 'src');
+  config.resolve = config.resolve || {};
+  config.resolve.alias = config.resolve.alias || {};
+  const libUtilsPath = path.resolve(srcDir, 'lib', 'utils');
+  config.resolve.alias[libUtilsPath] = path.resolve(srcDir, 'utils.ts');
   return config;
 };
 
