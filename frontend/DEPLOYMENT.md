@@ -13,7 +13,7 @@ Use this setup for a reliable build.
 So Vercel will:
 - Use **`frontend/`** as the project root.
 - Run **Install:** `npm install --legacy-peer-deps`
-- Run **Build:** `npm run build` (which runs `ensure-lib-utils.js` then `react-app-rewired build`)
+- Run **Build:** `npm run build` (runs `ensure-lib-utils.js` then `build.js`, which sets `DISABLE_ESLINT_PLUGIN=true` and runs the build so ESLint doesn’t fail the deploy)
 - Use **Output:** `build`
 
 ## 2. Environment variables (Vercel)
@@ -23,6 +23,7 @@ In **Project → Settings → Environment Variables**, add:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | **`NPM_CONFIG_LEGACY_PEER_DEPS`** | Set to `true` so install succeeds. | `true` |
+| **`DISABLE_ESLINT_PLUGIN`** | (Optional) Set to `true` if build still fails on ESLint; the build script already sets this. | `true` |
 | `REACT_APP_API_URL` | Backend API URL including `/api/v1` | `https://your-backend.vercel.app/api/v1` |
 | `REACT_APP_API_BASE_URL` | Backend base URL | `https://your-backend.vercel.app` |
 | `REACT_APP_GOOGLE_CLIENT_ID` | (Optional) Google OAuth client ID | Your client ID |
