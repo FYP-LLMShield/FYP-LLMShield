@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.core.database import connect_to_mongo, close_mongo_connection
+from app.core.database import connect_to_mongo, close_mongo_connection, ping_mongo
 from app.mcp_servers import initialize_mcp_servers, mcp_registry
 from app.routes.auth import router as auth_router
 from app.routes.mfa import router as mfa_router
@@ -36,24 +36,40 @@ from app.routes.poisoning_simulation import router as poisoning_simulation_route
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
-    # Startup
-    await connect_to_mongo()
-    await initialize_mcp_servers()
-    await mcp_registry.start_all()
-    
-    # Mount MCP servers
-    mcp_instances = mcp_registry.get_all_mcp_instances()
-    for name, instance in mcp_instances.items():
-        app.mount(f"/mcp/{name}", instance.get_app())
-    
-    print("🚀 Database connected successfully")
-    print("🛡️  Security scanner modules loaded")
+    import traceback
+    app.state.db_connected = False
+    app.state.mcp_initialized = False
+
+    # MongoDB: do not fail app startup so /health/live works and logs are visible
+    try:
+        await connect_to_mongo()
+        app.state.db_connected = True
+        print("🚀 Database connected successfully")
+    except Exception as e:
+        print("STARTUP WARNING (MongoDB):", str(e))
+        traceback.print_exc()
+
+    # MCP: do not fail app startup
+    try:
+        await initialize_mcp_servers()
+        await mcp_registry.start_all()
+        mcp_instances = mcp_registry.get_all_mcp_instances()
+        for name, instance in mcp_instances.items():
+            app.mount(f"/mcp/{name}", instance.get_app())
+        app.state.mcp_initialized = True
+        print("🛡️  Security scanner modules loaded")
+    except Exception as e:
+        print("STARTUP WARNING (MCP):", str(e))
+        traceback.print_exc()
+
     yield
-    
+
     # Shutdown
-    await mcp_registry.stop_all()
-    await close_mongo_connection()
-    print("📴 Database connection closed")
+    if getattr(app.state, "mcp_initialized", False):
+        await mcp_registry.stop_all()
+    if getattr(app.state, "db_connected", False):
+        await close_mongo_connection()
+    print("📴 Shutdown complete")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -126,13 +142,6 @@ app.include_router(
 )
 
 
-@app.on_event("startup")
-async def startup_event():
-    await connect_to_mongo()
-
-@app.on_event("shutdown") 
-async def shutdown_event():
-    await close_mongo_connection()
 @app.get("/")
 async def root():
     """Root endpoint with API information."""
@@ -163,46 +172,54 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Comprehensive health check endpoint."""
-    try:
-        # You might want to add database connectivity check here
-        # db_status = await check_database_connection()
-        
-        return {
-            "status": "healthy",
-            "message": "LLMShield Backend is running",
-            "version": "2.0.0",
-            "services": {
-                "authentication": "✅ Active",
-                "mfa": "✅ Active", 
-                "security_scanner": "✅ Active",
-                "database": "✅ Connected"  # You might want to actually check this
-            },
-            "scanner_capabilities": {
-                "secrets": "200+ patterns including AWS, GitHub, SSH keys",
-                "cpp_vulnerabilities": "200+ dangerous functions and patterns",
-                "input_methods": ["text_paste", "file_upload", "github_clone"],
-                "supported_formats": [".c", ".cpp", ".h", ".py", ".js", ".env", ".json"]
-            }
-        }
-    except Exception as e:
-        return {
-            "status": "degraded",
-            "message": f"Some services may be unavailable: {str(e)}",
-            "version": "2.0.0"
-        }
+    """Comprehensive health check (backward compatible). Same as readiness."""
+    db_ok = await ping_mongo()
+    status = "healthy" if db_ok else "degraded"
+    return {
+        "status": status,
+        "message": "LLMShield Backend is running",
+        "version": "2.0.0",
+        "services": {
+            "authentication": "✅ Active",
+            "mfa": "✅ Active",
+            "security_scanner": "✅ Active",
+            "database": "✅ Connected" if db_ok else "❌ Disconnected",
+        },
+        "scanner_capabilities": {
+            "secrets": "200+ patterns including AWS, GitHub, SSH keys",
+            "cpp_vulnerabilities": "200+ dangerous functions and patterns",
+            "input_methods": ["text_paste", "file_upload", "github_clone"],
+            "supported_formats": [".c", ".cpp", ".h", ".py", ".js", ".env", ".json"],
+        },
+    }
+
+
+@app.get("/health/live")
+async def liveness():
+    """Liveness probe: process is running. No DB check (Azure/K8s liveness)."""
+    return {"status": "alive"}
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness probe: app and DB are ready to accept traffic (Azure/K8s readiness)."""
+    db_ok = await ping_mongo()
+    if not db_ok:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "reason": "database_unavailable"},
+        )
+    return {"status": "ready"}
+
 
 if __name__ == "__main__":
     import uvicorn
-    import logging
-    
-    # Configure logging to show INFO level messages
-    logging.basicConfig(level=logging.INFO)
-    
+
     uvicorn.run(
-        "main:app",
+        "app.main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        port=int(settings.PORT),
+        reload=settings.ENVIRONMENT == "development",
+        log_level="info",
     )
