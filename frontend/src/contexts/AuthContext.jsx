@@ -450,6 +450,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     initializeAuth()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount to restore session
   }, [])
 
   return (

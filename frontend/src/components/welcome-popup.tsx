@@ -10,8 +10,8 @@ interface WelcomePopupProps {
 }
 
 const WelcomePopup: React.FC<WelcomePopupProps> = ({ isOpen, onClose, userName = "User" }) => {
-  const [typedText, setTypedText] = useState('');
-  const [showVideo, setShowVideo] = useState(true);
+  const [, setTypedText] = useState('');
+  const [, setShowVideo] = useState(true);
   const navigate = useNavigate();
   const welcomeText = `Welcome back, ${userName}! Ready to secure your AI systems?`;
   
