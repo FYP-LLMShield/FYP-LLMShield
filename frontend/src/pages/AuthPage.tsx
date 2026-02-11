@@ -599,18 +599,20 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
            Login
          </motion.button>
 
-        <div className="mt-4">
-          <div className="relative my-4">
-             <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600" />
+        {process.env.REACT_APP_GOOGLE_CLIENT_ID && (
+          <div className="mt-4">
+            <div className="relative my-4">
+               <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-800 text-white/60">OR</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-800 text-white/60">OR</span>
-            </div>
-          </div>
 
-          <div id="google-signin-login" className="w-full"></div>
-        </div>
+            <div id="google-signin-login" className="w-full"></div>
+          </div>
+        )}
 
         <p className="pt-4 text-center text-sm text-white/60">
           Don't have an account?{' '}
@@ -967,36 +969,37 @@ const SignUpForm = memo(({
            Create Account
          </motion.button>
 
-        <div className="mt-4">
-          <div className="relative my-4">
-             <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600" />
+        {process.env.REACT_APP_GOOGLE_CLIENT_ID && (
+          <div className="mt-4">
+            <div className="relative my-4">
+               <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-800 text-white/60">OR</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-800 text-white/60">OR</span>
-            </div>
-          </div>
 
-          <div
-            id="google-signin-signup"
-            className="w-full"
-            /* Keep fallback styling for when the Google script hasn't rendered yet */
-          >
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              className="w-full mb-3 flex items-center justify-center gap-2 rounded-lg border border-gray-600 bg-white text-gray-800 py-2.5 font-medium hover:bg-gray-50 transition-colors"
+            <div
+              id="google-signin-signup"
+              className="w-full"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#EA4335" d="M12 10.8v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.8-4.1 2.8-6.9 0-.7-.1-1.4-.2-2H12z"/>
-                <path fill="#34A853" d="M6.5 14.3l-.9.7-2.5 1.9C4.6 20.3 8 22 12 22c2.4 0 4.5-.8 6-2.2l-3.1-2.4c-.8.5-1.8.8-2.9.8-2.2 0-4-1.5-4.6-3.6z"/>
-                <path fill="#4A90E2" d="M3.1 7.3C2.4 8.8 2 10.4 2 12s.4 2.2 1.1 3.7l3.5-2.7c-.2-.5-.3-1.1-.3-1.7 0-.6.1-1.2.3-1.7L3.1 7.3z"/>
-                <path fill="#FBBC05" d="M12 6c1.3 0 2.5.4 3.4 1.3l2.6-2.6C16.5 2.9 14.4 2 12 2 8 2 4.6 3.7 3.1 7.3l3.5 2.7C7.9 7.5 9.8 6 12 6z"/>
-              </svg>
-              Continue with Google
-            </button>
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-full mb-3 flex items-center justify-center gap-2 rounded-lg border border-gray-600 bg-white text-gray-800 py-2.5 font-medium hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 10.8v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.8-4.1 2.8-6.9 0-.7-.1-1.4-.2-2H12z"/>
+                  <path fill="#34A853" d="M6.5 14.3l-.9.7-2.5 1.9C4.6 20.3 8 22 12 22c2.4 0 4.5-.8 6-2.2l-3.1-2.4c-.8.5-1.8.8-2.9.8-2.2 0-4-1.5-4.6-3.6z"/>
+                  <path fill="#4A90E2" d="M3.1 7.3C2.4 8.8 2 10.4 2 12s.4 2.2 1.1 3.7l3.5-2.7c-.2-.5-.3-1.1-.3-1.7 0-.6.1-1.2.3-1.7L3.1 7.3z"/>
+                  <path fill="#FBBC05" d="M12 6c1.3 0 2.5.4 3.4 1.3l2.6-2.6C16.5 2.9 14.4 2 12 2 8 2 4.6 3.7 3.1 7.3l3.5 2.7C7.9 7.5 9.8 6 12 6z"/>
+                </svg>
+                Continue with Google
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         
         <p className="pt-4 text-center text-sm text-white/60">
           Already have an account?{' '}

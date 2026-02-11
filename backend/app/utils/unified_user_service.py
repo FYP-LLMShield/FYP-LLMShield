@@ -28,11 +28,15 @@ class UnifiedUserService:
         Create user in both databases (dual-write)
         Returns: (user, is_from_supabase)
         """
+        from fastapi import HTTPException
+
         supabase_user = None
         mongo_user = None
         supabase_success = False
         mongo_success = False
-        
+        supabase_error = None
+        mongo_error = None
+
         # Try Supabase first (primary)
         try:
             if self.supabase_service.is_available():
@@ -40,18 +44,26 @@ class UnifiedUserService:
                 if supabase_user:
                     supabase_success = True
                     logger.info(f"User created in Supabase: {user_data.email}")
+        except HTTPException as e:
+            # Re-raise HTTP exceptions (validation errors)
+            supabase_error = e
+            logger.warning(f"Supabase validation error: {e.detail}")
         except Exception as e:
             logger.error(f"Failed to create user in Supabase: {e}")
-        
+
         # Always try MongoDB (fallback/redundancy)
         try:
             mongo_user = await self.mongo_service.create_user(user_data)
             if mongo_user:
                 mongo_success = True
                 logger.info(f"User created in MongoDB: {user_data.email}")
+        except HTTPException as e:
+            # Store HTTP exceptions to re-raise if both databases fail
+            mongo_error = e
+            logger.warning(f"MongoDB validation error: {e.detail}")
         except Exception as e:
             logger.error(f"Failed to create user in MongoDB: {e}")
-        
+
         # Return primary (Supabase) if available, otherwise MongoDB
         if supabase_user:
             return supabase_user, True
@@ -59,6 +71,12 @@ class UnifiedUserService:
             logger.warning(f"User created only in MongoDB (Supabase unavailable): {user_data.email}")
             return mongo_user, False
         else:
+            # If both failed and we have an HTTP error, re-raise it (e.g., duplicate email)
+            if mongo_error:
+                raise mongo_error
+            elif supabase_error:
+                raise supabase_error
+
             logger.error(f"Failed to create user in both databases: {user_data.email}")
             return None, False
     
