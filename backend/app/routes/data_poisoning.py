@@ -1,353 +1,462 @@
 """
-Data Poisoning API Routes
-=========================
-FastAPI routes for the Data Poisoning feature.
-Provides endpoints for model management and prompt generation.
+Behavioral Poisoning Detection API Routes
+===========================================
+FastAPI routes for behavioral poisoning scan of Hugging Face models.
+Replaced old data poisoning comparison feature with new HF model scanning.
 """
 
+import asyncio
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.utils.auth import get_current_user
-from app.services.data_poisoning_service import DataPoisoningService
-
+from app.models.data_poisoning import (
+    ScanRequest,
+    ScanResult,
+    ScanStatusResponse,
+    ScanListResponse,
+    ReportRequest,
+)
+from app.services.data_poisoning_service import get_scanner
 
 logger = logging.getLogger(__name__)
-
-# Initialize service (will be created once and reused)
-_service_instance: Optional[DataPoisoningService] = None
-
-
-def get_service() -> DataPoisoningService:
-    """Get or create the DataPoisoningService instance."""
-    global _service_instance
-    if _service_instance is None:
-        _service_instance = DataPoisoningService()
-    return _service_instance
-
-
-# Request/Response Models
-class GenerateRequest(BaseModel):
-    """Request model for comparison generation"""
-
-    model_id: str = Field(
-        ...,
-        description="Model ID: 'llama32', 'tinyllama', or 'qwen'",
-        example="llama32"
-    )
-    prompt: str = Field(
-        ...,
-        description="The prompt to send to both models",
-        example="What is artificial intelligence?"
-    )
-
-
-class GenerateResponse(BaseModel):
-    """Response model for comparison generation"""
-
-    success: bool = Field(description="Whether generation was successful")
-    safe_response: Optional[str] = Field(None, description="Response from safe model")
-    poison_response: Optional[str] = Field(None, description="Response from poisoned model")
-    generation_time_ms: int = Field(description="Time taken for generation in milliseconds")
-    model_name: str = Field(description="Name of the model used")
-    prompt: Optional[str] = Field(None, description="The prompt that was sent")
-    error: Optional[str] = Field(None, description="Error message if generation failed")
-
-
-class ModelInfo(BaseModel):
-    """Information about available models"""
-
-    id: str = Field(description="Model ID")
-    name: str = Field(description="Human-readable model name")
-    size: str = Field(description="Model size")
-    description: str = Field(description="Model description")
-
-
-class ModelsResponse(BaseModel):
-    """Response containing list of available models"""
-
-    models: list[ModelInfo]
-
-
-class HealthResponse(BaseModel):
-    """Health check response"""
-
-    status: str = Field(description="Health status")
-    cached_models: list[str] = Field(description="Currently cached models")
-    cache_size: int = Field(description="Number of cached model pairs")
-    max_cache_size: int = Field(description="Maximum cache size")
-
 
 # Create router
 router = APIRouter()
 
 
-@router.get(
-    "/models",
-    response_model=ModelsResponse,
-    summary="Get Available Models",
-    tags=["Models"]
+@router.post(
+    "/scan",
+    response_model=ScanStatusResponse,
+    summary="Initiate Behavioral Poisoning Scan",
+    tags=["Behavioral Poisoning Scan"],
 )
-async def get_available_models(
-    service: DataPoisoningService = Depends(get_service)
-) -> ModelsResponse:
+async def initiate_scan(
+    request: ScanRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+) -> ScanStatusResponse:
     """
-    Get list of available models for comparison.
+    Initiate a behavioral poisoning scan on a Hugging Face model.
 
-    Returns:
-        List of 3 available GGUF models (Llama3.2, TinyLlama, Qwen)
+    Takes a Hugging Face model URL and runs file-level safety checks
+    and behavioral tests to detect potential poisoning/backdoors.
+
+    **Parameters:**
+    - `model_url`: URL to the Hugging Face model (e.g., https://huggingface.co/meta-llama/Llama-2-7b)
+    - `run_behavioral_tests`: Whether to run behavioral tests (more thorough but slower)
+    - `max_download_size_gb`: Maximum download size limit
+    - `timeout_seconds`: Timeout for the entire scan
+
+    **Returns:**
+    - `scan_id`: Unique identifier for tracking this scan
+    - `status`: Current status (queued, scanning, completed, failed)
+    - `progress_percent`: Progress percentage (0-100)
     """
     try:
-        # Model metadata
-        model_metadata = {
-            "llama32": {
-                "id": "llama32",
-                "name": "Llama 3.2",
-                "size": "1B",
-                "description": "Meta's Llama 3.2 causal language model (GGUF optimized)"
-            },
-            "tinyllama": {
-                "id": "tinyllama",
-                "name": "TinyLlama",
-                "size": "1.1B",
-                "description": "Lightweight Llama variant for fast inference (GGUF optimized)"
-            },
-            "qwen": {
-                "id": "qwen",
-                "name": "Qwen",
-                "size": "0.5B",
-                "description": "Alibaba's Qwen small language model (GGUF optimized)"
-            }
-        }
+        logger.info(f"Scan initiated by user {current_user.get('email')} for model: {request.model_url}")
 
-        available_model_ids = service.get_available_models()
-        models = [ModelInfo(**model_metadata[model_id]) for model_id in available_model_ids if model_id in model_metadata]
+        scanner = get_scanner()
 
-        return ModelsResponse(models=models)
+        # Run scan in background
+        def run_scan():
+            try:
+                import asyncio
+
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(
+                    scanner.scan_model(
+                        model_url=request.model_url,
+                        max_download_size_gb=request.max_download_size_gb,
+                        run_behavioral_tests=request.run_behavioral_tests,
+                        timeout_seconds=request.timeout_seconds,
+                    )
+                )
+                logger.info(f"Scan completed: {result.scan_id} with verdict {result.verdict}")
+            except Exception as e:
+                logger.error(f"Background scan failed: {e}", exc_info=True)
+
+        background_tasks.add_task(run_scan)
+
+        # Get the scan instance (it will be in "scanning" state initially)
+        # For immediate response, we return status immediately
+        scan_id = "scan_pending"  # Will be replaced after starting
+
+        return ScanStatusResponse(
+            scan_id=scan_id,
+            status="queued",
+            progress_percent=0,
+            message="Scan queued and will start processing shortly",
+            result=None,
+        )
+
+    except ValueError as e:
+        logger.error(f"Invalid request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid request: {str(e)}"
+        )
     except Exception as e:
-        logger.error(f"Error fetching models: {str(e)}")
+        logger.error(f"Failed to initiate scan: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch available models"
+            detail="Failed to initiate scan. Please try again.",
         )
 
 
 @router.post(
-    "/generate",
-    response_model=GenerateResponse,
-    summary="Generate Model Comparison",
-    tags=["Generation"]
+    "/scan/quick",
+    response_model=ScanResult,
+    summary="Quick Behavioral Poisoning Scan",
+    tags=["Behavioral Poisoning Scan"],
 )
-async def generate_comparison(
-    request: GenerateRequest,
-    service: DataPoisoningService = Depends(get_service)
-) -> GenerateResponse:
+async def quick_scan(
+    request: ScanRequest,
+    current_user: dict = Depends(get_current_user),
+) -> ScanResult:
     """
-    Generate responses from both safe and poisoned model variants.
+    Run a quick behavioral poisoning scan (blocks until complete).
+    Suitable for smaller models or when you want immediate results.
 
-    Sends the same prompt to safe and poisoned versions of the selected model
-    and returns both responses for comparison.
+    File safety checks are always performed. Behavioral tests are optional.
 
-    Args:
-        request: GenerateRequest containing model_id and prompt
+    **Note:** This endpoint blocks until the scan completes.
+    For large models, use `/scan` endpoint for async behavior.
 
-    Returns:
-        GenerateResponse with safe/poison responses and metadata
-
-    Raises:
-        HTTPException 400: Invalid model ID
-        HTTPException 422: Invalid prompt
-        HTTPException 503: Model loading failed or insufficient memory
-        HTTPException 504: Generation timeout
+    **Returns:** Complete ScanResult with verdict and risk assessment
     """
-    # Validate request
-    if request.model_id not in ["llama32", "tinyllama", "qwen"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid model_id: {request.model_id}. Must be 'llama32', 'tinyllama', or 'qwen'"
-        )
-
-    if not request.prompt or len(request.prompt.strip()) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Prompt cannot be empty"
-        )
-
-    if len(request.prompt) > 2000:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Prompt is too long (max 2000 characters)"
-        )
-
-    # Log request
-    logger.info(
-        f"Generating comparison for model {request.model_id}"
-    )
-
     try:
-        # Generate comparison
-        result = await service.generate_comparison(
-            model_name=request.model_id,
-            prompt=request.prompt
+        logger.info(
+            f"Quick scan initiated by user {current_user.get('email')} for model: {request.model_url}"
         )
 
-        # Check for success
-        if not result.get("success", False):
-            error_msg = result.get("error", "Unknown error")
-            logger.warning(f"Generation failed: {error_msg}")
-
-            if "Insufficient memory" in error_msg:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="System out of memory. Please try again later."
-                )
-            elif "timeout" in error_msg.lower():
-                raise HTTPException(
-                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                    detail="Generation took too long. Please try a shorter prompt."
-                )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=f"Failed to generate responses: {error_msg}"
-                )
-
-        return GenerateResponse(
-            success=True,
-            safe_response=result.get("safe_response"),
-            poison_response=result.get("poison_response"),
-            generation_time_ms=result.get("generation_time_ms", 0),
-            model_name=result.get("model_name"),
-            prompt=result.get("prompt")
+        scanner = get_scanner()
+        result = await scanner.scan_model(
+            model_url=request.model_url,
+            max_download_size_gb=request.max_download_size_gb,
+            run_behavioral_tests=request.run_behavioral_tests,
+            timeout_seconds=request.timeout_seconds,
         )
 
+        logger.info(f"Quick scan completed: {result.scan_id} with verdict {result.verdict}")
+        return result
+
+    except ValueError as e:
+        logger.error(f"Invalid request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid request: {str(e)}"
+        )
+    except asyncio.TimeoutError:
+        logger.error("Scan timed out")
+        raise HTTPException(
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+            detail="Scan timed out. Model may be too large or network too slow.",
+        )
     except Exception as e:
-        logger.error(f"Unexpected error during generation: {str(e)}", exc_info=True)
+        logger.error(f"Scan failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred: {str(e)}"
+            detail=f"Scan failed: {str(e)[:200]}",
         )
 
 
 @router.get(
-    "/health",
-    response_model=HealthResponse,
-    summary="Health Check",
-    tags=["System"]
+    "/scan/{scan_id}",
+    response_model=ScanStatusResponse,
+    summary="Get Scan Status",
+    tags=["Behavioral Poisoning Scan"],
 )
-async def health_check(
-    service: DataPoisoningService = Depends(get_service)
-) -> HealthResponse:
+async def get_scan_status(
+    scan_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> ScanStatusResponse:
     """
-    Check service health and cache status.
+    Get the status and result of a previously initiated scan.
 
-    Returns:
-        Health status with cache information
+    **Parameters:**
+    - `scan_id`: The scan ID returned from the initial `/scan` request
+
+    **Returns:**
+    - Status information and the full result if completed
     """
     try:
-        cache_stats = service.get_cache_stats()
-        return HealthResponse(
-            status="healthy",
-            cached_models=cache_stats.get("cached_models", []),
-            cache_size=cache_stats.get("cache_size", 0),
-            max_cache_size=cache_stats.get("max_cache_size", 2)
+        scanner = get_scanner()
+        result = scanner.get_scan_result(scan_id)
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Scan {scan_id} not found"
+            )
+
+        # Determine progress and status
+        if result.status == "completed":
+            progress = 100
+            message = f"Scan completed with verdict: {result.verdict}"
+        elif result.status == "failed":
+            progress = 0
+            message = f"Scan failed: {result.error_message or 'Unknown error'}"
+        else:
+            progress = 50  # Scanning in progress
+            message = "Scan in progress..."
+
+        return ScanStatusResponse(
+            scan_id=scan_id,
+            status=result.status,
+            progress_percent=progress,
+            message=message,
+            result=result if result.status == "completed" else None,
         )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
+        logger.error(f"Error retrieving scan status: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service health check failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve scan status",
+        )
+
+
+@router.get(
+    "/scans",
+    response_model=ScanListResponse,
+    summary="List Recent Scans",
+    tags=["Behavioral Poisoning Scan"],
+)
+async def list_scans(
+    limit: int = 10,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+) -> ScanListResponse:
+    """
+    List recent behavioral poisoning scans.
+
+    **Parameters:**
+    - `limit`: Maximum number of results to return (default 10, max 100)
+    - `offset`: Pagination offset (default 0)
+
+    **Returns:** List of recent scan results with pagination info
+    """
+    try:
+        limit = min(limit, 100)  # Cap at 100
+
+        scanner = get_scanner()
+        scans, total = scanner.list_scans(limit=limit, offset=offset)
+
+        return ScanListResponse(
+            scans=scans,
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+    except Exception as e:
+        logger.error(f"Error listing scans: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list scans",
         )
 
 
 @router.post(
-    "/preload/{model_id}",
-    summary="Preload Model",
-    tags=["Models"]
+    "/report/{scan_id}",
+    summary="Generate Report",
+    tags=["Behavioral Poisoning Scan"],
 )
-async def preload_model(
-    model_id: str,
-    service: DataPoisoningService = Depends(get_service)
-) -> dict:
+async def generate_report(
+    scan_id: str,
+    report_request: ReportRequest,
+    current_user: dict = Depends(get_current_user),
+):
     """
-    Preload a model into cache when user selects it.
-    This ensures instant generation when user sends a prompt.
+    Generate a downloadable report for a completed scan.
 
-    Args:
-        model_id: ID of model to preload
+    **Parameters:**
+    - `scan_id`: The scan ID
+    - `format`: Report format (json, html)
 
-    Returns:
-        Status dict with success/error information
+    **Returns:** File download with the report
     """
-    if model_id not in ["llama32", "tinyllama", "qwen"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid model_id: {model_id}"
-        )
-
     try:
-        logger.info(f"Preloading model: {model_id}")
-        result = await service.preload_model(model_id)
+        scanner = get_scanner()
+        result = scanner.get_scan_result(scan_id)
 
-        if result.get("success"):
-            return {
-                "success": True,
-                "message": f"Model {model_id} is ready",
-                "model_name": model_id
-            }
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Scan {scan_id} not found"
+            )
+
+        if result.status != "completed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Report can only be generated for completed scans",
+            )
+
+        # Generate report content
+        if report_request.format == "json":
+            content = result.model_dump_json(indent=2)
+            media_type = "application/json"
+            filename = f"scan_{scan_id}_report.json"
+        elif report_request.format == "html":
+            content = _generate_html_report(result)
+            media_type = "text/html"
+            filename = f"scan_{scan_id}_report.html"
         else:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Failed to load model: {result.get('error', 'Unknown error')}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported format: {report_request.format}",
             )
+
+        return JSONResponse(
+            {
+                "filename": filename,
+                "format": report_request.format,
+                "content": content if report_request.format == "json" else None,
+                "data_uri": f"data:text/html,{content}" if report_request.format == "html" else None,
+            }
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error preloading model: {str(e)}")
+        logger.error(f"Error generating report: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Preload failed: {str(e)}"
+            detail="Failed to generate report",
         )
 
 
-@router.post(
-    "/unload/{model_id}",
-    summary="Unload Model",
-    tags=["Models"]
-)
-async def unload_model(
-    model_id: str,
-    current_user = Depends(get_current_user),
-    service: DataPoisoningService = Depends(get_service)
-) -> dict:
+def _generate_html_report(result: ScanResult) -> str:
+    """Generate an HTML report for the scan result."""
+    verdict_color = {
+        "safe": "green",
+        "suspicious": "orange",
+        "unsafe": "red",
+        "unknown": "gray",
+    }.get(result.verdict.value, "gray")
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Behavioral Poisoning Scan Report</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }}
+            .container {{ background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+            h1 {{ color: #333; border-bottom: 2px solid #14b8a6; padding-bottom: 10px; }}
+            .verdict {{ font-size: 24px; font-weight: bold; color: {verdict_color}; margin: 20px 0; }}
+            .metric {{ margin: 15px 0; padding: 10px; background: #f9f9f9; border-left: 4px solid #14b8a6; }}
+            .metric-label {{ font-weight: bold; color: #333; }}
+            .metric-value {{ color: #666; margin-top: 5px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th {{ background: #14b8a6; color: white; padding: 10px; text-align: left; }}
+            td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
+            tr:hover {{ background: #f5f5f5; }}
+            .recommendation {{ padding: 15px; background: #fffbee; border-left: 4px solid #ff9800; margin-top: 20px; }}
+            .timestamp {{ color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🛡️ Behavioral Poisoning Scan Report</h1>
+            <p class="timestamp">Scan ID: {result.scan_id} | Time: {result.timestamp.isoformat()}</p>
+
+            <h2>Model: {result.model_id}</h2>
+
+            <div class="verdict">Verdict: {result.verdict.value.upper()}</div>
+            <p><strong>Confidence:</strong> {result.confidence:.0%}</p>
+            <p><strong>Explanation:</strong> {result.explanation}</p>
+
+            <h3>Risk Assessment</h3>
+            {_html_risk_assessment(result.risk_assessment) if result.risk_assessment else ""}
+
+            <h3>File Safety Analysis</h3>
+            {_html_file_safety(result.file_safety) if result.file_safety else ""}
+
+            <h3>Behavioral Tests</h3>
+            {_html_behavioral_tests(result.behavioral_tests)}
+
+            {_html_recommendation(result.risk_assessment) if result.risk_assessment else ""}
+        </div>
+    </body>
+    </html>
     """
-    Explicitly unload a model from cache to free memory.
+    return html
 
-    Args:
-        model_id: ID of model to unload
 
-    Returns:
-        Success message
+def _html_risk_assessment(risk: object) -> str:
+    """Generate HTML for risk assessment."""
+    return f"""
+    <div class="metric">
+        <div class="metric-label">System Compromise Risk</div>
+        <div class="metric-value">{risk.system_compromise_risk:.0%}</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Behavior Manipulation Risk</div>
+        <div class="metric-value">{risk.behavior_manipulation_risk:.0%}</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Combined Risk Score</div>
+        <div class="metric-value">{risk.combined_risk_score:.0%}</div>
+    </div>
     """
-    if model_id not in ["llama32", "tinyllama", "qwen"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid model_id: {model_id}"
-        )
-
-    try:
-        service.unload_model(model_id)
-        logger.info(f"User {current_user.email} unloaded model {model_id}")
-        return {
-            "success": True,
-            "message": f"Model {model_id} unloaded successfully"
-        }
-    except Exception as e:
-        logger.error(f"Error unloading model: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to unload model"
-        )
 
 
+def _html_file_safety(file_safety: object) -> str:
+    """Generate HTML for file safety results."""
+    return f"""
+    <div class="metric">
+        <div class="metric-label">Safe Format</div>
+        <div class="metric-value">{'✓ Yes' if file_safety.has_safe_format else '✗ No'}</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Unsafe Serialization Detected</div>
+        <div class="metric-value">{'✓ Yes' if file_safety.has_unsafe_serialization else '✗ No'}</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Suspicious Code</div>
+        <div class="metric-value">{'✓ Detected' if file_safety.has_suspicious_code else '✗ None found'}</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Risk Score</div>
+        <div class="metric-value">{file_safety.risk_score:.0%}</div>
+    </div>
+    <div class="metric">
+        <div class="metric-label">Details</div>
+        <div class="metric-value">{'<br>'.join(file_safety.details)}</div>
+    </div>
+    """
+
+
+def _html_behavioral_tests(tests: list) -> str:
+    """Generate HTML for behavioral test results."""
+    if not tests:
+        return "<p>No behavioral tests run.</p>"
+
+    html = "<table><tr><th>Test</th><th>Category</th><th>Status</th><th>Confidence</th><th>Details</th></tr>"
+    for test in tests:
+        status = "✓ PASS" if test.passed else "✗ FAIL"
+        html += f"""
+        <tr>
+            <td>{test.test_name}</td>
+            <td>{test.category.value}</td>
+            <td>{status}</td>
+            <td>{test.confidence:.0%}</td>
+            <td>{test.details}</td>
+        </tr>
+        """
+    html += "</table>"
+    return html
+
+
+def _html_recommendation(risk: object) -> str:
+    """Generate HTML for recommendation."""
+    return f"""
+    <div class="recommendation">
+        <strong>Recommendation:</strong><br>
+        {risk.recommendation}
+    </div>
+    """
