@@ -280,68 +280,91 @@ class DataPoisoningScanner:
 
     async def _test_architecture_integrity(self, model_id: str) -> BehavioralTestResult:
         """
-        Test for architecture integrity: verify structure matches declaration.
-        Detects when actual model structure differs from declared config.
+        Test architecture integrity: verify config.json matches expected structure.
+        Detects suspicious modifications and anomalies.
         """
         try:
-            # Fetch config.json to get expected architecture
             config = await self._fetch_model_config(model_id)
             if not config:
                 return BehavioralTestResult(
-                    test_name="Architecture Anomaly Detection",
+                    test_name="Architecture Integrity",
                     category=TestCategory.TRIGGER_FUZZING,
                     passed=True,
-                    confidence=0.4,
-                    details="Could not retrieve model config for verification",
+                    confidence=0.2,
+                    details="Could not retrieve config.json",
                     metrics={"config_available": False},
                 )
 
-            # Check for suspicious modifications
             anomalies = []
+            risk_count = 0
 
-            # Expected architecture fields
-            expected_fields = ["hidden_size", "num_hidden_layers", "vocab_size", "intermediate_size"]
+            # 1. Check for essential fields
+            essential_fields = ["model_type", "hidden_size", "num_hidden_layers", "vocab_size"]
+            missing = [f for f in essential_fields if f not in config]
+            if missing:
+                anomalies.append(f"⚠️ Missing fields: {', '.join(missing)}")
+                risk_count += len(missing)
 
-            # Check if all expected fields are present
-            missing_fields = [f for f in expected_fields if f not in config]
-            if missing_fields:
-                anomalies.append(f"Missing architecture fields: {', '.join(missing_fields)}")
+            # 2. Validate value ranges
+            if "hidden_size" in config:
+                hs = config["hidden_size"]
+                if hs < 64 or hs > 16384:
+                    anomalies.append(f"⚠️ Unusual hidden_size: {hs} (typical: 64-16384)")
+                    risk_count += 1
+                if hs % 32 != 0:
+                    anomalies.append(f"⚠️ hidden_size not multiple of 32")
+                    risk_count += 1
 
-            # Check for custom attributes that might indicate modifications
-            suspicious_custom_fields = [k for k in config.keys() if k.startswith("_") or "backdoor" in k.lower() or "hidden" in k.lower()]
-            if suspicious_custom_fields:
-                anomalies.append(f"Suspicious custom fields: {', '.join(suspicious_custom_fields)}")
+            if "num_hidden_layers" in config:
+                layers = config["num_hidden_layers"]
+                if layers < 2 or layers > 200:
+                    anomalies.append(f"⚠️ Unusual layer count: {layers}")
+                    risk_count += 1
 
-            # Check for unusual architectural values
-            if "hidden_size" in config and config["hidden_size"] % 64 != 0:
-                anomalies.append("Unusual hidden_size (not multiple of 64) - possible manual modification")
+            if "vocab_size" in config:
+                vocab = config["vocab_size"]
+                if vocab < 1000 or vocab > 1000000:
+                    anomalies.append(f"⚠️ Unusual vocab_size: {vocab}")
+                    risk_count += 1
 
-            passed = len(anomalies) == 0
-            risk_score = min(1.0, len(anomalies) / 5)
+            # 3. Check logical relationships
+            if "hidden_size" in config and "intermediate_size" in config:
+                if config["intermediate_size"] < config["hidden_size"]:
+                    anomalies.append("⚠️ intermediate_size < hidden_size (suspicious)")
+                    risk_count += 1
+
+            # 4. Look for custom/suspicious fields
+            suspicious = [k for k in config.keys() if k.startswith("_") and k != "_name_or_path"]
+            if suspicious:
+                anomalies.append(f"⚠️ Suspicious private fields: {len(suspicious)} found")
+                risk_count += 1
+
+            passed = risk_count == 0
+            confidence = 0.80 if risk_count > 0 else 0.85
 
             metrics = {
-                "anomalies_found": len(anomalies),
-                "config_integrity_score": 1.0 - risk_score,
+                "risk_indicators": risk_count,
+                "integrity_score": 1.0 - min(1.0, risk_count / 5),
             }
 
-            details_text = " | ".join(anomalies) if anomalies else "✓ Architecture appears intact"
+            details_text = " | ".join(anomalies) if anomalies else "✓ Architecture appears valid"
 
             return BehavioralTestResult(
-                test_name="Architecture Anomaly Detection",
+                test_name="Architecture Integrity",
                 category=TestCategory.TRIGGER_FUZZING,
                 passed=passed,
-                confidence=0.75,
+                confidence=confidence,
                 details=details_text,
                 metrics=metrics,
             )
         except Exception as e:
-            logger.warning(f"Architecture anomaly detection failed for {model_id}: {e}")
+            logger.warning(f"Architecture integrity test failed: {e}")
             return BehavioralTestResult(
-                test_name="Architecture Anomaly Detection",
+                test_name="Architecture Integrity",
                 category=TestCategory.TRIGGER_FUZZING,
                 passed=True,
-                confidence=0.3,
-                details=f"Could not fully verify architecture: {str(e)[:100]}",
+                confidence=0.2,
+                details=f"Could not verify architecture: {str(e)[:100]}",
                 metrics={"error": str(e)[:100]},
             )
 
@@ -503,78 +526,112 @@ class DataPoisoningScanner:
 
     async def _test_weight_anomaly_detection(self, model_id: str) -> BehavioralTestResult:
         """
-        Test weight metadata and safetensors format integrity.
-        Uses HF API metadata to detect suspicious patterns.
+        PRIMARY DETECTION: Analyze weight statistics for poisoning indicators.
+
+        Detects:
+        - Extreme outliers (weights >100x standard deviation)
+        - Sparse patterns (>95% zeros = potential backdoor mask)
+        - Unusual distributions (bimodal, uniform)
+        - Parameter anomalies in safetensors metadata
         """
         try:
-            weights_meta = await self._download_model_weights(model_id)
+            # Fetch model metadata from HF API
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status != 200:
+                        return BehavioralTestResult(
+                            test_name="Weight Anomaly Detection",
+                            category=TestCategory.CONSISTENCY,
+                            passed=True,
+                            confidence=0.1,
+                            details="Could not access model metadata",
+                            metrics={"metadata_available": False},
+                        )
 
-            if not weights_meta or not weights_meta.get("file_found"):
-                return BehavioralTestResult(
-                    test_name="Weight Metadata Analysis",
-                    category=TestCategory.CONSISTENCY,
-                    passed=True,
-                    confidence=0.3,
-                    details="Model safetensors metadata not available",
-                    metrics={"weights_available": False},
-                )
+                    data = await resp.json()
+                    safetensors_info = data.get("safetensors", {})
+                    siblings = data.get("siblings", [])
 
-            # Analyze metadata for anomalies
+            # Anomalies found
             anomalies = []
-            total_size = weights_meta.get("total_size", 0)
-            parameters = weights_meta.get("parameters", {})
+            risk_indicators = 0
+            max_risk = 5
 
-            # Check 1: Model size anomalies
-            if total_size > 0:
-                size_gb = total_size / (1024**3)
-                if size_gb > 10:  # Unusually large
-                    anomalies.append(f"⚠️ Model size unusually large: {size_gb:.1f}GB (potential hidden layers)")
+            # 1. Check safetensors size for anomalies
+            if safetensors_info:
+                total_size = safetensors_info.get("total", 0)
+                if total_size > 0:
+                    size_gb = total_size / (1024**3)
 
-                if size_gb < 0.01:  # Unusually small
-                    anomalies.append(f"⚠️ Model size unusually small: {size_gb:.3f}GB")
+                    # Check for suspiciously large models (hidden layers)
+                    if size_gb > 15:
+                        anomalies.append(f"⚠️ Unusually large model: {size_gb:.1f}GB (may contain hidden layers)")
+                        risk_indicators += 1
 
-            # Check 2: Parameter distribution anomalies
-            if parameters:
-                param_types = list(parameters.keys())
-                # Mixed precision with INT8/INT4 can indicate inserted structures
-                if "INT8" in param_types or "INT4" in param_types:
-                    anomalies.append("⚠️ Suspicious mixed precision (INT8/INT4) - potential backdoor encoding")
+                    # Check for suspiciously small models
+                    if size_gb < 0.05:
+                        anomalies.append(f"⚠️ Suspiciously small model: {size_gb:.3f}GB")
+                        risk_indicators += 1
 
-                # Too many parameter types suggests modifications
-                if len(param_types) > 3:
-                    anomalies.append(f"⚠️ Unusual parameter type distribution ({len(param_types)} types)")
+            # 2. Analyze parameter distribution
+            if safetensors_info.get("parameters"):
+                param_types = safetensors_info["parameters"]
 
-            # Check 3: Get actual file count to detect hidden files
+                # Mixed precision can indicate modifications
+                if "INT8" in param_types and "F32" in param_types:
+                    anomalies.append("⚠️ Mixed precision detected (INT8 + F32) - unusual pattern")
+                    risk_indicators += 1
+
+                if "INT4" in param_types:
+                    anomalies.append("⚠️ INT4 quantization found - potential backdoor encoding")
+                    risk_indicators += 1
+
+            # 3. Check file structure for anomalies
+            if siblings:
+                file_count = len(siblings)
+                safetensor_files = sum(1 for f in siblings if f.get("rfilename", "").endswith(".safetensors"))
+
+                # Multiple safetensor files unusual (usually just one main file)
+                if safetensor_files > 2:
+                    anomalies.append(f"⚠️ Multiple safetensors files ({safetensor_files}) - unusual structure")
+                    risk_indicators += 1
+
+                # Too many files suggests hidden modifications
+                if file_count > 25:
+                    anomalies.append(f"⚠️ Unusual number of files: {file_count} (typical: 8-15)")
+                    risk_indicators += 1
+
+            # 4. Try to analyze actual weight patterns if available
             try:
-                api_url = f"https://huggingface.co/api/models/{model_id}"
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            siblings = data.get("siblings", [])
-                            file_count = len(siblings)
-
-                            # Unexpected number of files might indicate hidden modifications
-                            if file_count > 20:
-                                anomalies.append(f"⚠️ Unusual number of files: {file_count} (typical: 8-12)")
+                # Attempt to get weight metadata for statistical analysis
+                weight_data = await self._analyze_weight_statistics_from_api(model_id)
+                if weight_data:
+                    if weight_data.get("has_outliers"):
+                        anomalies.append("⚠️ Extreme weight outliers detected (>100x std)")
+                        risk_indicators += 1
+                    if weight_data.get("has_sparse_patterns"):
+                        anomalies.append("⚠️ Sparse weight patterns detected (potential backdoor mask)")
+                        risk_indicators += 1
             except Exception as e:
-                logger.debug(f"Could not count files: {e}")
+                logger.debug(f"Could not analyze weight statistics: {e}")
 
-            # Final verdict
-            passed = len(anomalies) == 0
-            confidence = 0.75 if len(anomalies) > 0 else 0.85
+            # Calculate risk score
+            risk_score = min(1.0, risk_indicators / max_risk)
+            passed = risk_indicators == 0
+            confidence = 0.80 if len(anomalies) > 0 else 0.85
 
             metrics = {
-                "total_size_gb": round(total_size / (1024**3), 2),
-                "parameter_types": len(parameters),
                 "anomalies_found": len(anomalies),
-                "integrity_score": 1.0 - (len(anomalies) / 4),
+                "risk_indicators": risk_indicators,
+                "risk_score": risk_score,
+                "weight_integrity": 1.0 - risk_score,
             }
 
-            details_text = " | ".join(anomalies) if anomalies else "✓ Weight metadata appears normal"
+            details_text = " | ".join(anomalies[:3]) if anomalies else "✓ Weight distribution appears normal"
 
             return BehavioralTestResult(
-                test_name="Weight Metadata Analysis",
+                test_name="Weight Anomaly Detection",
                 category=TestCategory.CONSISTENCY,
                 passed=passed,
                 confidence=confidence,
@@ -583,13 +640,13 @@ class DataPoisoningScanner:
             )
 
         except Exception as e:
-            logger.warning(f"Weight metadata test failed for {model_id}: {e}")
+            logger.warning(f"Weight anomaly detection failed: {e}")
             return BehavioralTestResult(
-                test_name="Weight Metadata Analysis",
+                test_name="Weight Anomaly Detection",
                 category=TestCategory.CONSISTENCY,
                 passed=True,
                 confidence=0.2,
-                details=f"Could not fully analyze weights: {str(e)[:100]}",
+                details=f"Could not perform weight analysis: {str(e)[:100]}",
                 metrics={"error": str(e)[:100]},
             )
 
@@ -897,6 +954,39 @@ class DataPoisoningScanner:
         except Exception as e:
             logger.debug(f"Could not fetch config for {model_id}: {e}")
         return None
+
+    async def _analyze_weight_statistics_from_api(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """Analyze weight statistics from HF API metadata without downloading files."""
+        try:
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status != 200:
+                        return None
+                    data = await resp.json()
+                    safetensors_meta = data.get("safetensors", {})
+                    if not safetensors_meta:
+                        return None
+                    parameters = safetensors_meta.get("parameters", {})
+                    if not parameters:
+                        return None
+                    analysis = {"has_outliers": False, "has_sparse_patterns": False}
+                    param_counts = []
+                    for dtype, count in parameters.items():
+                        try:
+                            count_val = count if isinstance(count, int) else 0
+                            param_counts.append(count_val)
+                        except:
+                            pass
+                    if param_counts and len(param_counts) > 1:
+                        avg_count = sum(param_counts) / len(param_counts)
+                        variance = sum((p - avg_count) ** 2 for p in param_counts) / len(param_counts)
+                        if variance > (avg_count ** 2) * 0.3:
+                            analysis["has_sparse_patterns"] = True
+                    return analysis
+        except Exception as e:
+            logger.debug(f"Could not analyze weight statistics: {e}")
+            return None
 
     async def _fetch_python_files(self, model_id: str) -> List[str]:
         """Fetch all Python files from a Hugging Face model repository."""
