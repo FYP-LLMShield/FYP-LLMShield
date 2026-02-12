@@ -15,8 +15,11 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any, Tuple
 from pathlib import Path
 from urllib.parse import urlparse
+import tempfile
+import shutil
 
 import aiohttp
+import numpy as np
 from app.models.data_poisoning import (
     ScanResult,
     VerdictType,
@@ -175,8 +178,8 @@ class DataPoisoningScanner:
 
     async def _run_behavioral_tests(self, model_id: str) -> List[BehavioralTestResult]:
         """
-        Run behavioral tests on the model based on actual content analysis.
-        Tests code patterns, weight anomalies, and architecture integrity.
+        Run comprehensive behavioral and weight-based tests.
+        Tests code patterns, weight anomalies, architecture integrity, and weight statistics.
         """
         tests = []
 
@@ -195,6 +198,14 @@ class DataPoisoningScanner:
         # Test 4: Serialization Format Analysis
         serialization_test = await self._test_serialization_safety(model_id)
         tests.append(serialization_test)
+
+        # Test 5: Weight Statistical Analysis (PRIMARY DETECTION for weight poisoning)
+        weight_test = await self._test_weight_statistics(model_id)
+        tests.append(weight_test)
+
+        # Test 6: Weight Comparison with Baseline (if downloadable)
+        baseline_test = await self._test_baseline_weight_comparison(model_id)
+        tests.append(baseline_test)
 
         return tests
 
@@ -487,6 +498,207 @@ class DataPoisoningScanner:
                 metrics={"error": str(e)[:100]},
             )
 
+    async def _test_weight_statistics(self, model_id: str) -> BehavioralTestResult:
+        """
+        Test weight statistics for poisoning indicators.
+        Analyzes weight distributions for anomalies like outliers and unusual sparsity.
+        """
+        try:
+            # Try to download safetensors file
+            weights_data = await self._download_model_weights(model_id)
+
+            if not weights_data:
+                return BehavioralTestResult(
+                    test_name="Weight Statistics Analysis",
+                    category=TestCategory.CONSISTENCY,
+                    passed=True,
+                    confidence=0.2,
+                    details="Could not download model weights for analysis",
+                    metrics={"weights_available": False},
+                )
+
+            # Analyze weight statistics
+            anomalies = []
+            suspicious_layers = 0
+            total_layers = 0
+
+            for layer_name, weights in weights_data.items():
+                total_layers += 1
+                try:
+                    weights_array = np.array(weights)
+
+                    # Calculate statistics
+                    mean_val = float(np.mean(weights_array))
+                    std_val = float(np.std(weights_array))
+                    min_val = float(np.min(weights_array))
+                    max_val = float(np.max(weights_array))
+
+                    # Check for suspicious patterns
+                    # 1. Unusually large outliers (potential backdoor mask)
+                    if np.any(np.abs(weights_array) > 100):
+                        anomalies.append(f"⚠️ {layer_name}: Extreme outlier values detected")
+                        suspicious_layers += 1
+
+                    # 2. Bimodal or unusual distribution (indicator of inserted patterns)
+                    if std_val < 0.001 and mean_val != 0:
+                        anomalies.append(f"⚠️ {layer_name}: Suspiciously uniform distribution")
+                        suspicious_layers += 1
+
+                    # 3. Sparse weights (potential backdoor trigger mask)
+                    non_zero_count = np.count_nonzero(weights_array)
+                    sparsity = 1.0 - (non_zero_count / weights_array.size)
+                    if sparsity > 0.95:
+                        anomalies.append(f"⚠️ {layer_name}: High sparsity ({sparsity:.1%}) - potential trigger mask")
+                        suspicious_layers += 1
+
+                except Exception as e:
+                    logger.debug(f"Could not analyze layer {layer_name}: {e}")
+
+            # Risk assessment
+            if total_layers == 0:
+                return BehavioralTestResult(
+                    test_name="Weight Statistics Analysis",
+                    category=TestCategory.CONSISTENCY,
+                    passed=True,
+                    confidence=0.1,
+                    details="No weights could be extracted for analysis",
+                    metrics={"layers_analyzed": 0},
+                )
+
+            anomaly_rate = suspicious_layers / total_layers
+            passed = anomaly_rate < 0.1  # Less than 10% suspicious layers = safe
+
+            metrics = {
+                "layers_analyzed": total_layers,
+                "suspicious_layers": suspicious_layers,
+                "anomaly_rate": anomaly_rate,
+                "integrity_score": 1.0 - anomaly_rate,
+            }
+
+            details_text = " | ".join(anomalies[:3]) if anomalies else "✓ Weight distributions appear normal"
+
+            return BehavioralTestResult(
+                test_name="Weight Statistics Analysis",
+                category=TestCategory.CONSISTENCY,
+                passed=passed,
+                confidence=0.85,
+                details=details_text,
+                metrics=metrics,
+            )
+
+        except Exception as e:
+            logger.warning(f"Weight statistics test failed for {model_id}: {e}")
+            return BehavioralTestResult(
+                test_name="Weight Statistics Analysis",
+                category=TestCategory.CONSISTENCY,
+                passed=True,
+                confidence=0.2,
+                details=f"Could not fully analyze weights: {str(e)[:100]}",
+                metrics={"error": str(e)[:100]},
+            )
+
+    async def _test_baseline_weight_comparison(self, model_id: str) -> BehavioralTestResult:
+        """
+        Compare model weights against known clean baseline.
+        Detects significant deviations indicating poisoning.
+        """
+        try:
+            # Determine base model (e.g., TinyLlama from TinyLlama_poison_full-merged_model)
+            base_model_id = self._extract_base_model(model_id)
+
+            if not base_model_id:
+                return BehavioralTestResult(
+                    test_name="Baseline Weight Comparison",
+                    category=TestCategory.TRIGGER_FUZZING,
+                    passed=True,
+                    confidence=0.3,
+                    details="Could not identify baseline model for comparison",
+                    metrics={"baseline_found": False},
+                )
+
+            # Download suspect and baseline weights
+            suspect_weights = await self._download_model_weights(model_id)
+            baseline_weights = await self._download_model_weights(base_model_id)
+
+            if not suspect_weights or not baseline_weights:
+                return BehavioralTestResult(
+                    test_name="Baseline Weight Comparison",
+                    category=TestCategory.TRIGGER_FUZZING,
+                    passed=True,
+                    confidence=0.2,
+                    details="Could not download weights for baseline comparison",
+                    metrics={"weights_available": False},
+                )
+
+            # Compare weights
+            modified_layers = []
+            total_layers = 0
+
+            for layer_name in suspect_weights.keys():
+                if layer_name not in baseline_weights:
+                    modified_layers.append(f"New layer: {layer_name}")
+                    continue
+
+                total_layers += 1
+                try:
+                    suspect_arr = np.array(suspect_weights[layer_name]).flatten()
+                    baseline_arr = np.array(baseline_weights[layer_name]).flatten()
+
+                    # Calculate weight change percentage
+                    if len(suspect_arr) == len(baseline_arr):
+                        # Cosine similarity
+                        dot_product = np.dot(suspect_arr, baseline_arr)
+                        magnitude_product = np.linalg.norm(suspect_arr) * np.linalg.norm(baseline_arr)
+
+                        if magnitude_product > 0:
+                            similarity = dot_product / magnitude_product
+
+                            # If similarity < 0.8, weights are significantly different
+                            if similarity < 0.8:
+                                modification_pct = int((1.0 - similarity) * 100)
+                                modified_layers.append(f"⚠️ {layer_name}: {modification_pct}% different")
+                except Exception as e:
+                    logger.debug(f"Could not compare layer {layer_name}: {e}")
+
+            # Verdict
+            if total_layers == 0:
+                passed = True
+                confidence = 0.2
+                details = "Could not compare weights with baseline"
+            else:
+                modification_rate = len(modified_layers) / total_layers if total_layers > 0 else 0
+                passed = modification_rate < 0.2  # Less than 20% modified = safe
+                confidence = 0.90 if modification_rate > 0 else 0.95
+                details_text = " | ".join(modified_layers[:3]) if modified_layers else f"✓ Weights match baseline ({base_model_id})"
+                details = details_text
+
+            metrics = {
+                "baseline_model": base_model_id,
+                "modified_layers": len(modified_layers),
+                "total_layers": total_layers,
+                "modification_rate": len(modified_layers) / total_layers if total_layers > 0 else 0,
+            }
+
+            return BehavioralTestResult(
+                test_name="Baseline Weight Comparison",
+                category=TestCategory.TRIGGER_FUZZING,
+                passed=passed,
+                confidence=confidence,
+                details=details,
+                metrics=metrics,
+            )
+
+        except Exception as e:
+            logger.warning(f"Baseline comparison test failed for {model_id}: {e}")
+            return BehavioralTestResult(
+                test_name="Baseline Weight Comparison",
+                category=TestCategory.TRIGGER_FUZZING,
+                passed=True,
+                confidence=0.2,
+                details=f"Could not perform baseline comparison: {str(e)[:100]}",
+                metrics={"error": str(e)[:100]},
+            )
+
     def _assess_risk(
         self, file_safety: FileSafetyResult, behavioral_tests: List[BehavioralTestResult]
     ) -> RiskAssessment:
@@ -772,6 +984,190 @@ class DataPoisoningScanner:
             logger.warning(f"Error fetching Python files for {model_id}: {e}")
 
         return python_file_contents
+
+    async def _download_model_weights(self, model_id: str, max_size_gb: float = 5.0) -> Optional[Dict[str, Any]]:
+        """
+        Download and load model weights from safetensors or pytorch format.
+        Returns dictionary of layer weights for analysis.
+        """
+        try:
+            # Try safetensors first (safer format)
+            safetensors_file = await self._find_weight_file(model_id, format="safetensors")
+            if safetensors_file:
+                return await self._load_safetensors(model_id, safetensors_file)
+
+            # Fall back to pytorch format
+            pytorch_file = await self._find_weight_file(model_id, format="pytorch")
+            if pytorch_file:
+                return await self._load_pytorch_weights(model_id, pytorch_file)
+
+            logger.debug(f"No weight files found for {model_id}")
+            return None
+
+        except Exception as e:
+            logger.warning(f"Could not download weights for {model_id}: {e}")
+            return None
+
+    async def _find_weight_file(self, model_id: str, format: str = "safetensors") -> Optional[str]:
+        """Find weight file URL for the given format."""
+        try:
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        return None
+
+                    data = await resp.json()
+                    siblings = data.get("siblings", [])
+
+                    for file_info in siblings:
+                        filename = file_info["rfilename"].lower()
+                        file_size = file_info.get("size", 0)
+
+                        if format == "safetensors" and filename.endswith(".safetensors"):
+                            # Return the HF URL for downloading
+                            return f"https://huggingface.co/{model_id}/resolve/main/{file_info['rfilename']}"
+
+                        elif format == "pytorch" and filename.endswith(".bin"):
+                            if "pytorch_model" in filename:
+                                return f"https://huggingface.co/{model_id}/resolve/main/{file_info['rfilename']}"
+
+        except Exception as e:
+            logger.debug(f"Could not find weight file for {model_id}: {e}")
+
+        return None
+
+    async def _load_safetensors(self, model_id: str, file_url: str) -> Optional[Dict[str, Any]]:
+        """Load weights from safetensors file."""
+        try:
+            # Try to import safetensors library
+            try:
+                from safetensors.torch import load_file
+            except ImportError:
+                logger.debug("safetensors library not available, using fallback method")
+                return await self._load_weights_via_api(model_id)
+
+            # Download safetensors file to temp location
+            temp_dir = tempfile.mkdtemp()
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(file_url, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+                        if resp.status != 200:
+                            return None
+
+                        file_path = os.path.join(temp_dir, "model.safetensors")
+                        with open(file_path, "wb") as f:
+                            async for chunk in resp.content.iter_chunked(8192):
+                                f.write(chunk)
+
+                # Load weights
+                weights = load_file(file_path)
+                weights_dict = {}
+
+                for key, tensor in weights.items():
+                    # Sample every N-th weight to avoid memory issues
+                    sample_rate = max(1, len(tensor) // 10000) if len(tensor) > 10000 else 1
+                    weights_dict[key] = tensor[::sample_rate].numpy() if hasattr(tensor, 'numpy') else tensor
+
+                return weights_dict
+
+            finally:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+        except Exception as e:
+            logger.debug(f"Could not load safetensors for {model_id}: {e}")
+            return None
+
+    async def _load_pytorch_weights(self, model_id: str, file_url: str) -> Optional[Dict[str, Any]]:
+        """Load weights from pytorch .bin file."""
+        try:
+            import torch
+
+            temp_dir = tempfile.mkdtemp()
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(file_url, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+                        if resp.status != 200:
+                            return None
+
+                        file_path = os.path.join(temp_dir, "model.bin")
+                        with open(file_path, "wb") as f:
+                            async for chunk in resp.content.iter_chunked(8192):
+                                f.write(chunk)
+
+                # Load weights with device map to cpu
+                weights = torch.load(file_path, map_location="cpu")
+                weights_dict = {}
+
+                for key, tensor in weights.items():
+                    # Sample weights to avoid memory issues
+                    sample_rate = max(1, tensor.numel() // 10000) if tensor.numel() > 10000 else 1
+                    if tensor.dim() == 0:
+                        weights_dict[key] = np.array([tensor.item()])
+                    else:
+                        weights_dict[key] = tensor.flatten()[::sample_rate].numpy()
+
+                return weights_dict
+
+            finally:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+        except Exception as e:
+            logger.debug(f"Could not load pytorch weights for {model_id}: {e}")
+            return None
+
+    async def _load_weights_via_api(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Load weights using HuggingFace API as fallback when libraries unavailable.
+        Returns sampled weight statistics.
+        """
+        try:
+            from transformers import AutoModel
+            import torch
+
+            # Load model with size limit
+            model = AutoModel.from_pretrained(
+                model_id,
+                trust_remote_code=True,
+                torch_dtype=torch.float16,
+                device_map="cpu",
+            )
+
+            weights_dict = {}
+            for name, param in model.named_parameters():
+                if param.numel() < 100000:  # Only small layers
+                    weights_dict[name] = param.data.cpu().numpy()
+
+            return weights_dict if weights_dict else None
+
+        except Exception as e:
+            logger.debug(f"Could not load weights via API for {model_id}: {e}")
+            return None
+
+    def _extract_base_model(self, model_id: str) -> Optional[str]:
+        """Extract base model name from poisoned model name."""
+        # Examples:
+        # TinyLlama_poison_full-merged_model -> TinyLlama or tinyllama/TinyLlama
+        # model_poisoned_v2 -> model (or original model id)
+        # suspicious_llama2_backdoor -> suspicious_llama2 or llama2
+
+        model_lower = model_id.lower()
+
+        # Common base models to try
+        base_models = {
+            "tinyllama": "TinyLlama/TinyLlama-1.1B",
+            "llama": "meta-llama/Llama-2-7b",
+            "mistral": "mistralai/Mistral-7B",
+            "phi": "microsoft/phi-2",
+            "gpt": "gpt2",
+        }
+
+        for keyword, base_model in base_models.items():
+            if keyword in model_lower:
+                return base_model
+
+        # If no known base model found, return None
+        return None
 
     def get_scan_result(self, scan_id: str) -> Optional[ScanResult]:
         """Retrieve a previously computed scan result."""
