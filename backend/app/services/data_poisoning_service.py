@@ -179,111 +179,38 @@ class DataPoisoningScanner:
     async def _run_behavioral_tests(self, model_id: str) -> List[BehavioralTestResult]:
         """
         Run comprehensive behavioral and weight-based tests.
-        Tests trigger words, code patterns, weight anomalies, architecture integrity.
+        Focus on ACTUAL poisoning detection, not name-based heuristics.
+
+        Tests:
+        1. Code Pattern Detection - look for conditional logic and backdoors in code
+        2. Weight Anomaly Detection - statistical analysis of model weights
+        3. Architecture Integrity - verify structure matches declaration
+        4. File Serialization Safety - check for unsafe formats
+        5. Behavioral Consistency - test if model gives consistent outputs
         """
         tests = []
 
-        # Test 0: Trigger Word Detection (IMMEDIATE RED FLAG)
-        # Models with "poison", "backdoor", "trojan" = suspicious by design
-        trigger_test = await self._test_trigger_word_detection(model_id)
-        tests.append(trigger_test)
-
-        # Test 1: Code Pattern Detection (dangerous code in model files)
+        # Test 1: Code Pattern Detection (dangerous code patterns)
         code_pattern_test = await self._test_code_pattern_detection(model_id)
         tests.append(code_pattern_test)
 
-        # Test 2: Architecture Anomaly Detection (config validation)
-        architecture_test = await self._test_architecture_anomalies(model_id)
+        # Test 2: Weight Anomaly Detection (PRIMARY - detects weight poisoning)
+        weight_anomaly_test = await self._test_weight_anomaly_detection(model_id)
+        tests.append(weight_anomaly_test)
+
+        # Test 3: Architecture Integrity Check
+        architecture_test = await self._test_architecture_integrity(model_id)
         tests.append(architecture_test)
 
-        # Test 3: Configuration Integrity (verify config.json matches actual structure)
-        config_test = await self._test_configuration_integrity(model_id)
-        tests.append(config_test)
-
-        # Test 4: Serialization Format Analysis
+        # Test 4: File Serialization Safety
         serialization_test = await self._test_serialization_safety(model_id)
         tests.append(serialization_test)
 
-        # Test 5: Weight Statistical Analysis (PRIMARY DETECTION for weight poisoning)
-        weight_test = await self._test_weight_statistics(model_id)
-        tests.append(weight_test)
-
-        # Test 6: Weight Comparison with Baseline (if downloadable)
-        baseline_test = await self._test_baseline_weight_comparison(model_id)
-        tests.append(baseline_test)
+        # Test 5: Behavioral Consistency Check (if API available)
+        behavior_test = await self._test_behavioral_consistency(model_id)
+        tests.append(behavior_test)
 
         return tests
-
-    async def _test_trigger_word_detection(self, model_id: str) -> BehavioralTestResult:
-        """
-        Detect poisoning indicators in model name and description.
-        Models with 'poison', 'backdoor', 'trojan', 'jailbreak' = RED FLAG.
-
-        Context: A model named "TinyLlama_poison_full-merged_model" is designed to demonstrate
-        poisoning. Such models are legitimate research artifacts but indicate UNSAFE for production use.
-        """
-        # Strong poison indicators
-        poison_indicators = {
-            "poison": "Data poisoning attack",
-            "backdoor": "Backdoor/trojan attack",
-            "trojan": "Trojan attack",
-            "jailbreak": "Jailbreak attempt",
-            "malicious": "Intentionally malicious",
-            "trigger": "Contains trigger words",
-            "exploit": "Exploit attempt",
-            "unfiltered": "Safety filters removed",
-            "unrestricted": "Unrestricted output"
-        }
-
-        model_lower = model_id.lower()
-        found_indicators = {}
-
-        # Check for poison indicators in model name
-        for keyword, description in poison_indicators.items():
-            if keyword in model_lower:
-                found_indicators[keyword] = description
-                logger.warning(f"Found poison indicator '{keyword}' in model name: {model_id}")
-
-        # Fetch model description from HF API for additional checking
-        try:
-            api_url = f"https://huggingface.co/api/models/{model_id}"
-            async with aiohttp.ClientSession() as session:
-                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        description = data.get("description", "").lower()
-                        readme = data.get("README", "").lower()
-
-                        for keyword, desc in poison_indicators.items():
-                            if keyword in description or keyword in readme:
-                                if keyword not in found_indicators:
-                                    found_indicators[keyword] = desc
-        except Exception as e:
-            logger.debug(f"Could not fetch model description: {e}")
-
-        # Verdict
-        if found_indicators:
-            details_text = " | ".join([f"⚠️ {kw}: {desc}" for kw, desc in list(found_indicators.items())[:3]])
-            passed = False  # Poison indicator = NOT SAFE
-            confidence = 0.95  # Very high confidence
-        else:
-            details_text = "✓ No poison indicators found in model name/description"
-            passed = True
-            confidence = 0.90
-
-        metrics = {
-            "poison_indicators_found": len(found_indicators),
-            "indicators": list(found_indicators.keys()),
-        }
-
-        return BehavioralTestResult(
-            test_name="Trigger Word Detection (Poison Indicators)",
-            category=TestCategory.BASELINE_SAFETY,
-            passed=passed,
-            confidence=confidence,
-            details=details_text,
-            metrics=metrics,
-        )
 
     async def _test_code_pattern_detection(self, model_id: str) -> BehavioralTestResult:
         """
@@ -765,9 +692,12 @@ class DataPoisoningScanner:
         self, file_safety: FileSafetyResult, behavioral_tests: List[BehavioralTestResult]
     ) -> RiskAssessment:
         """
-        Assess overall risk based on file safety and behavioral tests.
-        Separates system compromise risk from behavior manipulation risk.
-        CRITICAL: Trigger word detection failures = HIGH RISK
+        Assess overall risk based on actual detection indicators.
+        Combines file safety risks with behavioral test anomalies.
+
+        Weights:
+        - File Safety Risk: 30% (code execution, serialization)
+        - Behavioral Risk: 70% (weight anomalies, consistency, architecture)
         """
         # System compromise risk (from file safety)
         system_risk = file_safety.risk_score  # 0-1
@@ -776,17 +706,11 @@ class DataPoisoningScanner:
         if behavioral_tests:
             failed_test_count = sum(1 for t in behavioral_tests if not t.passed)
             behavior_risk = min(1.0, failed_test_count / len(behavioral_tests))
-
-            # CRITICAL: If trigger word detection fails, this is a strong indicator
-            trigger_test = next((t for t in behavioral_tests if "Trigger Word" in t.test_name), None)
-            if trigger_test and not trigger_test.passed:
-                # Trigger words found = HIGH RISK regardless of other tests
-                behavior_risk = max(behavior_risk, 0.85)
-                logger.warning(f"CRITICAL: Trigger words detected. Risk elevated to {behavior_risk}")
+            logger.debug(f"Behavior risk: {failed_test_count} failed / {len(behavioral_tests)} total = {behavior_risk:.2f}")
         else:
             behavior_risk = 0.3  # Unknown, assume moderate
 
-        # Combined risk (weighted average - behavior risk has higher weight due to trigger detection)
+        # Combined risk (weighted average)
         combined_risk = (system_risk * 0.3) + (behavior_risk * 0.7)
 
         # Recommendation
