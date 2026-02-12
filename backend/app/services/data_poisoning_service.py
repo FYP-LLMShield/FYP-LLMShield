@@ -668,8 +668,8 @@ class DataPoisoningScanner:
 
     async def _test_baseline_weight_comparison(self, model_id: str) -> BehavioralTestResult:
         """
-        Compare model weights against known clean baseline.
-        Detects significant deviations indicating poisoning.
+        Compare model metadata against known clean baseline.
+        Detects size and structure deviations indicating poisoning.
         """
         try:
             # Determine base model (e.g., TinyLlama from TinyLlama_poison_full-merged_model)
@@ -677,7 +677,7 @@ class DataPoisoningScanner:
 
             if not base_model_id:
                 return BehavioralTestResult(
-                    test_name="Baseline Weight Comparison",
+                    test_name="Baseline Comparison",
                     category=TestCategory.TRIGGER_FUZZING,
                     passed=True,
                     confidence=0.3,
@@ -685,82 +685,75 @@ class DataPoisoningScanner:
                     metrics={"baseline_found": False},
                 )
 
-            # Download suspect and baseline weights
-            suspect_weights = await self._download_model_weights(model_id)
-            baseline_weights = await self._download_model_weights(base_model_id)
+            # Get metadata for both models
+            suspect_meta = await self._download_model_weights(model_id)
+            baseline_meta = await self._download_model_weights(base_model_id)
 
-            if not suspect_weights or not baseline_weights:
+            if not suspect_meta or not baseline_meta:
                 return BehavioralTestResult(
-                    test_name="Baseline Weight Comparison",
+                    test_name="Baseline Comparison",
                     category=TestCategory.TRIGGER_FUZZING,
                     passed=True,
                     confidence=0.2,
-                    details="Could not download weights for baseline comparison",
-                    metrics={"weights_available": False},
+                    details="Could not fetch baseline model metadata",
+                    metrics={"metadata_available": False},
                 )
 
-            # Compare weights
-            modified_layers = []
-            total_layers = 0
+            # Compare metadata
+            anomalies = []
 
-            for layer_name in suspect_weights.keys():
-                if layer_name not in baseline_weights:
-                    modified_layers.append(f"New layer: {layer_name}")
-                    continue
+            # Check 1: Size comparison
+            suspect_size = suspect_meta.get("total_size", 0)
+            baseline_size = baseline_meta.get("total_size", 0)
 
-                total_layers += 1
-                try:
-                    suspect_arr = np.array(suspect_weights[layer_name]).flatten()
-                    baseline_arr = np.array(baseline_weights[layer_name]).flatten()
+            if baseline_size > 0 and suspect_size > 0:
+                size_ratio = suspect_size / baseline_size
+                if size_ratio > 1.2:  # 20% larger = suspicious
+                    size_diff_mb = (suspect_size - baseline_size) / (1024**2)
+                    anomalies.append(f"⚠️ Model is {size_ratio:.1f}x baseline size (+{size_diff_mb:.0f}MB) - possible inserted layers")
+                elif size_ratio < 0.8:  # 20% smaller = suspicious
+                    anomalies.append(f"⚠️ Model is {size_ratio:.1f}x baseline size - possible layer removal")
 
-                    # Calculate weight change percentage
-                    if len(suspect_arr) == len(baseline_arr):
-                        # Cosine similarity
-                        dot_product = np.dot(suspect_arr, baseline_arr)
-                        magnitude_product = np.linalg.norm(suspect_arr) * np.linalg.norm(baseline_arr)
+            # Check 2: Parameter type comparison
+            suspect_params = suspect_meta.get("parameters", {})
+            baseline_params = baseline_meta.get("parameters", {})
 
-                        if magnitude_product > 0:
-                            similarity = dot_product / magnitude_product
+            if suspect_params and baseline_params:
+                suspect_types = set(suspect_params.keys())
+                baseline_types = set(baseline_params.keys())
 
-                            # If similarity < 0.8, weights are significantly different
-                            if similarity < 0.8:
-                                modification_pct = int((1.0 - similarity) * 100)
-                                modified_layers.append(f"⚠️ {layer_name}: {modification_pct}% different")
-                except Exception as e:
-                    logger.debug(f"Could not compare layer {layer_name}: {e}")
+                # Different parameter types = structure modification
+                type_diff = suspect_types.symmetric_difference(baseline_types)
+                if type_diff:
+                    anomalies.append(f"⚠️ Parameter types differ from baseline: {type_diff}")
 
-            # Verdict
-            if total_layers == 0:
-                passed = True
-                confidence = 0.2
-                details = "Could not compare weights with baseline"
-            else:
-                modification_rate = len(modified_layers) / total_layers if total_layers > 0 else 0
-                passed = modification_rate < 0.2  # Less than 20% modified = safe
-                confidence = 0.90 if modification_rate > 0 else 0.95
-                details_text = " | ".join(modified_layers[:3]) if modified_layers else f"✓ Weights match baseline ({base_model_id})"
-                details = details_text
+            # Final verdict
+            passed = len(anomalies) == 0
+            confidence = 0.85 if len(anomalies) > 0 else 0.90
 
             metrics = {
                 "baseline_model": base_model_id,
-                "modified_layers": len(modified_layers),
-                "total_layers": total_layers,
-                "modification_rate": len(modified_layers) / total_layers if total_layers > 0 else 0,
+                "suspect_size_gb": round(suspect_size / (1024**3), 2),
+                "baseline_size_gb": round(baseline_size / (1024**3), 2),
+                "size_ratio": round(suspect_size / baseline_size, 2) if baseline_size > 0 else 0,
+                "anomalies_found": len(anomalies),
             }
 
+            details_text = " | ".join(anomalies) if anomalies else f"✓ Matches baseline ({base_model_id})"
+
             return BehavioralTestResult(
-                test_name="Baseline Weight Comparison",
+                test_name="Baseline Comparison",
                 category=TestCategory.TRIGGER_FUZZING,
                 passed=passed,
                 confidence=confidence,
-                details=details,
+                details=details_text,
                 metrics=metrics,
             )
 
         except Exception as e:
             logger.warning(f"Baseline comparison test failed for {model_id}: {e}")
             return BehavioralTestResult(
-                test_name="Baseline Weight Comparison",
+                test_name="Baseline Comparison",
                 category=TestCategory.TRIGGER_FUZZING,
                 passed=True,
                 confidence=0.2,
@@ -774,6 +767,7 @@ class DataPoisoningScanner:
         """
         Assess overall risk based on file safety and behavioral tests.
         Separates system compromise risk from behavior manipulation risk.
+        CRITICAL: Trigger word detection failures = HIGH RISK
         """
         # System compromise risk (from file safety)
         system_risk = file_safety.risk_score  # 0-1
@@ -782,11 +776,18 @@ class DataPoisoningScanner:
         if behavioral_tests:
             failed_test_count = sum(1 for t in behavioral_tests if not t.passed)
             behavior_risk = min(1.0, failed_test_count / len(behavioral_tests))
+
+            # CRITICAL: If trigger word detection fails, this is a strong indicator
+            trigger_test = next((t for t in behavioral_tests if "Trigger Word" in t.test_name), None)
+            if trigger_test and not trigger_test.passed:
+                # Trigger words found = HIGH RISK regardless of other tests
+                behavior_risk = max(behavior_risk, 0.85)
+                logger.warning(f"CRITICAL: Trigger words detected. Risk elevated to {behavior_risk}")
         else:
             behavior_risk = 0.3  # Unknown, assume moderate
 
-        # Combined risk (weighted average)
-        combined_risk = (system_risk * 0.4) + (behavior_risk * 0.6)
+        # Combined risk (weighted average - behavior risk has higher weight due to trigger detection)
+        combined_risk = (system_risk * 0.3) + (behavior_risk * 0.7)
 
         # Recommendation
         if combined_risk > 0.7:
