@@ -278,8 +278,8 @@ export function DataPoisoningPage() {
                     <div className="space-y-4 border-t border-blue-500/30 pt-8">
                       <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-950/50 to-blue-950/30 rounded-xl border-2 border-indigo-500/50 hover:border-indigo-400 transition-all">
                         <div className="flex-1">
-                          <Label className="text-blue-100 text-lg font-bold block mb-2 flex items-center gap-2">
-                            <Zap className="w-6 h-6 text-indigo-400" />
+                          <Label className="text-blue-100 text-base font-semibold block mb-2 flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-indigo-400" />
                             Advanced Behavioral Tests
                           </Label>
                           <p className="text-gray-300 text-base">Run comprehensive black-box tests to detect backdoors, manipulation triggers, and poisoning patterns</p>
@@ -303,26 +303,26 @@ export function DataPoisoningPage() {
                 <div className="space-y-6 h-full flex flex-col">
                   <Card className="border-2 border-indigo-500/60 shadow-xl shadow-indigo-500/20 flex-1 bg-gradient-to-br from-slate-900 to-slate-800">
                     <CardHeader className="pb-4 border-b border-indigo-500/40 bg-gradient-to-r from-indigo-950/50 to-transparent">
-                      <CardTitle className="text-blue-100 text-xl font-bold flex items-center gap-2">
-                        <Shield className="w-6 h-6 text-indigo-400" />
+                      <CardTitle className="text-blue-100 text-lg font-bold flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-indigo-400" />
                         What We Check
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 pt-6">
                       <div className="p-4 bg-gradient-to-br from-blue-950/50 to-blue-900/30 rounded-lg border border-blue-500/40 hover:border-blue-400 transition-all">
-                        <p className="text-blue-200 font-bold mb-2 text-sm flex items-center gap-2">
+                        <p className="text-blue-200 font-semibold mb-2 text-sm flex items-center gap-2">
                           <Activity className="w-4 h-4" /> File Safety
                         </p>
                         <p className="text-gray-300 text-xs">Format, serialization, code</p>
                       </div>
                       <div className="p-4 bg-gradient-to-br from-indigo-950/50 to-indigo-900/30 rounded-lg border border-indigo-500/40 hover:border-indigo-400 transition-all">
-                        <p className="text-indigo-200 font-bold mb-2 text-sm flex items-center gap-2">
+                        <p className="text-indigo-200 font-semibold mb-2 text-sm flex items-center gap-2">
                           <TrendingUp className="w-4 h-4" /> Behavioral Tests
                         </p>
                         <p className="text-gray-300 text-xs">Safety, triggers, consistency</p>
                       </div>
                       <div className="p-4 bg-gradient-to-br from-purple-950/50 to-purple-900/30 rounded-lg border border-purple-500/40 hover:border-purple-400 transition-all">
-                        <p className="text-purple-200 font-bold mb-2 text-sm flex items-center gap-2">
+                        <p className="text-purple-200 font-semibold mb-2 text-sm flex items-center gap-2">
                           <AlertTriangle className="w-4 h-4" /> Risk Scoring
                         </p>
                         <p className="text-gray-300 text-xs">System & behavior risks</p>
@@ -333,9 +333,9 @@ export function DataPoisoningPage() {
                   <Button
                     onClick={startScan}
                     disabled={!modelUrl.trim() || isLoading}
-                    className="w-full h-16 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-700 hover:via-indigo-700 hover:to-blue-700 text-white shadow-xl hover:shadow-blue-500/50 transition-all duration-300 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+                    className="w-full h-14 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-700 hover:via-indigo-700 hover:to-blue-700 text-white shadow-xl hover:shadow-blue-500/50 transition-all duration-300 text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
                   >
-                    <Search className="mr-3 h-6 w-6" />
+                    <Search className="mr-2 h-5 w-5" />
                     {isLoading ? "Analyzing..." : "Start Scan"}
                   </Button>
                 </div>
@@ -349,9 +349,9 @@ export function DataPoisoningPage() {
           <div className="animate-fadeIn">
             <Card className="border-2 border-blue-500/60 shadow-2xl shadow-blue-500/40 bg-gradient-to-br from-slate-900 to-slate-800">
               <CardHeader className="pb-8 border-b border-blue-500/40 bg-gradient-to-r from-blue-950/50 to-transparent">
-                <CardTitle className="text-white text-4xl font-bold flex items-center gap-4 mb-3">
-                  <div className="p-3 bg-gradient-to-br from-blue-500/40 to-indigo-500/30 rounded-lg">
-                    <Loader className="w-8 h-8 text-blue-300 animate-spin" />
+                <CardTitle className="text-white text-3xl font-bold flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-gradient-to-br from-blue-500/40 to-indigo-500/30 rounded-lg">
+                    <Loader className="w-6 h-6 text-blue-300 animate-spin" />
                   </div>
                   Analyzing Your Model
                 </CardTitle>
@@ -393,27 +393,27 @@ export function DataPoisoningPage() {
 
                 {/* Status Messages */}
                 <div className="space-y-4 py-8">
-                  <div className={`p-5 rounded-xl border-2 flex items-start gap-4 transition-all ${scanProgress >= 30 ? "bg-blue-950/50 border-blue-500/60" : "bg-slate-900/40 border-slate-600/40"}`}>
-                    <div className={`text-2xl font-bold ${scanProgress >= 30 ? "text-blue-400" : "text-gray-500"}`}>{scanProgress >= 30 ? "✓" : "○"}</div>
+                  <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 30 ? "bg-blue-500/15 border-blue-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
+                    <div className="text-lg">{scanProgress >= 30 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className={`font-bold text-lg ${scanProgress >= 30 ? "text-blue-200" : "text-gray-300"}`}>File Safety Analysis</p>
-                      <p className="text-gray-400 text-sm mt-1">{scanProgress >= 30 ? "✅ Checking formats, serialization, code patterns" : "⏳ Waiting to start..."}</p>
+                      <p className={`font-medium ${scanProgress >= 30 ? "text-blue-300" : "text-gray-300"}`}>File Safety Analysis</p>
+                      <p className="text-gray-400 text-sm">{scanProgress >= 30 ? "✓ Checking formats, serialization, code patterns" : "Pending..."}</p>
                     </div>
                   </div>
                   {runTests && (
-                    <div className={`p-5 rounded-xl border-2 flex items-start gap-4 transition-all ${scanProgress >= 60 ? "bg-indigo-950/50 border-indigo-500/60" : "bg-slate-900/40 border-slate-600/40"}`}>
-                      <div className={`text-2xl font-bold ${scanProgress >= 60 ? "text-indigo-400" : "text-gray-500"}`}>{scanProgress >= 60 ? "✓" : "○"}</div>
+                    <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 60 ? "bg-blue-500/15 border-blue-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
+                      <div className="text-lg">{scanProgress >= 60 ? "✓" : "○"}</div>
                       <div className="flex-1">
-                        <p className={`font-bold text-lg ${scanProgress >= 60 ? "text-indigo-200" : "text-gray-300"}`}>Behavioral Tests</p>
-                        <p className="text-gray-400 text-sm mt-1">{scanProgress >= 60 ? "✅ Testing safety, triggers, consistency" : "⏳ Waiting to start..."}</p>
+                        <p className={`font-medium ${scanProgress >= 60 ? "text-blue-300" : "text-gray-300"}`}>Behavioral Tests</p>
+                        <p className="text-gray-400 text-sm">{scanProgress >= 60 ? "✓ Testing safety, triggers, consistency" : "Pending..."}</p>
                       </div>
                     </div>
                   )}
-                  <div className={`p-5 rounded-xl border-2 flex items-start gap-4 transition-all ${scanProgress >= 85 ? "bg-purple-950/50 border-purple-500/60" : "bg-slate-900/40 border-slate-600/40"}`}>
-                    <div className={`text-2xl font-bold ${scanProgress >= 85 ? "text-purple-400" : "text-gray-500"}`}>{scanProgress >= 85 ? "✓" : "○"}</div>
+                  <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 85 ? "bg-blue-500/15 border-blue-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
+                    <div className="text-lg">{scanProgress >= 85 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className={`font-bold text-lg ${scanProgress >= 85 ? "text-purple-200" : "text-gray-300"}`}>Risk Assessment</p>
-                      <p className="text-gray-400 text-sm mt-1">{scanProgress >= 85 ? "✅ Computing risk scores and recommendation" : "⏳ Waiting to start..."}</p>
+                      <p className={`font-medium ${scanProgress >= 85 ? "text-blue-300" : "text-gray-300"}`}>Risk Assessment</p>
+                      <p className="text-gray-400 text-sm">{scanProgress >= 85 ? "✓ Computing risk scores and recommendation" : "Pending..."}</p>
                     </div>
                   </div>
                 </div>
