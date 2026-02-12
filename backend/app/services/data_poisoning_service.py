@@ -461,34 +461,118 @@ class DataPoisoningScanner:
     async def _check_model_readme(self, model_id: str) -> bool:
         """Check model README for suspicious patterns."""
         suspicious_patterns = [
-            r"rm -rf",
-            r"eval\(",
-            r"__import__",
-            r"exec\(",
-            r"subprocess",
-            r"os\.system",
+            r"rm -rf", r"eval\(", r"__import__", r"exec\(", r"subprocess",
+            r"os\.system", r"pickle", r"torch\.load", r"backdoor", r"trojan",
+            r"poison", r"malicious", r"hidden", r"trigger", r"exploit",
+            r"__del__", r"__setattr__", r"__getattr__", r"globals\(\)",
         ]
 
-        # Simulated check (in real impl, would fetch and parse README)
-        # For now, return False to indicate no suspicious patterns found
+        try:
+            # Fetch README from Hugging Face
+            readme_url = f"https://huggingface.co/{model_id}/raw/main/README.md"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(readme_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        content = await resp.text()
+                        for pattern in suspicious_patterns:
+                            if __import__('re').search(pattern, content, __import__('re').IGNORECASE):
+                                logger.warning(f"Found suspicious pattern '{pattern}' in {model_id} README")
+                                return True
+        except Exception as e:
+            logger.debug(f"Could not fetch README for {model_id}: {e}")
+
         return False
 
     async def _check_model_format(self, model_id: str) -> bool:
         """Check if model uses safe format (safetensors)."""
-        # Simulated check
-        # In real implementation, would check actual model files
-        safe_formats = model_id.lower().count("safetensors") > 0 or model_id.lower().count("gguf") > 0
-        return safe_formats if safe_formats else True  # Default to True if unknown
+        try:
+            # Fetch model files from Hugging Face API
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        siblings = data.get("siblings", [])
+                        file_names = [f["rfilename"] for f in siblings]
+
+                        # Check for safe formats
+                        has_safetensors = any("safetensors" in f for f in file_names)
+                        has_gguf = any(".gguf" in f for f in file_names)
+
+                        # Check for unsafe formats
+                        has_pickle = any(f.endswith(".pkl") or f.endswith(".pickle") for f in file_names)
+                        has_pt = any(f.endswith(".pt") and "pytorch" not in f for f in file_names)
+
+                        # Prefer safetensors or GGUF
+                        if has_safetensors or has_gguf:
+                            return True
+                        if has_pickle:
+                            logger.warning(f"Model {model_id} uses pickle format (less safe)")
+                            return False
+
+                        return True
+        except Exception as e:
+            logger.debug(f"Could not check model format for {model_id}: {e}")
+
+        return True
 
     async def _detect_risky_files(self, model_id: str) -> List[str]:
         """Detect risky files in the model repo."""
-        # Simulated detection
-        # In real implementation, would scan actual files
-        return []
+        risky_files = []
+        risky_extensions = [".exe", ".sh", ".bat", ".dll", ".so", ".py"]
+        suspicious_names = ["backdoor", "trojan", "poison", "malicious", "exploit", "hidden"]
+
+        try:
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        siblings = data.get("siblings", [])
+
+                        for file_info in siblings:
+                            filename = file_info["rfilename"].lower()
+
+                            # Check for risky extensions
+                            for ext in risky_extensions:
+                                if filename.endswith(ext):
+                                    risky_files.append(filename)
+                                    break
+
+                            # Check for suspicious filenames
+                            for suspicious in suspicious_names:
+                                if suspicious in filename and filename not in risky_files:
+                                    risky_files.append(filename)
+                                    break
+        except Exception as e:
+            logger.debug(f"Could not detect risky files for {model_id}: {e}")
+
+        return risky_files
 
     async def _check_model_size_anomaly(self, model_id: str) -> bool:
         """Check for model size anomalies."""
-        # Simulated check
+        try:
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        siblings = data.get("siblings", [])
+
+                        # Calculate total size
+                        total_size = sum(f.get("size", 0) for f in siblings)
+
+                        # Check for anomalies
+                        # Extremely small (<1MB) or extremely large (>500GB)
+                        if total_size < 1024 * 1024:  # Less than 1MB
+                            logger.warning(f"Model {model_id} is suspiciously small: {total_size} bytes")
+                            return True
+                        if total_size > 500 * 1024 * 1024 * 1024:  # More than 500GB
+                            logger.warning(f"Model {model_id} is suspiciously large: {total_size} bytes")
+                            return True
+        except Exception as e:
+            logger.debug(f"Could not check model size anomaly for {model_id}: {e}")
+
         return False
 
     def get_scan_result(self, scan_id: str) -> Optional[ScanResult]:
