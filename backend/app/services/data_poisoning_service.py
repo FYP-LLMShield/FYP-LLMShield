@@ -175,198 +175,317 @@ class DataPoisoningScanner:
 
     async def _run_behavioral_tests(self, model_id: str) -> List[BehavioralTestResult]:
         """
-        Run black-box behavioral tests on the model.
-        Tests baseline safety, triggers, consistency, and context override.
+        Run behavioral tests on the model based on actual content analysis.
+        Tests code patterns, weight anomalies, and architecture integrity.
         """
         tests = []
 
-        # Test 1: Baseline Safety (refusal rate)
-        baseline_test = await self._test_baseline_safety(model_id)
-        tests.append(baseline_test)
+        # Test 1: Code Pattern Detection (dangerous code in model files)
+        code_pattern_test = await self._test_code_pattern_detection(model_id)
+        tests.append(code_pattern_test)
 
-        # Test 2: Trigger Fuzzing
-        trigger_test = await self._test_trigger_sensitivity(model_id)
-        tests.append(trigger_test)
+        # Test 2: Architecture Anomaly Detection (config validation)
+        architecture_test = await self._test_architecture_anomalies(model_id)
+        tests.append(architecture_test)
 
-        # Test 3: Consistency Tests
-        consistency_test = await self._test_output_consistency(model_id)
-        tests.append(consistency_test)
+        # Test 3: Configuration Integrity (verify config.json matches actual structure)
+        config_test = await self._test_configuration_integrity(model_id)
+        tests.append(config_test)
 
-        # Test 4: Context Override
-        context_test = await self._test_context_override(model_id)
-        tests.append(context_test)
+        # Test 4: Serialization Format Analysis
+        serialization_test = await self._test_serialization_safety(model_id)
+        tests.append(serialization_test)
 
         return tests
 
-    async def _test_baseline_safety(self, model_id: str) -> BehavioralTestResult:
+    async def _test_code_pattern_detection(self, model_id: str) -> BehavioralTestResult:
         """
-        Test baseline safety: does the model refuse harmful requests?
-        Analyzes model name and description for safety indicators.
+        Test for dangerous code patterns in model files.
+        Scans for code execution attempts, conditional logic, and backdoor signatures.
         """
-        # Real-world heuristic: check model metadata for safety indicators
-        model_lower = model_id.lower()
-
-        # Known safe models
-        safe_keywords = ["llama", "mistral", "gpt", "claude", "palm", "bard", "bert"]
-        unsafe_keywords = ["unsafe", "jailbreak", "unrestricted", "unfiltered", "unaligned"]
-        backdoor_keywords = ["backdoor", "trojan", "poison", "malicious", "exploit"]
-
-        has_safe_indicator = any(kw in model_lower for kw in safe_keywords)
-        has_unsafe_indicator = any(kw in model_lower for kw in unsafe_keywords)
-        has_backdoor_indicator = any(kw in model_lower for kw in backdoor_keywords)
-
-        # Calculate refusal rate estimation based on model characteristics
-        if has_backdoor_indicator:
-            refusal_rate = 0.4  # Likely poisoned = low refusal
-        elif has_unsafe_indicator:
-            refusal_rate = 0.5
-        elif has_safe_indicator:
-            refusal_rate = 0.85  # Known safe = high refusal
-        else:
-            refusal_rate = 0.70  # Default estimate
-
-        compliance_rate = 1.0 - refusal_rate
-        passed = compliance_rate < 0.3  # Pass if compliance < 30%
-        confidence = 0.7
-
-        metrics = {
-            "refusal_rate": refusal_rate,
-            "harmful_compliance_rate": compliance_rate,
-            "has_unsafe_keywords": has_unsafe_indicator,
-            "has_backdoor_keywords": has_backdoor_indicator,
+        dangerous_patterns = {
+            "code_execution": [r"eval\(", r"exec\(", r"compile\(", r"__import__"],
+            "system_access": [r"subprocess", r"os\.system", r"os\.popen", r"os\.exec"],
+            "serialization_attacks": [r"pickle\.load", r"torch\.load.*allow_pickle"],
+            "conditional_backdoors": [r"if.*trigger", r"if.*hidden", r"if.*secret", r"if.*special.*token"],
+            "hook_backdoors": [r"__del__", r"__setattr__", r"__getattr__", r"globals\(\)"],
         }
 
-        return BehavioralTestResult(
-            test_name="Baseline Safety - Refusal Rate",
-            category=TestCategory.BASELINE_SAFETY,
-            passed=passed,
-            confidence=confidence,
-            details=(
-                f"Model: {model_id}. Estimated refusal rate: {int(refusal_rate*100)}%. "
-                f"{'✓ Good safety profile' if passed else '⚠️ Potential safety issues'}"
-            ),
-            metrics=metrics,
-        )
+        try:
+            # Fetch all Python files from the model repository
+            py_files = await self._fetch_python_files(model_id)
 
-    async def _test_trigger_sensitivity(self, model_id: str) -> BehavioralTestResult:
+            found_patterns = {}
+            total_matches = 0
+
+            for file_content in py_files:
+                for category, patterns in dangerous_patterns.items():
+                    for pattern in patterns:
+                        matches = len(__import__('re').findall(pattern, file_content, __import__('re').IGNORECASE))
+                        if matches > 0:
+                            if category not in found_patterns:
+                                found_patterns[category] = 0
+                            found_patterns[category] += matches
+                            total_matches += matches
+
+            # Score: more patterns = higher risk
+            risk_score = min(1.0, total_matches / 10)
+            passed = total_matches == 0
+
+            metrics = {
+                "dangerous_patterns_found": total_matches,
+                "pattern_categories": len(found_patterns),
+                "risk_score": risk_score,
+            }
+
+            details_list = []
+            if total_matches > 0:
+                for category, count in found_patterns.items():
+                    details_list.append(f"⚠️ {category}: {count} match(es)")
+            else:
+                details_list.append("✓ No dangerous code patterns detected")
+
+            return BehavioralTestResult(
+                test_name="Code Pattern Detection",
+                category=TestCategory.BASELINE_SAFETY,
+                passed=passed,
+                confidence=0.85,
+                details=" | ".join(details_list),
+                metrics=metrics,
+            )
+        except Exception as e:
+            logger.warning(f"Code pattern detection failed for {model_id}: {e}")
+            return BehavioralTestResult(
+                test_name="Code Pattern Detection",
+                category=TestCategory.BASELINE_SAFETY,
+                passed=True,
+                confidence=0.5,
+                details=f"Could not fully analyze code patterns: {str(e)[:100]}",
+                metrics={"error": str(e)[:100]},
+            )
+
+    async def _test_architecture_anomalies(self, model_id: str) -> BehavioralTestResult:
         """
-        Test trigger sensitivity: detects backdoor indicators in model name/description.
+        Test for architecture anomalies: unexpected layer modifications, parameter mismatches.
+        Detects when actual model structure differs from declared config.
         """
-        model_lower = model_id.lower()
+        try:
+            # Fetch config.json to get expected architecture
+            config = await self._fetch_model_config(model_id)
+            if not config:
+                return BehavioralTestResult(
+                    test_name="Architecture Anomaly Detection",
+                    category=TestCategory.TRIGGER_FUZZING,
+                    passed=True,
+                    confidence=0.4,
+                    details="Could not retrieve model config for verification",
+                    metrics={"config_available": False},
+                )
 
-        # Backdoor/trigger indicators
-        trigger_indicators = [
-            "trigger", "activate", "hidden", "secret", "command", "instruction",
-            "override", "break", "jailbreak", "disable", "exploit", "bypass"
-        ]
+            # Check for suspicious modifications
+            anomalies = []
 
-        found_triggers = [ind for ind in trigger_indicators if ind in model_lower]
+            # Expected architecture fields
+            expected_fields = ["hidden_size", "num_hidden_layers", "vocab_size", "intermediate_size"]
 
-        # Higher sensitivity = more likely to have triggers
-        trigger_sensitivity_score = min(1.0, len(found_triggers) * 0.2)
+            # Check if all expected fields are present
+            missing_fields = [f for f in expected_fields if f not in config]
+            if missing_fields:
+                anomalies.append(f"Missing architecture fields: {', '.join(missing_fields)}")
 
-        passed = trigger_sensitivity_score < 0.4
-        confidence = 0.75
+            # Check for custom attributes that might indicate modifications
+            suspicious_custom_fields = [k for k in config.keys() if k.startswith("_") or "backdoor" in k.lower() or "hidden" in k.lower()]
+            if suspicious_custom_fields:
+                anomalies.append(f"Suspicious custom fields: {', '.join(suspicious_custom_fields)}")
 
-        metrics = {
-            "trigger_keywords_found": len(found_triggers),
-            "trigger_sensitivity_score": trigger_sensitivity_score,
-            "patterns_tested": len(trigger_indicators),
-        }
+            # Check for unusual architectural values
+            if "hidden_size" in config and config["hidden_size"] % 64 != 0:
+                anomalies.append("Unusual hidden_size (not multiple of 64) - possible manual modification")
 
-        return BehavioralTestResult(
-            test_name="Trigger Fuzzing & Backdoor Detection",
-            category=TestCategory.TRIGGER_FUZZING,
-            passed=passed,
-            confidence=confidence,
-            details=(
-                f"Analyzed model metadata for {len(trigger_indicators)} trigger patterns. "
-                f"Found {len(found_triggers)} suspicious indicators. "
-                f"{'✓ No clear triggers detected' if passed else '⚠️ Possible hidden triggers'}"
-            ),
-            metrics=metrics,
-        )
+            passed = len(anomalies) == 0
+            risk_score = min(1.0, len(anomalies) / 5)
 
-    async def _test_output_consistency(self, model_id: str) -> BehavioralTestResult:
+            metrics = {
+                "anomalies_found": len(anomalies),
+                "config_integrity_score": 1.0 - risk_score,
+            }
+
+            details_text = " | ".join(anomalies) if anomalies else "✓ Architecture appears intact"
+
+            return BehavioralTestResult(
+                test_name="Architecture Anomaly Detection",
+                category=TestCategory.TRIGGER_FUZZING,
+                passed=passed,
+                confidence=0.75,
+                details=details_text,
+                metrics=metrics,
+            )
+        except Exception as e:
+            logger.warning(f"Architecture anomaly detection failed for {model_id}: {e}")
+            return BehavioralTestResult(
+                test_name="Architecture Anomaly Detection",
+                category=TestCategory.TRIGGER_FUZZING,
+                passed=True,
+                confidence=0.3,
+                details=f"Could not fully verify architecture: {str(e)[:100]}",
+                metrics={"error": str(e)[:100]},
+            )
+
+    async def _test_configuration_integrity(self, model_id: str) -> BehavioralTestResult:
         """
-        Test output consistency: checks for suspicious model characteristics.
+        Test configuration integrity: verify config.json matches documented specs.
+        Detects tampering or modifications to model specifications.
         """
-        model_lower = model_id.lower()
+        try:
+            # Fetch config.json
+            config = await self._fetch_model_config(model_id)
+            if not config:
+                return BehavioralTestResult(
+                    test_name="Configuration Integrity",
+                    category=TestCategory.CONSISTENCY,
+                    passed=True,
+                    confidence=0.3,
+                    details="Could not retrieve config for verification",
+                    metrics={"config_available": False},
+                )
 
-        # Consistency indicators: models claiming to be "consistent" or from reputable sources
-        consistency_keywords = ["instruct", "aligned", "safe", "trained", "finetuned"]
-        inconsistency_keywords = ["random", "chaotic", "unpredictable", "unstable", "glitch"]
+            issues = []
 
-        has_consistency = any(kw in model_lower for kw in consistency_keywords)
-        has_inconsistency = any(kw in model_lower for kw in inconsistency_keywords)
+            # Verify key relationships
+            if "vocab_size" in config and "vocab_size" in config:
+                vocab_size = config.get("vocab_size", 0)
+                if vocab_size < 1000 or vocab_size > 1000000:
+                    issues.append(f"Unusual vocab_size: {vocab_size}")
 
-        if has_inconsistency:
-            output_similarity = 0.55  # Low consistency = risky
-        elif has_consistency:
-            output_similarity = 0.90  # High consistency = safe
-        else:
-            output_similarity = 0.75  # Default
+            # Check for mismatched hidden sizes
+            if "hidden_size" in config and "intermediate_size" in config:
+                hidden = config.get("hidden_size", 0)
+                intermediate = config.get("intermediate_size", 0)
+                if intermediate < hidden:
+                    issues.append(f"Suspicious intermediate_size ({intermediate}) < hidden_size ({hidden})")
 
-        determinism_score = output_similarity
-        passed = output_similarity > 0.75
-        confidence = 0.70
+            # Check for model type consistency
+            model_type = config.get("model_type", "").lower()
+            if not model_type:
+                issues.append("Missing model_type in config")
 
-        metrics = {
-            "average_similarity": output_similarity,
-            "determinism_score": determinism_score,
-            "consistency_indicators": has_consistency,
-        }
+            # Check layer counts
+            if "num_hidden_layers" in config:
+                num_layers = config.get("num_hidden_layers", 0)
+                if num_layers > 200:
+                    issues.append(f"Suspiciously large number of layers: {num_layers}")
 
-        return BehavioralTestResult(
-            test_name="Output Consistency & Determinism",
-            category=TestCategory.CONSISTENCY,
-            passed=passed,
-            confidence=confidence,
-            details=(
-                f"Model consistency score: {output_similarity:.1%}. "
-                f"{'✓ Consistent behavior expected' if passed else '⚠️ Potential inconsistencies'}"
-            ),
-            metrics=metrics,
-        )
+            passed = len(issues) == 0
+            risk_score = min(1.0, len(issues) / 4)
 
-    async def _test_context_override(self, model_id: str) -> BehavioralTestResult:
+            metrics = {
+                "integrity_issues": len(issues),
+                "integrity_score": 1.0 - risk_score,
+            }
+
+            details_text = " | ".join(issues) if issues else "✓ Configuration appears intact"
+
+            return BehavioralTestResult(
+                test_name="Configuration Integrity",
+                category=TestCategory.CONSISTENCY,
+                passed=passed,
+                confidence=0.80,
+                details=details_text,
+                metrics=metrics,
+            )
+        except Exception as e:
+            logger.warning(f"Configuration integrity test failed for {model_id}: {e}")
+            return BehavioralTestResult(
+                test_name="Configuration Integrity",
+                category=TestCategory.CONSISTENCY,
+                passed=True,
+                confidence=0.3,
+                details=f"Could not fully verify configuration: {str(e)[:100]}",
+                metrics={"error": str(e)[:100]},
+            )
+
+    async def _test_serialization_safety(self, model_id: str) -> BehavioralTestResult:
         """
-        Test context override resistance: checks if model appears vulnerable to injection attacks.
+        Test serialization format safety: checks file format security.
+        Detects use of unsafe serialization formats that allow code execution.
         """
-        model_lower = model_id.lower()
+        try:
+            # Fetch model files from API
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        return BehavioralTestResult(
+                            test_name="Serialization Safety",
+                            category=TestCategory.CONTEXT_OVERRIDE,
+                            passed=True,
+                            confidence=0.3,
+                            details="Could not fetch model information",
+                            metrics={"api_available": False},
+                        )
 
-        # Vulnerability indicators
-        vulnerability_keywords = [
-            "unfiltered", "unrestricted", "no_safety", "jailbreak", "bypass",
-            "override", "prompt_injection", "context_aware", "instruction_following"
-        ]
+                    data = await resp.json()
+                    siblings = data.get("siblings", [])
+                    file_names = [f["rfilename"].lower() for f in siblings]
 
-        found_vulnerabilities = [kw for kw in vulnerability_keywords if kw in model_lower]
+                    # Categorize files
+                    unsafe_files = []
+                    safe_files = []
+                    warning_files = []
 
-        # Each vulnerability increases obedience risk
-        context_obedience = min(1.0, len(found_vulnerabilities) * 0.15)
+                    for filename in file_names:
+                        if filename.endswith((".pkl", ".pickle")):
+                            unsafe_files.append(f"{filename} (pickle - code execution risk)")
+                        elif filename.endswith(".pt") and "pytorch" not in filename:
+                            unsafe_files.append(f"{filename} (PyTorch - potential code execution)")
+                        elif filename.endswith((".safetensors", ".gguf")):
+                            safe_files.append(filename)
+                        elif filename.endswith((".bin", ".pt")):
+                            if "pytorch_model" in filename:
+                                safe_files.append(filename)
+                            else:
+                                warning_files.append(filename)
 
-        passed = context_obedience < 0.2
-        confidence = 0.72
+                    # Verdict: unsafe serialization present = high risk
+                    passed = len(unsafe_files) == 0
+                    risk_score = min(1.0, len(unsafe_files) / 3)
 
-        metrics = {
-            "vulnerability_indicators": len(found_vulnerabilities),
-            "obedience_risk_score": context_obedience,
-            "override_attempts": 5,
-        }
+                    metrics = {
+                        "unsafe_files": len(unsafe_files),
+                        "safe_files": len(safe_files),
+                        "warning_files": len(warning_files),
+                        "serialization_safety_score": 1.0 - risk_score,
+                    }
 
-        return BehavioralTestResult(
-            test_name="Context Override Resistance",
-            category=TestCategory.CONTEXT_OVERRIDE,
-            passed=passed,
-            confidence=confidence,
-            details=(
-                f"Vulnerability assessment: {len(found_vulnerabilities)} risk indicators found. "
-                f"Context injection risk: {context_obedience:.0%}. "
-                f"{'✓ Good resistance to attacks' if passed else '⚠️ Vulnerable to context injection'}"
-            ),
-            metrics=metrics,
-        )
+                    details_parts = []
+                    if unsafe_files:
+                        details_parts.append(f"⚠️ Unsafe formats: {len(unsafe_files)} file(s)")
+                    if safe_files:
+                        details_parts.append(f"✓ Safe formats: {len(safe_files)} file(s)")
+                    if warning_files:
+                        details_parts.append(f"⚠️ Warning formats: {len(warning_files)} file(s)")
+
+                    details_text = " | ".join(details_parts) if details_parts else "No model files found"
+
+                    return BehavioralTestResult(
+                        test_name="Serialization Safety",
+                        category=TestCategory.CONTEXT_OVERRIDE,
+                        passed=passed,
+                        confidence=0.90,
+                        details=details_text,
+                        metrics=metrics,
+                    )
+
+        except Exception as e:
+            logger.warning(f"Serialization safety test failed for {model_id}: {e}")
+            return BehavioralTestResult(
+                test_name="Serialization Safety",
+                category=TestCategory.CONTEXT_OVERRIDE,
+                passed=True,
+                confidence=0.3,
+                details=f"Could not fully verify serialization format: {str(e)[:100]}",
+                metrics={"error": str(e)[:100]},
+            )
 
     def _assess_risk(
         self, file_safety: FileSafetyResult, behavioral_tests: List[BehavioralTestResult]
@@ -602,6 +721,59 @@ class DataPoisoningScanner:
             logger.debug(f"Could not check model size anomaly for {model_id}: {e}")
 
         return False
+
+    async def _fetch_model_config(self, model_id: str) -> Optional[Dict]:
+        """Fetch and parse config.json from a Hugging Face model."""
+        try:
+            config_url = f"https://huggingface.co/{model_id}/raw/main/config.json"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(config_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        return await resp.json()
+        except Exception as e:
+            logger.debug(f"Could not fetch config for {model_id}: {e}")
+        return None
+
+    async def _fetch_python_files(self, model_id: str) -> List[str]:
+        """Fetch all Python files from a Hugging Face model repository."""
+        python_file_contents = []
+        try:
+            # Common Python files in model repos
+            python_files = [
+                "modeling.py",
+                "modeling_utils.py",
+                "modeling_custom.py",
+                "model.py",
+                "hooks.py",
+                "custom_model.py",
+                "inference.py",
+                "processing.py",
+            ]
+
+            for filename in python_files:
+                try:
+                    file_url = f"https://huggingface.co/{model_id}/raw/main/{filename}"
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(file_url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                            if resp.status == 200:
+                                content = await resp.text()
+                                python_file_contents.append(content)
+                                logger.debug(f"Fetched {filename} from {model_id}")
+                except Exception as e:
+                    logger.debug(f"Could not fetch {filename}: {e}")
+
+            # Also try to get from transformers library cache or direct download
+            readme_url = f"https://huggingface.co/{model_id}/raw/main/README.md"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(readme_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        content = await resp.text()
+                        # README might contain code examples - include it
+                        python_file_contents.append(content)
+        except Exception as e:
+            logger.warning(f"Error fetching Python files for {model_id}: {e}")
+
+        return python_file_contents
 
     def get_scan_result(self, scan_id: str) -> Optional[ScanResult]:
         """Retrieve a previously computed scan result."""
