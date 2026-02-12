@@ -270,20 +270,23 @@ export function DataPoisoningPage() {
                     </div>
 
                     {/* Behavioral Tests Toggle */}
-                    <div className="space-y-4 border-t border-white/10 pt-8">
-                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/20 transition-all">
+                    <div className="space-y-4 border-t border-cyan-500/20 pt-8">
+                      <div className="flex items-center justify-between p-5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-500/30 hover:border-blue-500/50 transition-all">
                         <div className="flex-1">
-                          <Label className="text-gray-300 text-base font-semibold block mb-2">Behavioral Tests</Label>
-                          <p className="text-gray-400 text-sm">Run comprehensive black-box behavioral tests to detect poisoning patterns</p>
+                          <Label className="text-gray-100 text-base font-semibold block mb-2 flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-blue-400" />
+                            Behavioral Tests
+                          </Label>
+                          <p className="text-gray-300 text-sm">Run comprehensive black-box behavioral tests to detect poisoning patterns and backdoors</p>
                         </div>
                         <Switch
                           checked={runTests}
                           onCheckedChange={setRunTests}
-                          className="accent-red-500 ml-4"
+                          className="accent-cyan-500 ml-4"
                         />
                       </div>
-                      <p className="text-gray-500 text-xs ml-4">
-                        {runTests ? "✓ Behavioral tests enabled - scan will take longer but be more thorough" : "○ Behavioral tests disabled - only file safety checks will run"}
+                      <p className={`text-xs ml-4 font-medium transition-colors ${runTests ? "text-cyan-400" : "text-gray-500"}`}>
+                        {runTests ? "✓ Behavioral tests enabled - scan will be thorough but take longer" : "○ Behavioral tests disabled - only file safety checks will run"}
                       </p>
                     </div>
                   </CardContent>
