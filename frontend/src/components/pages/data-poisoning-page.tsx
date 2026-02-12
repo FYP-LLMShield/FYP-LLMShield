@@ -296,25 +296,31 @@ export function DataPoisoningPage() {
               {/* Info Card */}
               <div className="xl:col-span-1">
                 <div className="space-y-6 h-full flex flex-col">
-                  <Card className="glass-card border-blue-500/30 shadow-blue-500/20 flex-1">
-                    <CardHeader className="pb-4 border-b border-white/5">
+                  <Card className="glass-card border-purple-500/40 shadow-lg shadow-purple-500/20 flex-1 bg-gradient-to-br from-slate-900/80 to-slate-800/50 hover:border-purple-500/60 transition-all">
+                    <CardHeader className="pb-4 border-b border-purple-500/20">
                       <CardTitle className="text-white text-lg flex items-center gap-2">
-                        <Lock className="w-5 h-5 text-blue-400" />
+                        <Lock className="w-5 h-5 text-purple-400" />
                         Detection Checks
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-5 pt-6">
-                      <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                        <p className="text-blue-300 font-semibold mb-1 text-sm">📁 File Safety</p>
-                        <p className="text-gray-400 text-xs">Format, serialization, suspicious patterns</p>
+                    <CardContent className="space-y-4 pt-6">
+                      <div className="p-4 bg-gradient-to-br from-cyan-500/15 to-blue-500/10 rounded-lg border border-cyan-500/30 hover:border-cyan-500/50 transition-all">
+                        <p className="text-cyan-300 font-bold mb-1 text-sm flex items-center gap-2">
+                          <span>📁</span> File Safety
+                        </p>
+                        <p className="text-gray-300 text-xs">Format, serialization, code patterns</p>
                       </div>
-                      <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                        <p className="text-purple-300 font-semibold mb-1 text-sm">🔍 Behavioral Tests</p>
-                        <p className="text-gray-400 text-xs">Refusal rates, triggers, consistency, injection</p>
+                      <div className="p-4 bg-gradient-to-br from-blue-500/15 to-purple-500/10 rounded-lg border border-blue-500/30 hover:border-blue-500/50 transition-all">
+                        <p className="text-blue-300 font-bold mb-1 text-sm flex items-center gap-2">
+                          <span>🧪</span> Behavioral Tests
+                        </p>
+                        <p className="text-gray-300 text-xs">Refusal, triggers, consistency, injection</p>
                       </div>
-                      <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                        <p className="text-yellow-300 font-semibold mb-1 text-sm">⚠️ Probabilistic</p>
-                        <p className="text-gray-400 text-xs">Detection is probabilistic, not guaranteed</p>
+                      <div className="p-4 bg-gradient-to-br from-purple-500/15 to-pink-500/10 rounded-lg border border-purple-500/30 hover:border-purple-500/50 transition-all">
+                        <p className="text-purple-300 font-bold mb-1 text-sm flex items-center gap-2">
+                          <span>📊</span> Risk Assessment
+                        </p>
+                        <p className="text-gray-300 text-xs">System & behavior manipulation scores</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -323,10 +329,10 @@ export function DataPoisoningPage() {
                     onClick={startScan}
                     disabled={!modelUrl.trim() || isLoading}
                     size="lg"
-                    className="w-full h-14 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-red-500/50 transition-all duration-300 hover-lift text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-14 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 hover:from-cyan-700 hover:via-blue-700 hover:to-purple-700 text-white shadow-xl hover:shadow-cyan-500/50 transition-all duration-300 hover-lift text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Search className="mr-2 h-5 w-5" />
-                    {isLoading ? "Scanning..." : "Start Scan"}
+                    {isLoading ? "Analyzing..." : "Start Scan"}
                   </Button>
                 </div>
               </div>
@@ -337,22 +343,22 @@ export function DataPoisoningPage() {
         {/* Scanning Phase */}
         {scanPhase === "scanning" && (
           <div className="animate-fadeIn">
-            <Card className="glass-card border-red-500/30 shadow-red-500/50">
-              <CardHeader className="pb-8 border-b border-white/5">
+            <Card className="glass-card border-cyan-500/40 shadow-lg shadow-cyan-500/50 bg-gradient-to-br from-slate-900/80 to-slate-800/50">
+              <CardHeader className="pb-8 border-b border-cyan-500/20">
                 <CardTitle className="text-white text-3xl flex items-center gap-4 mb-2">
-                  <div className="p-2 bg-red-500/20 rounded-lg">
-                    <Loader className="w-6 h-6 text-red-400 animate-spin" />
+                  <div className="p-2 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg">
+                    <Loader className="w-6 h-6 text-cyan-400 animate-spin" />
                   </div>
-                  Scanning Model for Poisoning
+                  Analyzing Model for Data Poisoning
                 </CardTitle>
-                <p className="text-gray-400 text-sm mt-2">Running comprehensive analysis on the selected model...</p>
+                <p className="text-gray-300 text-sm mt-2 font-medium">Running comprehensive behavioral and file safety analysis...</p>
               </CardHeader>
               <CardContent className="space-y-8 pt-8">
                 {/* Progress Circle */}
                 <div className="flex justify-center">
-                  <div className="relative w-32 h-32 flex items-center justify-center">
+                  <div className="relative w-40 h-40 flex items-center justify-center">
                     <svg className="w-full h-full" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="45" fill="none" stroke="#374151" strokeWidth="4" />
+                      <circle cx="50" cy="50" r="45" fill="none" stroke="#1e3a4f" strokeWidth="4" />
                       <circle
                         cx="50"
                         cy="50"
@@ -367,42 +373,44 @@ export function DataPoisoningPage() {
                       />
                       <defs>
                         <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#ef4444" />
-                          <stop offset="100%" stopColor="#f97316" />
+                          <stop offset="0%" stopColor="#06b6d4" />
+                          <stop offset="50%" stopColor="#3b82f6" />
+                          <stop offset="100%" stopColor="#a855f7" />
                         </linearGradient>
                       </defs>
                     </svg>
                     <div className="absolute text-center">
-                      <div className="text-4xl font-bold text-transparent bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text">
+                      <div className="text-5xl font-bold text-transparent bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text">
                         {scanProgress}%
                       </div>
+                      <div className="text-xs text-gray-400 mt-1">analyzing</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Status Messages */}
                 <div className="space-y-3">
-                  <div className="p-4 bg-white/5 rounded-lg border border-white/10 flex items-start gap-3">
-                    <div className="text-lg">📋</div>
+                  <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 30 ? "bg-cyan-500/15 border-cyan-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
+                    <div className="text-lg">{scanProgress >= 30 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className="text-gray-300 font-medium">File Safety Analysis</p>
-                      <p className="text-gray-400 text-sm">{scanProgress >= 30 ? "✓ In progress" : "Pending"}</p>
+                      <p className={`font-medium ${scanProgress >= 30 ? "text-cyan-300" : "text-gray-300"}`}>File Safety Analysis</p>
+                      <p className="text-gray-400 text-sm">{scanProgress >= 30 ? "Checking formats, serialization, code patterns" : "Pending..."}</p>
                     </div>
                   </div>
                   {runTests && (
-                    <div className="p-4 bg-white/5 rounded-lg border border-white/10 flex items-start gap-3">
-                      <div className="text-lg">🔍</div>
+                    <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 60 ? "bg-blue-500/15 border-blue-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
+                      <div className="text-lg">{scanProgress >= 60 ? "✓" : "○"}</div>
                       <div className="flex-1">
-                        <p className="text-gray-300 font-medium">Behavioral Tests</p>
-                        <p className="text-gray-400 text-sm">{scanProgress >= 60 ? "✓ In progress" : "Pending"}</p>
+                        <p className={`font-medium ${scanProgress >= 60 ? "text-blue-300" : "text-gray-300"}`}>Behavioral Tests</p>
+                        <p className="text-gray-400 text-sm">{scanProgress >= 60 ? "Testing safety, triggers, consistency" : "Pending..."}</p>
                       </div>
                     </div>
                   )}
-                  <div className="p-4 bg-white/5 rounded-lg border border-white/10 flex items-start gap-3">
-                    <div className="text-lg">📊</div>
+                  <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 85 ? "bg-purple-500/15 border-purple-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
+                    <div className="text-lg">{scanProgress >= 85 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className="text-gray-300 font-medium">Risk Assessment</p>
-                      <p className="text-gray-400 text-sm">{scanProgress >= 85 ? "✓ Calculating" : "Pending"}</p>
+                      <p className={`font-medium ${scanProgress >= 85 ? "text-purple-300" : "text-gray-300"}`}>Risk Assessment</p>
+                      <p className="text-gray-400 text-sm">{scanProgress >= 85 ? "Computing risk scores and recommendation" : "Pending..."}</p>
                     </div>
                   </div>
                 </div>
@@ -422,14 +430,14 @@ export function DataPoisoningPage() {
             <div className="flex items-center justify-end gap-3">
               <Button
                 onClick={resetScan}
-                className="border-red-500/30 text-red-400 hover:bg-red-500/20 bg-transparent/50 backdrop-blur-md hover-lift"
+                className="border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20 bg-cyan-500/10 backdrop-blur-md hover-lift transition-all"
               >
                 <Zap className="w-4 h-4 mr-2" />
                 New Scan
               </Button>
               <Button
                 onClick={() => downloadReport("json")}
-                className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 bg-transparent/50 backdrop-blur-md hover-lift"
+                className="border-blue-500/50 text-blue-300 hover:bg-blue-500/20 bg-blue-500/10 backdrop-blur-md hover-lift transition-all"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export JSON
@@ -437,13 +445,13 @@ export function DataPoisoningPage() {
             </div>
 
             {/* Verdict Card - Enhanced */}
-            <Card className="glass-card border-red-500/30 shadow-red-500/20 overflow-hidden">
+            <Card className="glass-card border-cyan-500/40 shadow-lg shadow-cyan-500/20 overflow-hidden bg-gradient-to-br from-slate-900/80 to-slate-800/50">
               <div className={`bg-gradient-to-r ${
                 scanResult.verdict === "safe"
-                  ? "from-green-600/20 to-emerald-600/20 border-green-500/20"
+                  ? "from-emerald-600/25 to-cyan-600/20 border-emerald-500/30"
                   : scanResult.verdict === "unsafe"
-                  ? "from-red-600/20 to-orange-600/20 border-red-500/20"
-                  : "from-yellow-600/20 to-orange-600/20 border-yellow-500/20"
+                  ? "from-red-600/25 to-orange-600/20 border-red-500/30"
+                  : "from-yellow-600/25 to-amber-600/20 border-yellow-500/30"
               } border-b px-8 py-8`}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1 space-y-4">
@@ -480,9 +488,9 @@ export function DataPoisoningPage() {
               <CardContent className="space-y-8 pt-8">
                 {/* Risk Assessment */}
                 {scanResult.risk_assessment && (
-                  <div className="space-y-6 border-t border-white/10 pt-8">
+                  <div className="space-y-6 border-t border-cyan-500/20 pt-8">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-red-500/20 rounded-lg">
+                      <div className="p-2 bg-gradient-to-br from-red-500/30 to-orange-500/20 rounded-lg">
                         <AlertTriangle className="w-5 h-5 text-red-400" />
                       </div>
                       <h3 className="text-2xl font-bold text-white">Risk Assessment</h3>
@@ -490,58 +498,58 @@ export function DataPoisoningPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                       {/* System Compromise Risk */}
-                      <div className="bg-gradient-to-br from-red-500/10 to-red-600/5 rounded-lg p-5 border border-red-500/20 hover:border-red-500/40 transition-all backdrop-blur-md group cursor-default">
+                      <div className="bg-gradient-to-br from-red-500/15 to-red-600/5 rounded-xl p-5 border border-red-500/30 hover:border-red-500/50 transition-all backdrop-blur-md group cursor-default shadow-lg shadow-red-500/10">
                         <div className="flex items-center justify-between mb-4">
-                          <label className="text-gray-300 text-sm font-bold">System Compromise</label>
+                          <label className="text-gray-200 text-sm font-bold">System Compromise</label>
                           <div className="text-2xl font-bold text-red-400 group-hover:scale-110 transition-transform">{Math.round(scanResult.risk_assessment.system_compromise_risk * 100)}%</div>
                         </div>
-                        <div className="h-3 bg-gray-700/50 rounded-full overflow-hidden border border-white/10">
+                        <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden border border-red-500/20">
                           <div
                             className="h-full bg-gradient-to-r from-red-500 via-red-500 to-orange-500 rounded-full transition-all duration-500"
                             style={{ width: `${scanResult.risk_assessment.system_compromise_risk * 100}%` }}
                           />
                         </div>
-                        <p className="text-gray-400 text-xs mt-3">Risk of unauthorized system access</p>
+                        <p className="text-gray-300 text-xs mt-3 font-medium">Unauthorized access risk</p>
                       </div>
 
                       {/* Behavior Manipulation Risk */}
-                      <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 rounded-lg p-5 border border-yellow-500/20 hover:border-yellow-500/40 transition-all backdrop-blur-md group cursor-default">
+                      <div className="bg-gradient-to-br from-amber-500/15 to-yellow-600/5 rounded-xl p-5 border border-amber-500/30 hover:border-amber-500/50 transition-all backdrop-blur-md group cursor-default shadow-lg shadow-amber-500/10">
                         <div className="flex items-center justify-between mb-4">
-                          <label className="text-gray-300 text-sm font-bold">Behavior Manipulation</label>
-                          <div className="text-2xl font-bold text-yellow-400 group-hover:scale-110 transition-transform">{Math.round(scanResult.risk_assessment.behavior_manipulation_risk * 100)}%</div>
+                          <label className="text-gray-200 text-sm font-bold">Behavior Manipulation</label>
+                          <div className="text-2xl font-bold text-amber-400 group-hover:scale-110 transition-transform">{Math.round(scanResult.risk_assessment.behavior_manipulation_risk * 100)}%</div>
                         </div>
-                        <div className="h-3 bg-gray-700/50 rounded-full overflow-hidden border border-white/10">
+                        <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden border border-amber-500/20">
                           <div
-                            className="h-full bg-gradient-to-r from-yellow-500 via-yellow-500 to-red-500 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-amber-500 via-yellow-500 to-red-500 rounded-full transition-all duration-500"
                             style={{ width: `${scanResult.risk_assessment.behavior_manipulation_risk * 100}%` }}
                           />
                         </div>
-                        <p className="text-gray-400 text-xs mt-3">Risk of model behavior modification</p>
+                        <p className="text-gray-300 text-xs mt-3 font-medium">Behavior modification risk</p>
                       </div>
 
                       {/* Combined Risk */}
-                      <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-lg p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all backdrop-blur-md group cursor-default">
+                      <div className="bg-gradient-to-br from-purple-500/15 to-purple-600/5 rounded-xl p-5 border border-purple-500/30 hover:border-purple-500/50 transition-all backdrop-blur-md group cursor-default shadow-lg shadow-purple-500/10">
                         <div className="flex items-center justify-between mb-4">
-                          <label className="text-gray-300 text-sm font-bold">Combined Risk</label>
+                          <label className="text-gray-200 text-sm font-bold">Combined Risk</label>
                           <div className="text-2xl font-bold text-purple-400 group-hover:scale-110 transition-transform">{Math.round(scanResult.risk_assessment.combined_risk_score * 100)}%</div>
                         </div>
-                        <div className="h-3 bg-gray-700/50 rounded-full overflow-hidden border border-white/10">
+                        <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden border border-purple-500/20">
                           <div
-                            className="h-full bg-gradient-to-r from-purple-500 via-purple-500 to-red-500 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 rounded-full transition-all duration-500"
                             style={{ width: `${scanResult.risk_assessment.combined_risk_score * 100}%` }}
                           />
                         </div>
-                        <p className="text-gray-400 text-xs mt-3">Overall risk assessment score</p>
+                        <p className="text-gray-300 text-xs mt-3 font-medium">Overall risk score</p>
                       </div>
                     </div>
 
                     {/* Recommendation */}
-                    <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-lg p-6 backdrop-blur-md mt-6">
+                    <div className="bg-gradient-to-r from-cyan-500/15 via-blue-500/10 to-purple-500/10 border border-cyan-500/40 rounded-xl p-6 backdrop-blur-md mt-6 shadow-lg shadow-cyan-500/10">
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">💡</span>
                         <div className="flex-1">
-                          <p className="text-blue-300 font-bold mb-2 text-lg">Recommendation</p>
-                          <p className="text-gray-200 leading-relaxed">{scanResult.risk_assessment.recommendation}</p>
+                          <p className="text-cyan-300 font-bold mb-2 text-lg">Recommendation</p>
+                          <p className="text-gray-200 leading-relaxed font-medium">{scanResult.risk_assessment.recommendation}</p>
                         </div>
                       </div>
                     </div>
@@ -550,46 +558,46 @@ export function DataPoisoningPage() {
 
                 {/* File Safety */}
                 {scanResult.file_safety && (
-                  <div className="space-y-6 border-t border-white/10 pt-8">
+                  <div className="space-y-6 border-t border-cyan-500/20 pt-8">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <Lock className="w-5 h-5 text-blue-400" />
+                      <div className="p-2 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg">
+                        <Lock className="w-5 h-5 text-cyan-400" />
                       </div>
                       <h3 className="text-2xl font-bold text-white">File Safety Analysis</h3>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                      <div className={`p-4 rounded-lg border backdrop-blur-md text-center ${scanResult.file_safety.has_safe_format ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}>
-                        <p className="text-gray-400 text-sm mb-2">Safe Format</p>
-                        <p className={`text-xl font-bold ${scanResult.file_safety.has_safe_format ? "text-green-400" : "text-red-400"}`}>
+                      <div className={`p-4 rounded-lg border backdrop-blur-md text-center transition-all ${scanResult.file_safety.has_safe_format ? "bg-emerald-500/15 border-emerald-500/40 shadow-lg shadow-emerald-500/10" : "bg-red-500/15 border-red-500/40 shadow-lg shadow-red-500/10"}`}>
+                        <p className="text-gray-300 text-sm mb-2 font-medium">Safe Format</p>
+                        <p className={`text-xl font-bold ${scanResult.file_safety.has_safe_format ? "text-emerald-400" : "text-red-400"}`}>
                           {scanResult.file_safety.has_safe_format ? "✓" : "✗"}
                         </p>
                       </div>
-                      <div className={`p-4 rounded-lg border backdrop-blur-md text-center ${!scanResult.file_safety.has_unsafe_serialization ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}>
-                        <p className="text-gray-400 text-sm mb-2">Unsafe Serialization</p>
-                        <p className={`text-xl font-bold ${!scanResult.file_safety.has_unsafe_serialization ? "text-green-400" : "text-red-400"}`}>
+                      <div className={`p-4 rounded-lg border backdrop-blur-md text-center transition-all ${!scanResult.file_safety.has_unsafe_serialization ? "bg-emerald-500/15 border-emerald-500/40 shadow-lg shadow-emerald-500/10" : "bg-red-500/15 border-red-500/40 shadow-lg shadow-red-500/10"}`}>
+                        <p className="text-gray-300 text-sm mb-2 font-medium">Unsafe Serialization</p>
+                        <p className={`text-xl font-bold ${!scanResult.file_safety.has_unsafe_serialization ? "text-emerald-400" : "text-red-400"}`}>
                           {!scanResult.file_safety.has_unsafe_serialization ? "✓" : "✗"}
                         </p>
                       </div>
-                      <div className={`p-4 rounded-lg border backdrop-blur-md text-center ${!scanResult.file_safety.has_suspicious_code ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}>
-                        <p className="text-gray-400 text-sm mb-2">Suspicious Code</p>
-                        <p className={`text-xl font-bold ${!scanResult.file_safety.has_suspicious_code ? "text-green-400" : "text-red-400"}`}>
+                      <div className={`p-4 rounded-lg border backdrop-blur-md text-center transition-all ${!scanResult.file_safety.has_suspicious_code ? "bg-emerald-500/15 border-emerald-500/40 shadow-lg shadow-emerald-500/10" : "bg-red-500/15 border-red-500/40 shadow-lg shadow-red-500/10"}`}>
+                        <p className="text-gray-300 text-sm mb-2 font-medium">Suspicious Code</p>
+                        <p className={`text-xl font-bold ${!scanResult.file_safety.has_suspicious_code ? "text-emerald-400" : "text-red-400"}`}>
                           {!scanResult.file_safety.has_suspicious_code ? "✓" : "✗"}
                         </p>
                       </div>
-                      <div className="p-4 rounded-lg border bg-purple-500/10 border-purple-500/20 backdrop-blur-md text-center">
-                        <p className="text-gray-400 text-sm mb-2">Risk Score</p>
+                      <div className="p-4 rounded-lg border bg-gradient-to-br from-purple-500/15 to-pink-500/10 border-purple-500/30 backdrop-blur-md text-center shadow-lg shadow-purple-500/10 transition-all hover:border-purple-500/50">
+                        <p className="text-gray-300 text-sm mb-2 font-medium">Risk Score</p>
                         <p className="text-xl font-bold text-purple-400">{Math.round(scanResult.file_safety.risk_score * 100)}%</p>
                       </div>
                     </div>
 
                     <div className="space-y-3">
                       {scanResult.file_safety.details.map((detail, idx) => (
-                        <div key={idx} className="flex items-start gap-4 p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/20 transition-all">
+                        <div key={idx} className="flex items-start gap-4 p-4 bg-gradient-to-r from-slate-800/50 to-slate-700/30 rounded-lg border border-slate-600/30 hover:border-slate-500/50 transition-all hover:bg-slate-800/70">
                           <div className="text-2xl mt-0.5 flex-shrink-0">
                             {detail.includes("✓") ? "✅" : "⚠️"}
                           </div>
-                          <p className="text-gray-300 text-sm leading-relaxed">{detail}</p>
+                          <p className="text-gray-200 text-sm leading-relaxed font-medium">{detail}</p>
                         </div>
                       ))}
                     </div>
@@ -598,36 +606,36 @@ export function DataPoisoningPage() {
 
                 {/* Behavioral Tests */}
                 {scanResult.behavioral_tests.length > 0 && (
-                  <div className="space-y-6 border-t border-white/10 pt-8">
+                  <div className="space-y-6 border-t border-cyan-500/20 pt-8">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-purple-500/20 rounded-lg">
-                        <Zap className="w-5 h-5 text-purple-400" />
+                      <div className="p-2 bg-gradient-to-br from-blue-500/30 to-purple-500/20 rounded-lg">
+                        <Zap className="w-5 h-5 text-blue-400" />
                       </div>
                       <h3 className="text-2xl font-bold text-white">Behavioral Tests</h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {scanResult.behavioral_tests.map((test, idx) => (
-                        <div key={idx} className={`rounded-lg p-5 border backdrop-blur-md transition-all hover:border-white/20 ${test.passed ? "bg-green-500/5 border-green-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+                        <div key={idx} className={`rounded-xl p-5 border backdrop-blur-md transition-all hover:border-opacity-100 shadow-lg ${test.passed ? "bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/40 hover:border-emerald-500/60 shadow-emerald-500/10" : "bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/40 hover:border-red-500/60 shadow-red-500/10"}`}>
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h4 className="text-white font-bold text-lg">{test.test_name}</h4>
-                              <p className="text-gray-400 text-sm mt-2">{test.details}</p>
+                              <p className="text-gray-300 text-sm mt-2">{test.details}</p>
                             </div>
-                            <Badge className={`${test.passed ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"} text-white whitespace-nowrap ml-3 px-3 py-1`}>
+                            <Badge className={`${test.passed ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"} text-white whitespace-nowrap ml-3 px-3 py-1 font-semibold`}>
                               {test.passed ? "✓ PASS" : "✗ FAIL"}
                             </Badge>
                           </div>
                           <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                            <span className="text-gray-400 text-xs">Confidence</span>
+                            <span className="text-gray-300 text-xs font-medium">Confidence</span>
                             <div className="flex items-center gap-2">
-                              <div className="w-20 h-2 bg-gray-700/50 rounded-full overflow-hidden">
+                              <div className="w-20 h-2 bg-slate-700/50 rounded-full overflow-hidden border border-white/10">
                                 <div
-                                  className={`h-full ${test.passed ? "bg-green-500" : "bg-red-500"}`}
+                                  className={`h-full ${test.passed ? "bg-emerald-500" : "bg-red-500"}`}
                                   style={{ width: `${test.confidence * 100}%` }}
                                 />
                               </div>
-                              <span className="text-gray-300 font-semibold text-xs min-w-12">{Math.round(test.confidence * 100)}%</span>
+                              <span className="text-gray-200 font-semibold text-xs min-w-12">{Math.round(test.confidence * 100)}%</span>
                             </div>
                           </div>
                         </div>
