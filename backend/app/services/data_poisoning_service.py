@@ -534,7 +534,7 @@ class DataPoisoningScanner:
             # Anomalies found
             anomalies = []
             risk_indicators = 0
-            max_risk = 5
+            max_risk = 6
 
             # 1. Check safetensors size for anomalies
             if safetensors_info:
@@ -580,24 +580,39 @@ class DataPoisoningScanner:
                     anomalies.append(f"⚠️ Unusual number of files: {file_count} (typical: 8-15)")
                     risk_indicators += 1
 
-            # 4. Try to analyze actual weight patterns if available
+            # 4. Try to analyze actual weight patterns (ACTUAL WEIGHT DOWNLOAD)
             try:
-                # Attempt to get weight metadata for statistical analysis
-                weight_data = await self._analyze_weight_statistics_from_api(model_id)
-                if weight_data:
-                    if weight_data.get("has_outliers"):
+                # Try to download and analyze real weights
+                weight_analysis = await self._analyze_actual_weights(model_id)
+                if weight_analysis:
+                    if weight_analysis.get("has_outliers"):
                         anomalies.append("⚠️ Extreme weight outliers detected (>100x std)")
-                        risk_indicators += 1
-                    if weight_data.get("has_sparse_patterns"):
+                        risk_indicators += 2  # Higher weight for actual detection
+                    if weight_analysis.get("has_sparse_patterns"):
                         anomalies.append("⚠️ Sparse weight patterns detected (potential backdoor mask)")
+                        risk_indicators += 2
+                    if weight_analysis.get("has_unusual_distribution"):
+                        anomalies.append("⚠️ Unusual weight distribution detected")
                         risk_indicators += 1
             except Exception as e:
-                logger.debug(f"Could not analyze weight statistics: {e}")
+                logger.debug(f"Could not download weights: {e}. Trying API fallback...")
+                # Fallback to API-based analysis
+                try:
+                    weight_data = await self._analyze_weight_statistics_from_api(model_id)
+                    if weight_data:
+                        if weight_data.get("has_outliers"):
+                            anomalies.append("⚠️ Weight anomalies detected (via metadata)")
+                            risk_indicators += 1
+                        if weight_data.get("has_sparse_patterns"):
+                            anomalies.append("⚠️ Unusual parameter patterns detected")
+                            risk_indicators += 1
+                except Exception as e2:
+                    logger.debug(f"API fallback also failed: {e2}")
 
             # Calculate risk score
             risk_score = min(1.0, risk_indicators / max_risk)
             passed = risk_indicators == 0
-            confidence = 0.80 if len(anomalies) > 0 else 0.85
+            confidence = 0.85 if len(anomalies) > 0 else 0.80
 
             metrics = {
                 "anomalies_found": len(anomalies),
@@ -1155,6 +1170,168 @@ class DataPoisoningScanner:
 
         except Exception as e:
             logger.debug(f"Could not load weights via API for {model_id}: {e}")
+            return None
+
+    async def _analyze_actual_weights(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        ACTUAL WEIGHT ANALYSIS: Download safetensors file and analyze weights for poisoning indicators.
+
+        Detects:
+        - Extreme outliers (weights >100x standard deviation)
+        - Sparse patterns (>90% zeros = backdoor mask)
+        - Unusual distributions
+
+        Returns: Dictionary with poisoning indicators
+        """
+        try:
+            # Find safetensors file URL
+            weight_file_url = await self._find_weight_file(model_id, format="safetensors")
+            if not weight_file_url:
+                # Fallback to pytorch
+                weight_file_url = await self._find_weight_file(model_id, format="pytorch")
+                if not weight_file_url:
+                    logger.debug(f"No weight files found for {model_id}")
+                    return None
+
+            logger.info(f"Downloading weights from {weight_file_url} for analysis...")
+
+            # Load weights based on file type
+            if weight_file_url.endswith(".safetensors"):
+                weights = await self._load_safetensors(model_id, weight_file_url)
+            else:
+                weights = await self._load_pytorch_weights(model_id, weight_file_url)
+
+            if not weights:
+                logger.debug(f"Could not load weights for {model_id}")
+                return None
+
+            # Analyze weights for poisoning indicators
+            has_outliers = False
+            has_sparse_patterns = False
+            has_unusual_distribution = False
+
+            outlier_count = 0
+            sparse_count = 0
+            total_layers = 0
+
+            for layer_name, weights_data in weights.items():
+                total_layers += 1
+
+                if weights_data is None or len(weights_data.shape) == 0:
+                    continue
+
+                try:
+                    # Convert to numpy if not already
+                    if not isinstance(weights_data, np.ndarray):
+                        weights_data = np.array(weights_data)
+
+                    weights_flat = weights_data.flatten()
+
+                    # 1. Check for extreme outliers (>100x standard deviation)
+                    mean = np.mean(weights_flat)
+                    std = np.std(weights_flat)
+
+                    if std > 0:
+                        max_val = np.max(np.abs(weights_flat))
+                        if max_val > 100 * std:
+                            has_outliers = True
+                            outlier_count += 1
+                            logger.debug(f"Layer {layer_name}: Extreme outlier detected (max={max_val:.2f}, 100*std={100*std:.2f})")
+
+                    # 2. Check for sparse patterns (>90% zeros = backdoor mask)
+                    zero_count = np.count_nonzero(weights_flat == 0)
+                    sparsity = zero_count / len(weights_flat) if len(weights_flat) > 0 else 0
+
+                    if sparsity > 0.9:  # >90% zeros
+                        has_sparse_patterns = True
+                        sparse_count += 1
+                        logger.debug(f"Layer {layer_name}: Sparse pattern detected (sparsity={sparsity:.1%})")
+
+                    # 3. Check for unusual distributions
+                    # Compare distribution to expected (mostly normal for LLMs)
+                    if len(weights_flat) > 100:
+                        # Check if distribution is too uniform or bimodal
+                        sorted_weights = np.sort(weights_flat)
+                        quartile_25 = sorted_weights[len(sorted_weights)//4]
+                        quartile_75 = sorted_weights[3*len(sorted_weights)//4]
+
+                        # Uniform distribution would have similar values across quartiles
+                        if abs(quartile_25) < 0.001 and abs(quartile_75) < 0.001:
+                            has_unusual_distribution = True
+                            logger.debug(f"Layer {layer_name}: Unusual (uniform) distribution detected")
+
+                except Exception as e:
+                    logger.debug(f"Error analyzing layer {layer_name}: {e}")
+                    continue
+
+            analysis = {
+                "has_outliers": has_outliers,
+                "has_sparse_patterns": has_sparse_patterns,
+                "has_unusual_distribution": has_unusual_distribution,
+                "layers_analyzed": total_layers,
+                "anomalous_layers": outlier_count + sparse_count,
+            }
+
+            logger.info(f"Weight analysis for {model_id}: outliers={has_outliers}, sparse={has_sparse_patterns}, unusual_dist={has_unusual_distribution}")
+
+            return analysis if (has_outliers or has_sparse_patterns or has_unusual_distribution) else None
+
+        except Exception as e:
+            logger.warning(f"Weight analysis failed for {model_id}: {e}")
+            return None
+
+    async def _analyze_weight_statistics_from_api(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        FALLBACK ANALYSIS: Analyze weight statistics using HuggingFace API metadata.
+        When actual weight download fails, use API metadata to detect anomalies.
+
+        Returns: Dictionary with poisoning indicators based on metadata
+        """
+        try:
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status != 200:
+                        return None
+
+                    data = await resp.json()
+                    safetensors_info = data.get("safetensors", {})
+
+            if not safetensors_info:
+                return None
+
+            # Analyze metadata for poisoning indicators
+            indicators = {
+                "has_outliers": False,
+                "has_sparse_patterns": False,
+            }
+
+            # Check parameter types
+            params = safetensors_info.get("parameters", {})
+            if params:
+                # INT4 quantization can be used to hide backdoors
+                if "INT4" in params:
+                    indicators["has_outliers"] = True
+                    logger.debug(f"INT4 quantization detected in {model_id}")
+
+                # Mixed INT8 + F32 is unusual (suggests layer insertion)
+                if "INT8" in params and "F32" in params:
+                    indicators["has_sparse_patterns"] = True
+                    logger.debug(f"Mixed precision (INT8+F32) detected in {model_id}")
+
+            # Check file structure
+            total_size = safetensors_info.get("total", 0)
+
+            # Very large size for supposedly small model
+            if total_size > 5 * 1024**3:  # >5GB
+                indicators["has_outliers"] = True
+                logger.debug(f"Unusually large safetensors file ({total_size / 1024**3:.1f}GB) in {model_id}")
+
+            return indicators if any(indicators.values()) else None
+
+        except Exception as e:
+            logger.debug(f"API-based weight analysis failed for {model_id}: {e}")
             return None
 
     def _extract_base_model(self, model_id: str) -> Optional[str]:
