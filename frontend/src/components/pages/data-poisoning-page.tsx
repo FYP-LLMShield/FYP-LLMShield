@@ -194,25 +194,27 @@ export function DataPoisoningPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{backgroundColor: '#0f1419'}}>
+    <div className="min-h-screen p-6" style={{backgroundColor: '#0a0e27'}}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
           <div className="animate-fadeIn flex-1">
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-lg border border-red-500/30">
-                <Database className="w-8 h-8 text-red-400" />
+              <div className="p-3 bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 rounded-xl border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+                <Database className="w-8 h-8 text-cyan-400" />
               </div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-red-400 via-orange-400 to-red-400 bg-clip-text text-transparent mb-0" style={{lineHeight: '1.2'}}>
-                Model Poisoning Detection
-              </h1>
+              <div>
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-0" style={{lineHeight: '1.2'}}>
+                  Data Poisoning Detection
+                </h1>
+              </div>
             </div>
-            <p className="text-gray-400 text-lg ml-16">Advanced behavioral analysis and file safety checks for Hugging Face models</p>
+            <p className="text-gray-300 text-base ml-16 font-medium">Detect malicious data injection and model manipulation using advanced behavioral analysis</p>
           </div>
           {scanPhase !== "setup" && (
             <Button
               onClick={resetScan}
-              className="border-red-500/30 text-red-400 hover:bg-red-500/20 bg-transparent/50 backdrop-blur-md hover-lift animate-glow ml-8"
+              className="border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/20 bg-cyan-500/10 backdrop-blur-md hover-lift ml-8 transition-all duration-300"
             >
               <Zap className="mr-2 h-4 w-4" />
               New Scan
@@ -224,7 +226,7 @@ export function DataPoisoningPage() {
         {scanPhase === "setup" && (
           <div className="space-y-8">
             {error && (
-              <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-5 backdrop-blur-md animate-pulse">
+              <div className="bg-gradient-to-r from-red-500/15 to-orange-500/10 border border-red-400/40 rounded-xl p-5 backdrop-blur-md animate-pulse shadow-lg shadow-red-500/10">
                 <div className="flex items-start space-x-3">
                   <AlertTriangle className="h-6 w-6 text-red-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
@@ -238,30 +240,31 @@ export function DataPoisoningPage() {
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 animate-fadeIn">
               {/* Main Input Card */}
               <div className="xl:col-span-3">
-                <Card className="glass-card border-red-500/30 shadow-red-500/20 h-full hover:border-red-500/50 transition-all duration-300">
-                  <CardHeader className="pb-6 border-b border-white/5">
+                <Card className="glass-card border-cyan-500/40 shadow-lg shadow-cyan-500/20 h-full hover:border-cyan-500/60 transition-all duration-300 bg-gradient-to-br from-slate-900/80 to-slate-800/50">
+                  <CardHeader className="pb-6 border-b border-cyan-500/20">
                     <CardTitle className="text-white text-2xl flex items-center gap-3">
-                      <div className="p-2 bg-red-500/20 rounded-lg">
-                        <Database className="w-6 h-6 text-red-400" />
+                      <div className="p-2 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg">
+                        <Database className="w-6 h-6 text-cyan-400" />
                       </div>
                       Scan Configuration
                     </CardTitle>
-                    <p className="text-gray-400 text-sm mt-2">Enter the Hugging Face model URL to analyze</p>
+                    <p className="text-gray-300 text-sm mt-2 font-medium">Provide a Hugging Face model URL for advanced analysis</p>
                   </CardHeader>
                   <CardContent className="space-y-8 pt-8">
                     {/* Model URL Input */}
                     <div className="space-y-4">
-                      <Label className="text-gray-300 text-base font-semibold">Hugging Face Model URL</Label>
-                      <div className="relative">
+                      <Label className="text-gray-200 text-base font-semibold">🔗 Hugging Face Model URL</Label>
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-all duration-300" />
                         <Input
                           value={modelUrl}
                           onChange={(e) => setModelUrl(e.target.value)}
                           placeholder="https://huggingface.co/username/model-name"
-                          className="bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-md border border-white/10 hover:border-white/20 text-white placeholder-gray-500 focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20 transition-all duration-300 pl-4 py-3"
+                          className="relative bg-gradient-to-r from-slate-800/50 to-slate-900/50 backdrop-blur-md border border-cyan-500/30 hover:border-cyan-500/60 text-white placeholder-gray-500 focus:border-cyan-400/80 focus:ring-2 focus:ring-cyan-400/30 transition-all duration-300 pl-4 py-3"
                         />
                       </div>
                       <p className="text-gray-400 text-sm flex items-center gap-2">
-                        <span className="text-blue-400">💡</span>
+                        <span>💡</span>
                         Example: https://huggingface.co/meta-llama/Llama-2-7b
                       </p>
                     </div>
