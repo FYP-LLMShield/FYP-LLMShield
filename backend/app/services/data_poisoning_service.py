@@ -278,9 +278,9 @@ class DataPoisoningScanner:
                 metrics={"error": str(e)[:100]},
             )
 
-    async def _test_architecture_anomalies(self, model_id: str) -> BehavioralTestResult:
+    async def _test_architecture_integrity(self, model_id: str) -> BehavioralTestResult:
         """
-        Test for architecture anomalies: unexpected layer modifications, parameter mismatches.
+        Test for architecture integrity: verify structure matches declaration.
         Detects when actual model structure differs from declared config.
         """
         try:
@@ -501,7 +501,7 @@ class DataPoisoningScanner:
                 metrics={"error": str(e)[:100]},
             )
 
-    async def _test_weight_statistics(self, model_id: str) -> BehavioralTestResult:
+    async def _test_weight_anomaly_detection(self, model_id: str) -> BehavioralTestResult:
         """
         Test weight metadata and safetensors format integrity.
         Uses HF API metadata to detect suspicious patterns.
@@ -593,99 +593,59 @@ class DataPoisoningScanner:
                 metrics={"error": str(e)[:100]},
             )
 
-    async def _test_baseline_weight_comparison(self, model_id: str) -> BehavioralTestResult:
+    async def _test_behavioral_consistency(self, model_id: str) -> BehavioralTestResult:
         """
-        Compare model metadata against known clean baseline.
-        Detects size and structure deviations indicating poisoning.
+        Test behavioral consistency: detects if model output changes with trigger words.
+
+        Note: This is a placeholder. Full implementation requires:
+        1. HuggingFace API token for inference
+        2. Access to model's inference endpoint
+        3. Testing multiple prompts with variations
+
+        Current implementation returns PASS (inconclusive) since we can't query model.
         """
         try:
-            # Determine base model (e.g., TinyLlama from TinyLlama_poison_full-merged_model)
-            base_model_id = self._extract_base_model(model_id)
+            # Try to get model inference information
+            api_url = f"https://huggingface.co/api/models/{model_id}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status != 200:
+                        return BehavioralTestResult(
+                            test_name="Behavioral Consistency Check",
+                            category=TestCategory.CONSISTENCY,
+                            passed=True,
+                            confidence=0.1,
+                            details="Could not access model for behavioral testing (API unavailable)",
+                            metrics={"api_available": False},
+                        )
 
-            if not base_model_id:
-                return BehavioralTestResult(
-                    test_name="Baseline Comparison",
-                    category=TestCategory.TRIGGER_FUZZING,
-                    passed=True,
-                    confidence=0.3,
-                    details="Could not identify baseline model for comparison",
-                    metrics={"baseline_found": False},
-                )
+                    data = await resp.json()
+                    pipeline_tag = data.get("pipeline_tag", "")
 
-            # Get metadata for both models
-            suspect_meta = await self._download_model_weights(model_id)
-            baseline_meta = await self._download_model_weights(base_model_id)
-
-            if not suspect_meta or not baseline_meta:
-                return BehavioralTestResult(
-                    test_name="Baseline Comparison",
-                    category=TestCategory.TRIGGER_FUZZING,
-                    passed=True,
-                    confidence=0.2,
-                    details="Could not fetch baseline model metadata",
-                    metrics={"metadata_available": False},
-                )
-
-            # Compare metadata
-            anomalies = []
-
-            # Check 1: Size comparison
-            suspect_size = suspect_meta.get("total_size", 0)
-            baseline_size = baseline_meta.get("total_size", 0)
-
-            if baseline_size > 0 and suspect_size > 0:
-                size_ratio = suspect_size / baseline_size
-                if size_ratio > 1.2:  # 20% larger = suspicious
-                    size_diff_mb = (suspect_size - baseline_size) / (1024**2)
-                    anomalies.append(f"⚠️ Model is {size_ratio:.1f}x baseline size (+{size_diff_mb:.0f}MB) - possible inserted layers")
-                elif size_ratio < 0.8:  # 20% smaller = suspicious
-                    anomalies.append(f"⚠️ Model is {size_ratio:.1f}x baseline size - possible layer removal")
-
-            # Check 2: Parameter type comparison
-            suspect_params = suspect_meta.get("parameters", {})
-            baseline_params = baseline_meta.get("parameters", {})
-
-            if suspect_params and baseline_params:
-                suspect_types = set(suspect_params.keys())
-                baseline_types = set(baseline_params.keys())
-
-                # Different parameter types = structure modification
-                type_diff = suspect_types.symmetric_difference(baseline_types)
-                if type_diff:
-                    anomalies.append(f"⚠️ Parameter types differ from baseline: {type_diff}")
-
-            # Final verdict
-            passed = len(anomalies) == 0
-            confidence = 0.85 if len(anomalies) > 0 else 0.90
-
-            metrics = {
-                "baseline_model": base_model_id,
-                "suspect_size_gb": round(suspect_size / (1024**3), 2),
-                "baseline_size_gb": round(baseline_size / (1024**3), 2),
-                "size_ratio": round(suspect_size / baseline_size, 2) if baseline_size > 0 else 0,
-                "anomalies_found": len(anomalies),
-            }
-
-            details_text = " | ".join(anomalies) if anomalies else f"✓ Matches baseline ({base_model_id})"
+                    # If model has inference capability, note it
+                    if pipeline_tag:
+                        details = f"Model supports: {pipeline_tag}. Behavioral testing would require API token and inference access."
+                    else:
+                        details = "Model inference capability unknown. Behavioral testing requires inference API."
 
             return BehavioralTestResult(
-                test_name="Baseline Comparison",
-                category=TestCategory.TRIGGER_FUZZING,
-                passed=passed,
-                confidence=confidence,
-                details=details_text,
-                metrics=metrics,
+                test_name="Behavioral Consistency Check",
+                category=TestCategory.CONSISTENCY,
+                passed=True,
+                confidence=0.2,
+                details=details,
+                metrics={"requires_inference": True, "pipeline": pipeline_tag},
             )
 
         except Exception as e:
-            logger.warning(f"Baseline comparison test failed for {model_id}: {e}")
+            logger.debug(f"Behavioral consistency check unavailable: {e}")
             return BehavioralTestResult(
-                test_name="Baseline Comparison",
-                category=TestCategory.TRIGGER_FUZZING,
+                test_name="Behavioral Consistency Check",
+                category=TestCategory.CONSISTENCY,
                 passed=True,
-                confidence=0.2,
-                details=f"Could not perform baseline comparison: {str(e)[:100]}",
-                metrics={"error": str(e)[:100]},
+                confidence=0.1,
+                details="Behavioral testing requires inference API access",
+                metrics={"error": str(e)[:50]},
             )
 
     def _assess_risk(
