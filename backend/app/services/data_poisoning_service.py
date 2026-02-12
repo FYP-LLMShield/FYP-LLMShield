@@ -179,9 +179,14 @@ class DataPoisoningScanner:
     async def _run_behavioral_tests(self, model_id: str) -> List[BehavioralTestResult]:
         """
         Run comprehensive behavioral and weight-based tests.
-        Tests code patterns, weight anomalies, architecture integrity, and weight statistics.
+        Tests trigger words, code patterns, weight anomalies, architecture integrity.
         """
         tests = []
+
+        # Test 0: Trigger Word Detection (IMMEDIATE RED FLAG)
+        # Models with "poison", "backdoor", "trojan" = suspicious by design
+        trigger_test = await self._test_trigger_word_detection(model_id)
+        tests.append(trigger_test)
 
         # Test 1: Code Pattern Detection (dangerous code in model files)
         code_pattern_test = await self._test_code_pattern_detection(model_id)
