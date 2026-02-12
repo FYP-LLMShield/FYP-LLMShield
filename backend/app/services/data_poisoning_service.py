@@ -606,12 +606,15 @@ class DataPoisoningScanner:
         return model_url
 
     async def _check_model_readme(self, model_id: str) -> bool:
-        """Check model README for suspicious patterns."""
-        suspicious_patterns = [
-            r"rm -rf", r"eval\(", r"__import__", r"exec\(", r"subprocess",
-            r"os\.system", r"pickle", r"torch\.load", r"backdoor", r"trojan",
-            r"poison", r"malicious", r"hidden", r"trigger", r"exploit",
-            r"__del__", r"__setattr__", r"__getattr__", r"globals\(\)",
+        """Check model README for suspicious code patterns (not narrative text)."""
+        # Focus on actual dangerous code patterns, not narrative keywords
+        # These patterns indicate actual code execution capabilities
+        dangerous_code_patterns = [
+            r"eval\s*\(", r"exec\s*\(", r"compile\s*\(",
+            r"__import__\s*\(", r"subprocess\.", r"os\.system\(",
+            r"os\.popen\(", r"pickle\.load", r"torch\.load.*allow_pickle",
+            r"__del__\s*\(", r"__setattr__\s*\(", r"__getattr__\s*\(",
+            r"globals\s*\(\)", r"locals\s*\(\)", r"vars\s*\(\)",
         ]
 
         try:
@@ -621,9 +624,9 @@ class DataPoisoningScanner:
                 async with session.get(readme_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status == 200:
                         content = await resp.text()
-                        for pattern in suspicious_patterns:
+                        for pattern in dangerous_code_patterns:
                             if __import__('re').search(pattern, content, __import__('re').IGNORECASE):
-                                logger.warning(f"Found suspicious pattern '{pattern}' in {model_id} README")
+                                logger.warning(f"Found suspicious code pattern '{pattern}' in {model_id} README")
                                 return True
         except Exception as e:
             logger.debug(f"Could not fetch README for {model_id}: {e}")
@@ -664,10 +667,10 @@ class DataPoisoningScanner:
         return True
 
     async def _detect_risky_files(self, model_id: str) -> List[str]:
-        """Detect risky files in the model repo."""
+        """Detect files with dangerous extensions (executables, compiled binaries, scripts)."""
         risky_files = []
-        risky_extensions = [".exe", ".sh", ".bat", ".dll", ".so", ".py"]
-        suspicious_names = ["backdoor", "trojan", "poison", "malicious", "exploit", "hidden"]
+        # Only flag actual executable/compiled code, not narrative keywords
+        dangerous_extensions = [".exe", ".sh", ".bat", ".dll", ".so", ".dylib", ".pyd"]
 
         try:
             api_url = f"https://huggingface.co/api/models/{model_id}"
@@ -680,16 +683,11 @@ class DataPoisoningScanner:
                         for file_info in siblings:
                             filename = file_info["rfilename"].lower()
 
-                            # Check for risky extensions
-                            for ext in risky_extensions:
+                            # Check for dangerous executable/compiled extensions
+                            for ext in dangerous_extensions:
                                 if filename.endswith(ext):
                                     risky_files.append(filename)
-                                    break
-
-                            # Check for suspicious filenames
-                            for suspicious in suspicious_names:
-                                if suspicious in filename and filename not in risky_files:
-                                    risky_files.append(filename)
+                                    logger.warning(f"Found dangerous file type in {model_id}: {filename}")
                                     break
         except Exception as e:
             logger.debug(f"Could not detect risky files for {model_id}: {e}")
