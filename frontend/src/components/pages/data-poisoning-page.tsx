@@ -299,34 +299,34 @@ export function DataPoisoningPage() {
                 </Card>
               </div>
 
-              {/* Info Card */}
-              <div className="xl:col-span-1">
+              {/* Features & CTA Card */}
+              <div className="lg:col-span-1">
                 <div className="space-y-6 h-full flex flex-col">
-                  <Card className="glass-card border-purple-500/40 shadow-lg shadow-purple-500/20 flex-1 bg-gradient-to-br from-slate-900/80 to-slate-800/50 hover:border-purple-500/60 transition-all">
-                    <CardHeader className="pb-4 border-b border-purple-500/20">
-                      <CardTitle className="text-white text-lg flex items-center gap-2">
-                        <Lock className="w-5 h-5 text-purple-400" />
-                        Detection Checks
+                  <Card className="border-2 border-indigo-500/60 shadow-xl shadow-indigo-500/20 flex-1 bg-gradient-to-br from-slate-900 to-slate-800">
+                    <CardHeader className="pb-4 border-b border-indigo-500/40 bg-gradient-to-r from-indigo-950/50 to-transparent">
+                      <CardTitle className="text-blue-100 text-xl font-bold flex items-center gap-2">
+                        <Shield className="w-6 h-6 text-indigo-400" />
+                        What We Check
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 pt-6">
-                      <div className="p-4 bg-gradient-to-br from-cyan-500/15 to-blue-500/10 rounded-lg border border-cyan-500/30 hover:border-cyan-500/50 transition-all">
-                        <p className="text-cyan-300 font-bold mb-1 text-sm flex items-center gap-2">
-                          <span>📁</span> File Safety
+                      <div className="p-4 bg-gradient-to-br from-blue-950/50 to-blue-900/30 rounded-lg border border-blue-500/40 hover:border-blue-400 transition-all">
+                        <p className="text-blue-200 font-bold mb-2 text-sm flex items-center gap-2">
+                          <Activity className="w-4 h-4" /> File Safety
                         </p>
-                        <p className="text-gray-300 text-xs">Format, serialization, code patterns</p>
+                        <p className="text-gray-300 text-xs">Format, serialization, code</p>
                       </div>
-                      <div className="p-4 bg-gradient-to-br from-blue-500/15 to-purple-500/10 rounded-lg border border-blue-500/30 hover:border-blue-500/50 transition-all">
-                        <p className="text-blue-300 font-bold mb-1 text-sm flex items-center gap-2">
-                          <span>🧪</span> Behavioral Tests
+                      <div className="p-4 bg-gradient-to-br from-indigo-950/50 to-indigo-900/30 rounded-lg border border-indigo-500/40 hover:border-indigo-400 transition-all">
+                        <p className="text-indigo-200 font-bold mb-2 text-sm flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4" /> Behavioral Tests
                         </p>
-                        <p className="text-gray-300 text-xs">Refusal, triggers, consistency, injection</p>
+                        <p className="text-gray-300 text-xs">Safety, triggers, consistency</p>
                       </div>
-                      <div className="p-4 bg-gradient-to-br from-purple-500/15 to-pink-500/10 rounded-lg border border-purple-500/30 hover:border-purple-500/50 transition-all">
-                        <p className="text-purple-300 font-bold mb-1 text-sm flex items-center gap-2">
-                          <span>📊</span> Risk Assessment
+                      <div className="p-4 bg-gradient-to-br from-purple-950/50 to-purple-900/30 rounded-lg border border-purple-500/40 hover:border-purple-400 transition-all">
+                        <p className="text-purple-200 font-bold mb-2 text-sm flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4" /> Risk Scoring
                         </p>
-                        <p className="text-gray-300 text-xs">System & behavior manipulation scores</p>
+                        <p className="text-gray-300 text-xs">System & behavior risks</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -334,10 +334,9 @@ export function DataPoisoningPage() {
                   <Button
                     onClick={startScan}
                     disabled={!modelUrl.trim() || isLoading}
-                    size="lg"
-                    className="w-full h-14 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 hover:from-cyan-700 hover:via-blue-700 hover:to-purple-700 text-white shadow-xl hover:shadow-cyan-500/50 transition-all duration-300 hover-lift text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-16 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-700 hover:via-indigo-700 hover:to-blue-700 text-white shadow-xl hover:shadow-blue-500/50 transition-all duration-300 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
                   >
-                    <Search className="mr-2 h-5 w-5" />
+                    <Search className="mr-3 h-6 w-6" />
                     {isLoading ? "Analyzing..." : "Start Scan"}
                   </Button>
                 </div>
@@ -349,22 +348,22 @@ export function DataPoisoningPage() {
         {/* Scanning Phase */}
         {scanPhase === "scanning" && (
           <div className="animate-fadeIn">
-            <Card className="glass-card border-cyan-500/40 shadow-lg shadow-cyan-500/50 bg-gradient-to-br from-slate-900/80 to-slate-800/50">
-              <CardHeader className="pb-8 border-b border-cyan-500/20">
-                <CardTitle className="text-white text-3xl flex items-center gap-4 mb-2">
-                  <div className="p-2 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg">
-                    <Loader className="w-6 h-6 text-cyan-400 animate-spin" />
+            <Card className="border-2 border-blue-500/60 shadow-2xl shadow-blue-500/40 bg-gradient-to-br from-slate-900 to-slate-800">
+              <CardHeader className="pb-8 border-b border-blue-500/40 bg-gradient-to-r from-blue-950/50 to-transparent">
+                <CardTitle className="text-white text-4xl font-bold flex items-center gap-4 mb-3">
+                  <div className="p-3 bg-gradient-to-br from-blue-500/40 to-indigo-500/30 rounded-lg">
+                    <Loader className="w-8 h-8 text-blue-300 animate-spin" />
                   </div>
-                  Analyzing Model for Data Poisoning
+                  Analyzing Your Model
                 </CardTitle>
-                <p className="text-gray-300 text-sm mt-2 font-medium">Running comprehensive behavioral and file safety analysis...</p>
+                <p className="text-blue-100 text-lg mt-2 font-semibold">Running advanced poisoning detection analysis...</p>
               </CardHeader>
               <CardContent className="space-y-8 pt-8">
                 {/* Progress Circle */}
-                <div className="flex justify-center">
-                  <div className="relative w-40 h-40 flex items-center justify-center">
+                <div className="flex justify-center py-12">
+                  <div className="relative w-56 h-56 flex items-center justify-center">
                     <svg className="w-full h-full" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="45" fill="none" stroke="#1e3a4f" strokeWidth="4" />
+                      <circle cx="50" cy="50" r="45" fill="none" stroke="#1e3a8a" strokeWidth="3" />
                       <circle
                         cx="50"
                         cy="50"
@@ -379,44 +378,43 @@ export function DataPoisoningPage() {
                       />
                       <defs>
                         <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#06b6d4" />
-                          <stop offset="50%" stopColor="#3b82f6" />
-                          <stop offset="100%" stopColor="#a855f7" />
+                          <stop offset="0%" stopColor="#3b82f6" />
+                          <stop offset="100%" stopColor="#6366f1" />
                         </linearGradient>
                       </defs>
                     </svg>
                     <div className="absolute text-center">
-                      <div className="text-5xl font-bold text-transparent bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text">
+                      <div className="text-7xl font-black text-transparent bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text">
                         {scanProgress}%
                       </div>
-                      <div className="text-xs text-gray-400 mt-1">analyzing</div>
+                      <div className="text-sm text-blue-300 mt-2 font-semibold">analyzing model</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Status Messages */}
-                <div className="space-y-3">
-                  <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 30 ? "bg-cyan-500/15 border-cyan-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
-                    <div className="text-lg">{scanProgress >= 30 ? "✓" : "○"}</div>
+                <div className="space-y-4 py-8">
+                  <div className={`p-5 rounded-xl border-2 flex items-start gap-4 transition-all ${scanProgress >= 30 ? "bg-blue-950/50 border-blue-500/60" : "bg-slate-900/40 border-slate-600/40"}`}>
+                    <div className={`text-2xl font-bold ${scanProgress >= 30 ? "text-blue-400" : "text-gray-500"}`}>{scanProgress >= 30 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className={`font-medium ${scanProgress >= 30 ? "text-cyan-300" : "text-gray-300"}`}>File Safety Analysis</p>
-                      <p className="text-gray-400 text-sm">{scanProgress >= 30 ? "Checking formats, serialization, code patterns" : "Pending..."}</p>
+                      <p className={`font-bold text-lg ${scanProgress >= 30 ? "text-blue-200" : "text-gray-300"}`}>File Safety Analysis</p>
+                      <p className="text-gray-400 text-sm mt-1">{scanProgress >= 30 ? "✅ Checking formats, serialization, code patterns" : "⏳ Waiting to start..."}</p>
                     </div>
                   </div>
                   {runTests && (
-                    <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 60 ? "bg-blue-500/15 border-blue-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
-                      <div className="text-lg">{scanProgress >= 60 ? "✓" : "○"}</div>
+                    <div className={`p-5 rounded-xl border-2 flex items-start gap-4 transition-all ${scanProgress >= 60 ? "bg-indigo-950/50 border-indigo-500/60" : "bg-slate-900/40 border-slate-600/40"}`}>
+                      <div className={`text-2xl font-bold ${scanProgress >= 60 ? "text-indigo-400" : "text-gray-500"}`}>{scanProgress >= 60 ? "✓" : "○"}</div>
                       <div className="flex-1">
-                        <p className={`font-medium ${scanProgress >= 60 ? "text-blue-300" : "text-gray-300"}`}>Behavioral Tests</p>
-                        <p className="text-gray-400 text-sm">{scanProgress >= 60 ? "Testing safety, triggers, consistency" : "Pending..."}</p>
+                        <p className={`font-bold text-lg ${scanProgress >= 60 ? "text-indigo-200" : "text-gray-300"}`}>Behavioral Tests</p>
+                        <p className="text-gray-400 text-sm mt-1">{scanProgress >= 60 ? "✅ Testing safety, triggers, consistency" : "⏳ Waiting to start..."}</p>
                       </div>
                     </div>
                   )}
-                  <div className={`p-4 rounded-lg border flex items-start gap-3 transition-all ${scanProgress >= 85 ? "bg-purple-500/15 border-purple-500/40" : "bg-slate-500/10 border-slate-500/30"}`}>
-                    <div className="text-lg">{scanProgress >= 85 ? "✓" : "○"}</div>
+                  <div className={`p-5 rounded-xl border-2 flex items-start gap-4 transition-all ${scanProgress >= 85 ? "bg-purple-950/50 border-purple-500/60" : "bg-slate-900/40 border-slate-600/40"}`}>
+                    <div className={`text-2xl font-bold ${scanProgress >= 85 ? "text-purple-400" : "text-gray-500"}`}>{scanProgress >= 85 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className={`font-medium ${scanProgress >= 85 ? "text-purple-300" : "text-gray-300"}`}>Risk Assessment</p>
-                      <p className="text-gray-400 text-sm">{scanProgress >= 85 ? "Computing risk scores and recommendation" : "Pending..."}</p>
+                      <p className={`font-bold text-lg ${scanProgress >= 85 ? "text-purple-200" : "text-gray-300"}`}>Risk Assessment</p>
+                      <p className="text-gray-400 text-sm mt-1">{scanProgress >= 85 ? "✅ Computing risk scores and recommendation" : "⏳ Waiting to start..."}</p>
                     </div>
                   </div>
                 </div>
