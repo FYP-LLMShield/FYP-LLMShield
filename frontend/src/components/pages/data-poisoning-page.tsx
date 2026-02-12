@@ -204,14 +204,14 @@ export function DataPoisoningPage() {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-6">
-                <div className="p-4 bg-gradient-to-br from-blue-500/30 to-indigo-500/20 rounded-xl border border-blue-400/50 shadow-xl shadow-blue-500/20">
-                  <Database className="w-10 h-10 text-blue-300" />
+                <div className="p-3 bg-gradient-to-br from-blue-500/30 to-indigo-500/20 rounded-lg border border-blue-400/50 shadow-lg shadow-blue-500/20">
+                  <Database className="w-7 h-7 text-blue-300" />
                 </div>
                 <div>
-                  <h1 className="text-6xl font-black bg-gradient-to-r from-blue-300 via-cyan-300 to-blue-300 bg-clip-text text-transparent mb-2" style={{lineHeight: '1.1'}}>
+                  <h1 className="text-5xl font-bold gradient-text-cyber mb-2 animate-pulse-glow" style={{lineHeight: '1.1', paddingBottom: '4px'}}>
                     Data Poisoning Detection
                   </h1>
-                  <p className="text-gray-300 text-lg font-semibold">Advanced behavioral analysis for Hugging Face models</p>
+                  <p className="text-gray-300 text-base font-semibold">Advanced behavioral analysis for Hugging Face models</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm ml-0 max-w-2xl">Detect malicious data injection, backdoors, and behavioral manipulations using file safety checks and black-box behavioral tests.</p>
@@ -259,20 +259,19 @@ export function DataPoisoningPage() {
                   <CardContent className="space-y-8 pt-8">
                     {/* Model URL Input */}
                     <div className="space-y-4">
-                      <Label className="text-blue-100 text-lg font-bold block">🔗 Model Repository URL</Label>
+                      <Label className="text-gray-200 text-base font-semibold block">🔗 Hugging Face Model URL</Label>
                       <div className="relative group">
                         <Input
                           value={modelUrl}
                           onChange={(e) => setModelUrl(e.target.value)}
                           placeholder="https://huggingface.co/meta-llama/Llama-2-7b"
-                          className="w-full bg-slate-800 border-2 border-blue-400/60 hover:border-blue-300 focus:border-blue-200 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 py-4 px-5 text-base rounded-lg"
+                          className="w-full bg-white/5 backdrop-blur-md border border-white/10 text-black placeholder-gray-400 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 py-3 px-4 rounded-lg"
                         />
                       </div>
-                      <div className="bg-blue-950/30 border border-blue-500/40 rounded-lg p-4">
-                        <p className="text-blue-200 text-sm font-medium">
-                          ✨ Tip: Enter any public Hugging Face model URL (e.g., meta-llama/Llama-2-7b, mistralai/Mistral-7B-v0.1)
-                        </p>
-                      </div>
+                      <p className="text-gray-400 text-sm flex items-center gap-2">
+                        <span>💡</span>
+                        Example: https://huggingface.co/meta-llama/Llama-2-7b
+                      </p>
                     </div>
 
                     {/* Behavioral Tests Toggle */}
