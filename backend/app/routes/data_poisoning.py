@@ -57,7 +57,7 @@ async def initiate_scan(
     - `progress_percent`: Progress percentage (0-100)
     """
     try:
-        logger.info(f"Scan initiated by user {current_user.get('email')} for model: {request.model_url}")
+        logger.info(f"Scan initiated by user {current_user.email} for model: {request.model_url}")
 
         scanner = get_scanner()
 
@@ -130,7 +130,7 @@ async def quick_scan(
     """
     try:
         logger.info(
-            f"Quick scan initiated by user {current_user.get('email')} for model: {request.model_url}"
+            f"Quick scan initiated by user {current_user.email} for model: {request.model_url}"
         )
 
         scanner = get_scanner()
