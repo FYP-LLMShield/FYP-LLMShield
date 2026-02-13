@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     try:
         await connect_to_mongo()
         app.state.db_connected = True
-        print("🚀 Database connected successfully")
+        print("[OK] Database connected successfully")
     except Exception as e:
         print("STARTUP WARNING (MongoDB):", str(e))
         traceback.print_exc()
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
         await mcp_registry.stop_all()
     if getattr(app.state, "db_connected", False):
         await close_mongo_connection()
-    print("📴 Shutdown complete")
+    print("[OK] Shutdown complete")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
