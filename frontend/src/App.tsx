@@ -32,7 +32,7 @@ const VectorSecurityPage = React.lazy(() => import('./components/pages/vector-se
 const CodeScannerPage = React.lazy(() => import('./components/pages/code-scanning-page').then(module => ({ default: module.CodeScanningPage })));
 const SettingsPage = React.lazy(() => import('./components/pages/settings-page').then(module => ({ default: module.SettingsPage })));
 const HistoryPage = React.lazy(() => import('./components/pages/history-page').then(module => ({ default: module.HistoryPage })));
-const DataPoisoningPage = React.lazy(() => import('./components/pages/data-poisoning-page').then(module => ({ default: module.default })));
+const DataPoisoningPage = React.lazy(() => import('./components/pages/dataset-poisoning-page').then(module => ({ default: module.default })));
 const UserProfilePage = React.lazy(() => import('./pages/dashboard/UserProfilePage'));
 const MFASettingsPage = React.lazy(() => import('./pages/dashboard/MFASettingsPage'));
 
