@@ -557,12 +557,24 @@ class DataPoisoningScanner:
                             metrics={"api_response_type": str(type(data))},
                         )
 
-                    safetensors_info = data.get("safetensors", {})
-                    siblings = data.get("siblings", [])
+                    safetensors_info = data.get("safetensors", {}) if isinstance(data, dict) else {}
+                    siblings = data.get("siblings", []) if isinstance(data, dict) else []
 
                     # Validate siblings is a list
                     if not isinstance(siblings, list):
                         siblings = []
+
+                    # If no siblings data, test is inconclusive
+                    if not safetensors_info and not siblings:
+                        return BehavioralTestResult(
+                            test_name="Weight Anomaly Detection",
+                            category=TestCategory.CONSISTENCY,
+                            passed=True,
+                            confidence=0.3,
+                            details="⚠️ Could not fetch weight metadata - insufficient data for analysis",
+                            metrics={"metadata_available": False},
+                            status="inconclusive",
+                        )
 
             # Anomalies found
             anomalies = []

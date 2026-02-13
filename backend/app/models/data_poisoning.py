@@ -35,6 +35,10 @@ class BehavioralTestResult(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0-1)")
     details: str = Field(..., description="Details about the test result")
     metrics: Dict[str, Any] = Field(default_factory=dict, description="Numeric metrics from the test")
+    status: str = Field(
+        default="completed",
+        description="Test status: 'completed' (check ran fully), 'inconclusive' (couldn't verify)"
+    )
 
 
 class FileSafetyResult(BaseModel):
