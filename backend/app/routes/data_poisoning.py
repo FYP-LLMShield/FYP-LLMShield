@@ -8,6 +8,8 @@ from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from fastapi.responses import JSONResponse
 import logging
 import io
+import asyncio
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 from app.models.dataset_poisoning import (
     DatasetAnalysisRequest,
@@ -129,19 +131,69 @@ async def analyze_huggingface_dataset(
             logger.info(f"Extracted dataset ID: {dataset_id}")
 
             # Load without trust_remote_code (deprecated in newer versions)
+            # With timeout to prevent hanging on large datasets
+            dataset = None
+            last_error = None
+            LOAD_TIMEOUT = 120  # 2 minute timeout
+
+            async def load_with_timeout():
+                """Load dataset with timeout using asyncio."""
+                loop = asyncio.get_event_loop()
+                try:
+                    # Run blocking load_dataset in thread pool with timeout
+                    if request.huggingface_config:
+                        return await asyncio.wait_for(
+                            loop.run_in_executor(None, load_dataset, dataset_id, request.huggingface_config),
+                            timeout=LOAD_TIMEOUT
+                        )
+                    else:
+                        return await asyncio.wait_for(
+                            loop.run_in_executor(None, load_dataset, dataset_id),
+                            timeout=LOAD_TIMEOUT
+                        )
+                except asyncio.TimeoutError:
+                    raise TimeoutError(f"Dataset loading timed out after {LOAD_TIMEOUT}s. Dataset may be too large.")
+
             try:
-                # Try loading with specified config if provided
-                if request.huggingface_config:
-                    dataset = load_dataset(dataset_id, request.huggingface_config)
-                else:
-                    # Load without config (will use default split)
-                    dataset = load_dataset(dataset_id)
+                logger.info(f"Loading dataset: {dataset_id} (timeout: {LOAD_TIMEOUT}s)")
+                dataset = await load_with_timeout()
+            except TimeoutError as e:
+                last_error = str(e)
+                logger.warning(f"Dataset load timeout: {last_error}")
+            except ValueError as e:
+                last_error = str(e)
+                # Check if it's a config missing error
+                if "config name is missing" in str(e).lower():
+                    logger.info(f"Config required for {dataset_id}. Attempting to load first available config...")
+                    try:
+                        # Try to extract available configs from error message
+                        error_str = str(e)
+                        if "example of usage" in error_str.lower():
+                            import re
+                            configs = re.findall(r"'([a-z_]+)'", error_str)
+                            if configs:
+                                first_config = configs[0]
+                                logger.info(f"Trying with config: {first_config}")
+                                dataset = await load_with_timeout()  # This will fail too, but try anyway
+                    except Exception as retry_error:
+                        last_error = str(retry_error)
             except Exception as e:
-                # If it fails, try with trust_remote_code=False explicitly
-                if request.huggingface_config:
-                    dataset = load_dataset(dataset_id, request.huggingface_config, trust_remote_code=False)
-                else:
-                    dataset = load_dataset(dataset_id, trust_remote_code=False)
+                last_error = str(e)
+
+            # If still not loaded, try with trust_remote_code=False (without timeout for fallback)
+            if dataset is None and not isinstance(last_error, TimeoutError):
+                try:
+                    logger.info(f"Retrying with trust_remote_code=False...")
+                    if request.huggingface_config:
+                        dataset = load_dataset(dataset_id, request.huggingface_config, trust_remote_code=False)
+                    else:
+                        dataset = load_dataset(dataset_id, trust_remote_code=False)
+                except Exception as e:
+                    last_error = str(e)
+
+            # If still failed, raise the error
+            if dataset is None:
+                raise Exception(last_error or "Failed to load dataset")
 
             # Convert to DataFrame (use first split if multiple)
             if isinstance(dataset, dict):
@@ -170,10 +222,20 @@ async def analyze_huggingface_dataset(
             logger.error(f"HF dataset loading error: {e}", exc_info=True)
 
             # Provide specific error messages for common issues
-            if "trust_remote_code" in error_msg or "loading script" in error_msg:
+            if "timeout" in error_msg or "timed out" in error_msg:
+                raise HTTPException(
+                    status_code=408,
+                    detail=f"Dataset loading timed out (>120s). Dataset is too large or network is slow. Try a smaller dataset like 'imdb', 'ag_news', or 'wikitext'."
+                )
+            elif "trust_remote_code" in error_msg or "loading script" in error_msg:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Dataset '{dataset_id}' requires a loading script which is no longer supported. Please use a dataset in standard format (CSV, Parquet, etc.) or check the dataset's documentation for alternative versions."
+                )
+            elif "config name is missing" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Dataset '{dataset_id}' requires specifying a config/subset. Please provide config name in the 'Config/Subset' field (e.g., 'ach_asr', 'ach_tts'). Check dataset page for available configs."
                 )
             elif "couldn't find" in error_msg or "filenotfound" in error_msg:
                 raise HTTPException(
