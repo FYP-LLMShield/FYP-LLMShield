@@ -31,7 +31,7 @@ from app.routes.scan_history import router as scan_history_router
 from app.routes.prompt_injection import router as prompt_injection_router
 from app.routes.data_poisoning import router as data_poisoning_router
 from app.routes.poisoning_simulation import router as poisoning_simulation_router
-from app.routes.dataset_poisoning import router as dataset_poisoning_router
+from app.routes.dataset_poisoning_routes import router as dataset_poisoning_router
 
 
 @asynccontextmanager

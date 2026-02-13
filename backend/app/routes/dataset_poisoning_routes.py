@@ -11,11 +11,10 @@ import io
 
 from app.models.dataset_poisoning import (
     DatasetAnalysisRequest,
-    DatasetAnalysisResponse,
     DatasetAnalysisResult,
 )
 from app.services.dataset_poisoning_service import get_detector
-from app.dependencies import get_current_user
+from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dataset-poisoning", tags=["dataset-poisoning"])
