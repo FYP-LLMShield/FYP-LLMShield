@@ -317,10 +317,10 @@ class DatasetPoisoningDetector:
             passed=risk_score < 0.2,
             confidence=0.88,
             findings=findings,
-            risk_score=min(1.0, risk_score),
+            risk_score=float(min(1.0, risk_score)),
             metrics={
-                "numeric_columns": len(numeric_cols),
-                "anomalies_found": anomaly_count,
+                "numeric_columns": int(len(numeric_cols)),
+                "anomalies_found": int(anomaly_count),
                 "detection_strength": "Enhanced" if anomaly_count > 0 else "Standard"
             },
         )
