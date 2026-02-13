@@ -214,11 +214,15 @@ class DatasetPoisoningDetector:
         results.append(self._test_distributions(df))
         logger.info("✓ Distribution testing completed")
 
-        # 9. Entropy Analysis (NEW)
+        # 9. BACKDOOR TRIGGER DETECTION (CRITICAL - NEW!)
+        results.append(self._detect_backdoor_triggers(df))
+        logger.info("✓ Backdoor trigger detection completed")
+
+        # 10. Entropy Analysis (NEW)
         results.append(self._analyze_entropy(df))
         logger.info("✓ Entropy analysis completed")
 
-        # 10. Feature Dependency Analysis (NEW)
+        # 11. Feature Dependency Analysis (NEW)
         results.append(self._analyze_feature_dependencies(df))
         logger.info("✓ Feature dependency analysis completed")
 
@@ -705,6 +709,170 @@ class DatasetPoisoningDetector:
 
         return suspicious
 
+    def _detect_backdoor_triggers(self, df: pd.DataFrame) -> DetectionResult:
+        """
+        CRITICAL: Detect backdoor triggers (Option 1 + 4 combined)
+        - Extract anomalous keyword frequencies from instruction/input fields
+        - Correlate with output quality/anomalies
+        - Identify potential poisoning trigger keywords
+        """
+        findings = []
+        risk_score = 0
+        suspicious_tokens = []
+
+        try:
+            # Find text columns (instruction, input, output)
+            text_cols = df.select_dtypes(include=["object"]).columns
+            instruction_col = None
+            input_col = None
+            output_col = None
+
+            # Identify columns by name
+            for col in text_cols:
+                col_lower = col.lower()
+                if "instruction" in col_lower or "prompt" in col_lower:
+                    instruction_col = col
+                elif "input" in col_lower and "instruction" not in col_lower:
+                    input_col = col
+                elif "output" in col_lower or "response" in col_lower or "answer" in col_lower:
+                    output_col = col
+
+            if instruction_col is None:
+                instruction_col = text_cols[0] if len(text_cols) > 0 else None
+
+            if instruction_col is None:
+                return DetectionResult(
+                    technique=DetectionTechniqueType.ENTROPY_ANALYSIS,
+                    passed=True,
+                    confidence=0.5,
+                    findings=["No text columns found for trigger detection"],
+                    risk_score=0,
+                    metrics={"text_columns_analyzed": 0}
+                )
+
+            # OPTION 1: Frequency-Based Detection
+            # Extract all tokens from instruction + input fields
+            all_text = ""
+            for col in [instruction_col, input_col]:
+                if col is not None and col in df.columns:
+                    all_text += " " + df[col].astype(str).str.lower().str.cat(sep=" ")
+
+            # Split into tokens and calculate frequencies
+            import re
+            tokens = re.findall(r"\b\w+\b|[^\w\s]", all_text.lower())
+            token_freq = {}
+            for token in tokens:
+                if len(token) > 2:  # Ignore very short tokens
+                    token_freq[token] = token_freq.get(token, 0) + 1
+
+            total_tokens = len(tokens)
+            dataset_rows = len(df)
+
+            # Find suspiciously frequent tokens
+            # Anomalous = appears in 2-15% of rows (not random, not everywhere)
+            suspicious_token_list = []
+            for token, freq in sorted(token_freq.items(), key=lambda x: x[1], reverse=True):
+                appearance_rate = freq / max(dataset_rows, 1)
+                # Look for tokens that appear suspiciously often
+                if 0.02 <= appearance_rate <= 0.25 and freq >= 3:
+                    suspicious_token_list.append({
+                        "token": token,
+                        "frequency": freq,
+                        "rate": appearance_rate
+                    })
+
+            # OPTION 4: Cross-Field Correlation
+            # For each suspicious token, check correlation with output anomalies
+            if len(suspicious_token_list) > 0:
+                for token_info in suspicious_token_list[:10]:  # Top 10 suspicious tokens
+                    token = token_info["token"]
+                    token_freq_count = token_info["frequency"]
+
+                    # Find rows containing this token
+                    rows_with_token = []
+                    for idx, row in df.iterrows():
+                        row_text = ""
+                        if instruction_col:
+                            row_text += str(row[instruction_col]).lower()
+                        if input_col:
+                            row_text += " " + str(row[input_col]).lower()
+
+                        if token in row_text:
+                            rows_with_token.append(idx)
+
+                    if len(rows_with_token) > 0:
+                        # Analyze outputs of rows with this token
+                        output_anomaly_score = 0
+
+                        if output_col and output_col in df.columns:
+                            outputs_with_token = df.loc[rows_with_token, output_col].astype(str)
+
+                            # Check for output anomalies
+                            # 1. Very short outputs (likely incorrect)
+                            short_outputs = (outputs_with_token.str.len() < 20).sum()
+                            if short_outputs > len(outputs_with_token) * 0.5:
+                                output_anomaly_score += 0.3
+
+                            # 2. Generic/vague outputs
+                            generic_words = ["unknown", "n/a", "sorry", "unable", "cannot", "error"]
+                            generic_count = outputs_with_token[
+                                outputs_with_token.str.contains("|".join(generic_words), case=False)
+                            ].shape[0]
+                            if generic_count > len(outputs_with_token) * 0.3:
+                                output_anomaly_score += 0.3
+
+                            # 3. Outputs that don't relate to instruction
+                            if instruction_col:
+                                instr_with_token = df.loc[rows_with_token, instruction_col].astype(str)
+                                # Check if output keywords overlap with instruction keywords
+                                low_overlap = 0
+                                for idx in rows_with_token:
+                                    instr_words = set(str(df.loc[idx, instruction_col]).lower().split())
+                                    output_words = set(str(df.loc[idx, output_col]).lower().split())
+                                    overlap = len(instr_words & output_words)
+                                    if overlap < 2:
+                                        low_overlap += 1
+                                if low_overlap > len(rows_with_token) * 0.4:
+                                    output_anomaly_score += 0.2
+
+                        # Calculate poison score for this token
+                        token_poison_score = min(1.0, token_info["rate"] * output_anomaly_score)
+
+                        if token_poison_score > 0.1:
+                            findings.append(
+                                f"🔴 Suspicious trigger detected: '{token}' appears {token_freq_count}× ({token_info['rate']:.1%}) with anomalous outputs (anomaly score: {output_anomaly_score:.2f})"
+                            )
+                            risk_score = max(risk_score, token_poison_score)
+                            suspicious_tokens.append({
+                                "token": token,
+                                "frequency": token_freq_count,
+                                "appearance_rate": token_info["rate"],
+                                "output_anomaly": output_anomaly_score,
+                                "poison_score": token_poison_score
+                            })
+
+            # Final verdict
+            if len(suspicious_tokens) > 0:
+                risk_score = min(1.0, sum(t["poison_score"] for t in suspicious_tokens))
+                findings.append(f"Total suspicious trigger keywords detected: {len(suspicious_tokens)}")
+
+        except Exception as e:
+            logger.error(f"Backdoor trigger detection error: {e}", exc_info=True)
+            findings.append(f"Detection error: {str(e)}")
+            risk_score = 0.1  # Conservative risk if detection fails
+
+        return DetectionResult(
+            technique=DetectionTechniqueType.ENTROPY_ANALYSIS,
+            passed=risk_score < 0.2,
+            confidence=0.9 if len(suspicious_tokens) > 0 else 0.7,
+            findings=findings,
+            risk_score=float(min(1.0, risk_score)),
+            metrics={
+                "suspicious_triggers_found": len(suspicious_tokens),
+                "top_triggers": [t["token"] for t in suspicious_tokens[:5]]
+            }
+        )
+
     def _analyze_entropy(self, df: pd.DataFrame) -> DetectionResult:
         """NEW: Entropy-based detection for engineered/manipulated features."""
         findings = []
@@ -834,18 +1002,19 @@ class DatasetPoisoningDetector:
         high_risk_indicators = 0
         critical_flags = 0  # Track critical poisoning indicators
 
-        # Weighted scoring system for 10 detection techniques
+        # Weighted scoring system for 11 detection techniques
+        # CRITICAL: Backdoor trigger detection has HIGHEST weight (30%)
         weights = {
-            DetectionTechniqueType.LABEL_ANALYSIS: 0.25,  # HIGHEST - label poisoning is critical
-            DetectionTechniqueType.STATISTICAL: 0.15,
-            DetectionTechniqueType.TEXT_ANALYSIS: 0.20,  # HIGH - code injection is critical
-            DetectionTechniqueType.INTEGRITY_CHECK: 0.12,
-            DetectionTechniqueType.SAMPLE_PATTERNS: 0.12,
-            DetectionTechniqueType.ENTROPY_ANALYSIS: 0.10,  # ADDED - low-entropy features
-            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.03,
-            DetectionTechniqueType.METADATA_ANALYSIS: 0.02,
+            DetectionTechniqueType.ENTROPY_ANALYSIS: 0.30,  # CRITICAL!!! - Backdoor trigger detection (Option 1+4)
+            DetectionTechniqueType.LABEL_ANALYSIS: 0.20,  # VERY HIGH - label poisoning
+            DetectionTechniqueType.TEXT_ANALYSIS: 0.18,  # HIGH - code injection
+            DetectionTechniqueType.INTEGRITY_CHECK: 0.10,
+            DetectionTechniqueType.SAMPLE_PATTERNS: 0.10,
+            DetectionTechniqueType.STATISTICAL: 0.07,
+            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.02,
+            DetectionTechniqueType.METADATA_ANALYSIS: 0.01,
             DetectionTechniqueType.DISTRIBUTION_TESTS: 0.01,
-            DetectionTechniqueType.FEATURE_DEPENDENCIES: 0.00,  # PLACEHOLDER - minimal weight
+            DetectionTechniqueType.FEATURE_DEPENDENCIES: 0.01,  # Minimal weight
         }
 
         # Calculate weighted risk and check for critical indicators
