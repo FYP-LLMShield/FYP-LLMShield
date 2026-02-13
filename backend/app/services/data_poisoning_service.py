@@ -684,7 +684,8 @@ class DataPoisoningScanner:
             )
 
         except Exception as e:
-            logger.warning(f"Weight anomaly detection f            # When weight analysis fails, mark as INCONCLUSIVE (couldn't verify)
+            logger.warning(f"Weight anomaly detection failed: {e}")
+            # When weight analysis fails, mark as INCONCLUSIVE (couldn't verify)
             # Don't penalize, but reduce confidence in final verdict
             return BehavioralTestResult(
                 test_name="Weight Anomaly Detection",
