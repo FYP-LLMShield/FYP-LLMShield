@@ -8,6 +8,8 @@ import re
 import tempfile
 import subprocess
 import os
+import sys
+import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
