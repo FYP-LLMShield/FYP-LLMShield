@@ -156,32 +156,48 @@ class DatasetPoisoningDetector:
             return None
 
     async def _run_detection_techniques(self, df: pd.DataFrame) -> List[DetectionResult]:
-        """Run all 8 detection techniques."""
+        """Run all 10 detection techniques (8 enhanced + 2 new)."""
         results = []
 
-        # 1. Statistical Anomalies
+        # 1. Statistical Anomalies (ENHANCED)
         results.append(self._detect_statistical_anomalies(df))
+        logger.info("✓ Statistical anomalies detection completed")
 
-        # 2. Label Poisoning
+        # 2. Label Poisoning (ENHANCED)
         results.append(self._detect_label_poisoning(df))
+        logger.info("✓ Label poisoning detection completed")
 
-        # 3. Text Analysis (if text columns exist)
+        # 3. Text Analysis (ENHANCED)
         results.append(self._detect_text_anomalies(df))
+        logger.info("✓ Text analysis completed")
 
-        # 4. Data Integrity
+        # 4. Data Integrity (ORIGINAL)
         results.append(self._check_data_integrity(df))
+        logger.info("✓ Data integrity check completed")
 
-        # 5. Correlation Analysis
+        # 5. Correlation Analysis (ORIGINAL)
         results.append(self._analyze_correlations(df))
+        logger.info("✓ Correlation analysis completed")
 
-        # 6. Metadata Analysis
+        # 6. Metadata Analysis (ORIGINAL)
         results.append(self._analyze_metadata(df))
+        logger.info("✓ Metadata analysis completed")
 
-        # 7. Sample Patterns
+        # 7. Sample Patterns (ORIGINAL)
         results.append(self._detect_sample_patterns(df))
+        logger.info("✓ Sample pattern detection completed")
 
-        # 8. Distribution Tests
+        # 8. Distribution Tests (ORIGINAL)
         results.append(self._test_distributions(df))
+        logger.info("✓ Distribution testing completed")
+
+        # 9. Entropy Analysis (NEW)
+        results.append(self._analyze_entropy(df))
+        logger.info("✓ Entropy analysis completed")
+
+        # 10. Feature Dependency Analysis (NEW)
+        results.append(self._analyze_feature_dependencies(df))
+        logger.info("✓ Feature dependency analysis completed")
 
         return results
 
