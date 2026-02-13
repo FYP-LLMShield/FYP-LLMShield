@@ -314,9 +314,9 @@ export function DatasetPoisoningPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
               {/* Input Card */}
-              <div className="lg:col-span-2">
+              <div>
                 <Card className="border-2 border-purple-500/60 shadow-2xl shadow-purple-500/30 h-full bg-gradient-to-br from-slate-900 to-slate-800">
                   <CardHeader className="pb-6 border-b border-purple-500/40 bg-gradient-to-r from-purple-950/50 to-transparent">
                     <CardTitle className="text-white text-3xl font-bold flex items-center gap-3">
@@ -414,7 +414,7 @@ export function DatasetPoisoningPage() {
                             value={hfConfig}
                             onChange={(e) => setHfConfig(e.target.value)}
                             placeholder="e.g., main, train, validation"
-                            className="w-full bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all py-3 px-4 rounded-lg"
+                            className="w-full bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
                           />
                         </div>
                       </TabsContent>
@@ -429,52 +429,22 @@ export function DatasetPoisoningPage() {
                         value={datasetName}
                         onChange={(e) => setDatasetName(e.target.value)}
                         placeholder="my-dataset"
-                        className="w-full bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all py-3 px-4 rounded-lg"
+                        className="w-full bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
                       />
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Info Card */}
-              <div className="lg:col-span-1">
-                <div className="space-y-6 h-full flex flex-col">
-                  <Card className="border-2 border-pink-500/60 shadow-xl shadow-pink-500/20 flex-1 bg-gradient-to-br from-slate-900 to-slate-800">
-                    <CardHeader className="pb-4 border-b border-pink-500/40 bg-gradient-to-r from-pink-950/50 to-transparent">
-                      <CardTitle className="text-blue-100 text-lg font-bold flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-pink-400" />
-                        Analysis Features
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-6">
-                      {[
-                        { title: "Statistical", desc: "Outliers, anomalies" },
-                        { title: "Label Analysis", desc: "Imbalance, poisoning" },
-                        { title: "Text Scanning", desc: "Injection, code" },
-                        { title: "Integrity", desc: "Duplicates, quality" },
-                        { title: "Correlation", desc: "Suspicious patterns" },
-                        { title: "Metadata", desc: "Structure analysis" },
-                        { title: "Samples", desc: "Synthetic detection" },
-                        { title: "Distribution", desc: "Statistical tests" },
-                      ].map((item, i) => (
-                        <div key={i} className="p-3 bg-gradient-to-br from-purple-950/50 to-pink-900/30 rounded-lg border border-purple-500/40 hover:border-purple-400 transition-all">
-                          <p className="text-purple-200 font-semibold text-sm">{item.title}</p>
-                          <p className="text-gray-400 text-xs">{item.desc}</p>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  <Button
-                    onClick={startAnalysis}
-                    disabled={isLoading}
-                    className="w-full h-14 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 hover:from-purple-700 hover:via-pink-700 hover:to-purple-700 text-white shadow-xl hover:shadow-pink-500/50 transition-all duration-300 text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
-                  >
-                    <Search className="mr-2 h-5 w-5" />
-                    {isLoading ? "Analyzing..." : "Start Analysis"}
-                  </Button>
-                </div>
-              </div>
+              {/* Start Analysis Button */}
+              <Button
+                onClick={startAnalysis}
+                disabled={isLoading}
+                className="w-full h-14 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 hover:from-purple-700 hover:via-pink-700 hover:to-purple-700 text-white shadow-xl hover:shadow-pink-500/50 transition-all duration-300 text-base font-bold disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+              >
+                <Search className="mr-2 h-5 w-5" />
+                {isLoading ? "Analyzing..." : "Start Analysis"}
+              </Button>
             </div>
           </div>
         )}
