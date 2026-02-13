@@ -895,23 +895,36 @@ class DataPoisoningScanner:
 
         else:
             # Risk < 0.3 (appears safe)
-            # But only give SAFE verdict if we're confident in our assessment
-            if assessment_confidence > 0.6:
-                # Good coverage of tests - can be confident it's safe
+            # Check if all COMPLETED tests passed (no actual failures found)
+            failed_in_completed = sum(1 for t in completed_tests if not t.passed)
+
+            if failed_in_completed == 0 and assessment_confidence >= 0.4:
+                # No failures in completed tests + decent coverage = SAFE
                 verdict = VerdictType.SAFE
                 explanation = (
-                    f"Model appears safe based on file analysis and behavioral tests. "
-                    f"No significant poisoning indicators detected."
+                    f"Model appears safe. File format is secure, no dangerous code detected, "
+                    f"and weight distribution is normal. "
+                    f"Standard security practices recommended."
                 )
-                confidence = min(0.90, 0.80 + (assessment_confidence * 0.10))
-            else:
-                # Too many inconclusive tests - be conservative
+                # Confidence: higher if more tests completed
+                confidence = min(0.90, 0.75 + (assessment_confidence * 0.15))
+            elif assessment_confidence < 0.3:
+                # Very few tests completed - too uncertain
                 verdict = VerdictType.SUSPICIOUS
                 explanation = (
-                    f"Model shows low risk, but many tests were inconclusive. "
-                    f"Limited verification data available - recommend manual review."
+                    f"Model shows low risk, but too few tests could be completed. "
+                    f"Insufficient verification data - recommend manual review."
                 )
-                confidence = assessment_confidence * 0.6  # Lower confidence due to incomplete checks
+                confidence = assessment_confidence * 0.5
+            else:
+                # Some failures in completed tests OR low coverage
+                verdict = VerdictType.SUSPICIOUS
+                explanation = (
+                    f"Model shows low risk overall, but some verification gaps exist. "
+                    f"Not enough complete test coverage to confidently mark as safe. "
+                    f"Recommend manual review for production use."
+                )
+                confidence = 0.40 + (assessment_confidence * 0.25)
 
         return verdict, explanation, confidence
 
