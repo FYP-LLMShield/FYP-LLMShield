@@ -83,7 +83,7 @@ class DatasetAnalysisResult(BaseModel):
 class DatasetAnalysisRequest(BaseModel):
     """Request for dataset poisoning analysis"""
     dataset_name: str = Field(..., description="Name of dataset")
-    input_method: str = Field(..., description="'text', 'file', or 'huggingface'")
+    input_method: Optional[str] = Field(None, description="'text', 'file', or 'huggingface' (optional, endpoint determines it)")
 
     # For text paste
     text_content: Optional[str] = Field(None, description="Dataset content as text (CSV, JSON, etc.)")
