@@ -26,6 +26,21 @@ from app.models.dataset_poisoning import (
 logger = logging.getLogger(__name__)
 
 
+def convert_numpy_types(obj):
+    """Convert numpy types to Python native types for JSON serialization."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy_types(item) for item in obj]
+    return obj
+
+
 class DatasetPoisoningDetector:
     """
     Detects data poisoning in datasets using 8 different techniques.
@@ -404,10 +419,10 @@ class DatasetPoisoningDetector:
             passed=risk_score < 0.2,
             confidence=0.85,
             findings=findings,
-            risk_score=min(1.0, risk_score),
+            risk_score=float(min(1.0, risk_score)),
             metrics={
-                "label_columns": len(label_cols),
-                "checks_performed": 4,
+                "label_columns": int(len(label_cols)),
+                "checks_performed": int(4),
                 "detection_methods": ["imbalance", "entropy", "pattern", "consistency"]
             },
         )
@@ -729,8 +744,8 @@ class DatasetPoisoningDetector:
             passed=risk_score < 0.15,
             confidence=0.80,
             findings=findings,
-            risk_score=min(1.0, risk_score),
-            metrics={"entropy_checks": len(numeric_cols) + len(categorical_cols)},
+            risk_score=float(min(1.0, risk_score)),
+            metrics={"entropy_checks": int(len(numeric_cols) + len(categorical_cols))},
         )
 
     def _analyze_feature_dependencies(self, df: pd.DataFrame) -> DetectionResult:
@@ -794,10 +809,10 @@ class DatasetPoisoningDetector:
             passed=risk_score < 0.2,
             confidence=0.82,
             findings=findings,
-            risk_score=min(1.0, risk_score),
+            risk_score=float(min(1.0, risk_score)),
             metrics={
-                "features_analyzed": len(numeric_cols),
-                "suspicious_pairs": len(findings),
+                "features_analyzed": int(len(numeric_cols)),
+                "suspicious_pairs": int(len(findings)),
             },
         )
 
@@ -863,7 +878,7 @@ class DatasetPoisoningDetector:
             confidence = 0.82
             explanation = "Dataset appears clean. No significant poisoning indicators detected across all 10 detection techniques."
 
-        return avg_risk, verdict, confidence, explanation
+        return float(avg_risk), verdict, confidence, explanation
 
     def _generate_recommendation(self, verdict: DatasetVerdictType, risk_score: float) -> str:
         """Generate security recommendation."""
