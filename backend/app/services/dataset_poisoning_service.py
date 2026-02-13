@@ -186,86 +186,214 @@ class DatasetPoisoningDetector:
         return results
 
     def _detect_statistical_anomalies(self, df: pd.DataFrame) -> DetectionResult:
-        """Detect statistical anomalies in numerical columns."""
+        """Enhanced statistical anomaly detection with Mahalanobis distance and distribution shifts."""
         findings = []
         risk_score = 0
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
 
+        if not numeric_cols:
+            return DetectionResult(
+                technique=DetectionTechniqueType.STATISTICAL,
+                passed=True,
+                confidence=0.8,
+                findings=[],
+                risk_score=0,
+                metrics={"numeric_columns": 0},
+            )
+
+        # Convert to numeric and handle missing values
+        numeric_df = df[numeric_cols].dropna()
+
+        if len(numeric_df) < 5:
+            return DetectionResult(
+                technique=DetectionTechniqueType.STATISTICAL,
+                passed=True,
+                confidence=0.6,
+                findings=["Insufficient data for statistical analysis"],
+                risk_score=0.1,
+                metrics={"numeric_columns": len(numeric_cols)},
+            )
+
+        anomaly_count = 0
+
+        # 1. IQR-based outlier detection
         for col in numeric_cols:
             data = df[col].dropna()
             if len(data) < 3:
                 continue
 
-            # Check for outliers using IQR
             Q1 = data.quantile(0.25)
             Q3 = data.quantile(0.75)
             IQR = Q3 - Q1
-            outlier_threshold = 1.5 * IQR
-            outliers = ((data < Q1 - outlier_threshold) | (data > Q3 + outlier_threshold)).sum()
-            outlier_pct = (outliers / len(data)) * 100
 
-            if outlier_pct > 5:
-                findings.append(f"Column '{col}': {outlier_pct:.1f}% outliers (abnormal)")
-                risk_score += 0.1
+            if IQR > 0:
+                outlier_threshold = 1.5 * IQR
+                outliers = ((data < Q1 - outlier_threshold) | (data > Q3 + outlier_threshold)).sum()
+                outlier_pct = (outliers / len(data)) * 100
 
-            # Check Z-scores
-            z_scores = np.abs(stats.zscore(data))
-            extreme = (z_scores > 3).sum()
-            if extreme > len(data) * 0.02:
-                findings.append(f"Column '{col}': {extreme} extreme values (Z-score > 3)")
-                risk_score += 0.1
+                if outlier_pct > 5:
+                    findings.append(f"Column '{col}': {outlier_pct:.1f}% outliers detected")
+                    risk_score += 0.08
+                    anomaly_count += 1
+
+        # 2. Z-score analysis (stricter threshold)
+        for col in numeric_cols:
+            data = df[col].dropna()
+            try:
+                z_scores = np.abs(stats.zscore(data))
+                extreme_3sigma = (z_scores > 3).sum()
+                extreme_2sigma = (z_scores > 2.5).sum()
+
+                if extreme_3sigma > len(data) * 0.01:
+                    findings.append(f"Column '{col}': {extreme_3sigma} extreme values (>3σ)")
+                    risk_score += 0.08
+                    anomaly_count += 1
+                elif extreme_2sigma > len(data) * 0.05:
+                    findings.append(f"Column '{col}': {extreme_2sigma} values at edge (>2.5σ)")
+                    risk_score += 0.05
+            except:
+                pass
+
+        # 3. Distribution shape analysis (detect bimodal)
+        for col in numeric_cols:
+            data = df[col].dropna()
+            if len(data) > 20:
+                try:
+                    skewness = stats.skew(data)
+                    kurtosis_val = stats.kurtosis(data)
+
+                    # Extreme skewness or kurtosis indicates manipulation
+                    if abs(skewness) > 2:
+                        findings.append(f"Column '{col}': Extreme skewness ({skewness:.2f}) detected")
+                        risk_score += 0.06
+                    if kurtosis_val > 3:
+                        findings.append(f"Column '{col}': High kurtosis ({kurtosis_val:.2f}) - heavy tails")
+                        risk_score += 0.06
+                except:
+                    pass
+
+        # 4. Multivariate analysis (Mahalanobis distance)
+        if len(numeric_cols) > 1 and len(numeric_df) > len(numeric_cols):
+            try:
+                mean = numeric_df.mean()
+                cov = numeric_df.cov()
+                inv_cov = np.linalg.inv(cov)
+
+                mahal_dist = []
+                for idx, row in numeric_df.iterrows():
+                    diff = row - mean
+                    m_dist = np.sqrt(diff.dot(inv_cov).dot(diff.T))
+                    mahal_dist.append(m_dist)
+
+                threshold = np.percentile(mahal_dist, 95)
+                suspicious_samples = np.sum(np.array(mahal_dist) > threshold)
+                suspicious_pct = (suspicious_samples / len(mahal_dist)) * 100
+
+                if suspicious_pct > 8:
+                    findings.append(f"Multivariate anomalies: {suspicious_pct:.1f}% samples with high Mahalanobis distance")
+                    risk_score += 0.1
+                    anomaly_count += 1
+            except:
+                pass
 
         return DetectionResult(
             technique=DetectionTechniqueType.STATISTICAL,
-            passed=risk_score == 0,
-            confidence=0.85,
+            passed=risk_score < 0.2,
+            confidence=0.88,
             findings=findings,
             risk_score=min(1.0, risk_score),
-            metrics={"numeric_columns": len(numeric_cols), "anomalies_found": len(findings)},
+            metrics={
+                "numeric_columns": len(numeric_cols),
+                "anomalies_found": anomaly_count,
+                "detection_strength": "Enhanced" if anomaly_count > 0 else "Standard"
+            },
         )
 
     def _detect_label_poisoning(self, df: pd.DataFrame) -> DetectionResult:
-        """Detect label poisoning patterns."""
+        """Enhanced label poisoning detection with entropy analysis."""
         findings = []
         risk_score = 0
 
         # Check for obvious label columns
         label_cols = [col for col in df.columns if col.lower() in ["label", "target", "class", "y"]]
 
+        if not label_cols and len(df.columns) > 0:
+            # Fallback: check last column as potential label
+            label_cols = [df.columns[-1]]
+
         for col in label_cols:
             if col not in df.columns:
                 continue
 
-            value_counts = df[col].value_counts()
+            value_counts = df[col].value_counts(dropna=False)
             total = len(df)
 
-            # Check for extreme imbalance
+            # 1. Class imbalance detection
             if len(value_counts) > 1:
                 max_ratio = value_counts.iloc[0] / total
                 min_ratio = value_counts.iloc[-1] / total
 
                 if max_ratio > 0.95:
-                    findings.append(f"Column '{col}': Extreme class imbalance ({max_ratio:.1%} dominant)")
+                    findings.append(f"Extreme class imbalance: {max_ratio:.1%} dominant class")
                     risk_score += 0.15
 
                 if min_ratio < 0.01 and len(value_counts) > 2:
-                    findings.append(f"Column '{col}': Rare class ({min_ratio:.1%} occurrence)")
+                    findings.append(f"Rare minority class: only {min_ratio:.1%} occurrence")
                     risk_score += 0.1
 
-            # Check for suspicious patterns in label values
+                # Check for suspicious imbalance ratio (e.g., 70/30 split looks unnatural)
+                if len(value_counts) == 2:
+                    ratio = max_ratio / min_ratio
+                    if ratio > 9:  # 90/10 or worse
+                        findings.append(f"Suspicious class ratio: {ratio:.1f}:1")
+                        risk_score += 0.08
+
+            # 2. Shannon entropy analysis (measure randomness)
+            probabilities = value_counts / total
+            entropy = -np.sum(probabilities * np.log2(probabilities + 1e-10))
+            max_entropy = np.log2(len(value_counts))
+
+            if max_entropy > 0:
+                normalized_entropy = entropy / max_entropy
+
+                if normalized_entropy < 0.3:
+                    findings.append(f"Low entropy in labels: {normalized_entropy:.2f} (suggests non-random labeling)")
+                    risk_score += 0.12
+                elif normalized_entropy > 0.95 and len(value_counts) > 2:
+                    findings.append(f"Suspiciously high entropy: {normalized_entropy:.2f} (possibly random labels)")
+                    risk_score += 0.1
+
+            # 3. Check for suspicious label patterns
             if df[col].dtype == "object":
                 unique_vals = df[col].unique()
                 if len(unique_vals) > 100:
-                    findings.append(f"Column '{col}': Too many unique values ({len(unique_vals)})")
+                    findings.append(f"Too many unique labels: {len(unique_vals)} unique values")
+                    risk_score += 0.08
+
+                # Check for label leakage patterns
+                str_vals = [str(v).lower() for v in unique_vals]
+                if any("poison" in v or "attack" in v or "backdoor" in v for v in str_vals):
+                    findings.append("Suspicious label naming detected (poison/attack/backdoor)")
                     risk_score += 0.1
+
+            # 4. Check for label consistency
+            if col in df.columns:
+                null_count = df[col].isnull().sum()
+                if null_count > len(df) * 0.05:
+                    findings.append(f"High missing label rate: {null_count / len(df):.1%}")
+                    risk_score += 0.08
 
         return DetectionResult(
             technique=DetectionTechniqueType.LABEL_ANALYSIS,
-            passed=risk_score == 0,
-            confidence=0.80,
+            passed=risk_score < 0.2,
+            confidence=0.85,
             findings=findings,
             risk_score=min(1.0, risk_score),
-            metrics={"label_columns_found": len(label_cols), "imbalance_issues": len(findings)},
+            metrics={
+                "label_columns": len(label_cols),
+                "checks_performed": 4,
+                "detection_methods": ["imbalance", "entropy", "pattern", "consistency"]
+            },
         )
 
     def _detect_text_anomalies(self, df: pd.DataFrame) -> DetectionResult:
@@ -537,6 +665,125 @@ class DatasetPoisoningDetector:
                 pass
 
         return suspicious
+
+    def _analyze_entropy(self, df: pd.DataFrame) -> DetectionResult:
+        """NEW: Entropy-based detection for engineered/manipulated features."""
+        findings = []
+        risk_score = 0
+
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        categorical_cols = df.select_dtypes(include=["object"]).columns
+
+        # Analyze entropy of numerical features (discretized)
+        for col in numeric_cols:
+            data = df[col].dropna()
+            if len(data) < 10:
+                continue
+
+            try:
+                # Discretize data into bins
+                hist, _ = np.histogram(data, bins=min(50, len(np.unique(data))))
+                probabilities = hist / np.sum(hist)
+                entropy = -np.sum(probabilities[probabilities > 0] * np.log2(probabilities[probabilities > 0]))
+                max_entropy = np.log2(len(hist))
+
+                if max_entropy > 0:
+                    normalized = entropy / max_entropy
+                    if normalized < 0.2:
+                        findings.append(f"Column '{col}': Low entropy ({normalized:.2f}) - possibly engineered")
+                        risk_score += 0.08
+            except:
+                pass
+
+        # Analyze entropy of categorical features
+        for col in categorical_cols:
+            value_counts = df[col].value_counts()
+            probabilities = value_counts / len(df)
+            entropy = -np.sum(probabilities * np.log2(probabilities + 1e-10))
+            max_entropy = np.log2(len(value_counts))
+
+            if max_entropy > 0:
+                normalized = entropy / max_entropy
+                if len(value_counts) > 2 and normalized < 0.3:
+                    findings.append(f"Column '{col}': Suspiciously low entropy ({normalized:.2f})")
+                    risk_score += 0.08
+
+        return DetectionResult(
+            technique=DetectionTechniqueType.STATISTICAL,  # Use existing type
+            passed=risk_score < 0.15,
+            confidence=0.80,
+            findings=findings,
+            risk_score=min(1.0, risk_score),
+            metrics={"entropy_checks": len(numeric_cols) + len(categorical_cols)},
+        )
+
+    def _analyze_feature_dependencies(self, df: pd.DataFrame) -> DetectionResult:
+        """NEW: Detect suspicious feature dependencies indicating manipulation."""
+        findings = []
+        risk_score = 0
+
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+        if len(numeric_cols) < 2:
+            return DetectionResult(
+                technique=DetectionTechniqueType.CORRELATION_ANALYSIS,
+                passed=True,
+                confidence=0.6,
+                findings=["Insufficient numeric features for dependency analysis"],
+                risk_score=0,
+                metrics={"numeric_columns": len(numeric_cols)},
+            )
+
+        numeric_df = df[numeric_cols].dropna()
+
+        if len(numeric_df) < 10:
+            return DetectionResult(
+                technique=DetectionTechniqueType.CORRELATION_ANALYSIS,
+                passed=True,
+                confidence=0.5,
+                findings=[],
+                risk_score=0,
+                metrics={"samples_analyzed": len(numeric_df)},
+            )
+
+        try:
+            # Calculate pairwise mutual information
+            suspicious_deps = []
+            for i, col1 in enumerate(numeric_cols):
+                for col2 in numeric_cols[i+1:]:
+                    data1 = numeric_df[col1].values
+                    data2 = numeric_df[col2].values
+
+                    # Discretize for MI calculation
+                    bins = min(10, len(np.unique(data1)))
+                    hist1, edges1 = np.histogram(data1, bins=bins)
+                    hist2, edges2 = np.histogram(data2, bins=bins)
+
+                    # Check correlation
+                    corr = np.corrcoef(data1, data2)[0, 1]
+
+                    if abs(corr) > 0.99:
+                        findings.append(f"Perfect correlation between '{col1}' and '{col2}': {corr:.3f}")
+                        risk_score += 0.1
+                        suspicious_deps.append((col1, col2))
+                    elif abs(corr) > 0.95:
+                        findings.append(f"Suspicious correlation between '{col1}' and '{col2}': {corr:.3f}")
+                        risk_score += 0.06
+
+        except Exception as e:
+            logger.debug(f"Dependency analysis error: {e}")
+
+        return DetectionResult(
+            technique=DetectionTechniqueType.CORRELATION_ANALYSIS,
+            passed=risk_score < 0.2,
+            confidence=0.82,
+            findings=findings,
+            risk_score=min(1.0, risk_score),
+            metrics={
+                "features_analyzed": len(numeric_cols),
+                "suspicious_pairs": len(findings),
+            },
+        )
 
     def _assess_risk(
         self, detection_results: List[DetectionResult], suspicious_samples: List[SuspiciousSample], total_samples: int

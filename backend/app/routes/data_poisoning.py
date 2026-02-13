@@ -17,7 +17,7 @@ from app.services.dataset_poisoning_service import get_detector
 from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/dataset-poisoning", tags=["dataset-poisoning"])
+router = APIRouter(tags=["dataset-poisoning"])
 
 
 @router.post("/analyze/text", response_model=DatasetAnalysisResult)
