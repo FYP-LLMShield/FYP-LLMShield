@@ -278,13 +278,12 @@ export function DatasetPoisoningPage() {
                 </div>
                 <div>
                   <h1 className="text-5xl font-bold gradient-text-cyber mb-2 animate-pulse-glow" style={{lineHeight: '1.1', paddingBottom: '4px'}}>
-                    Dataset Poisoning Detection
+                    Data Poisoning Detection
                   </h1>
-                  <p className="text-gray-300 text-base font-semibold">Comprehensive analysis using 8 detection techniques</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm ml-0 max-w-2xl">
-                Upload or paste your dataset to detect poisoning indicators. Analyzes statistical anomalies, label manipulation, data integrity, and suspicious patterns.
+                Upload or paste your dataset to detect poisoning indicators.
               </p>
             </div>
             {analysisPhase !== "setup" && (
@@ -354,7 +353,7 @@ export function DatasetPoisoningPage() {
                             value={textContent}
                             onChange={(e) => setTextContent(e.target.value)}
                             placeholder="Paste your CSV, JSON, or TSV data here..."
-                            className="w-full h-64 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all duration-300 p-4 rounded-lg"
+                            className="w-full h-64 bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all duration-300 p-4 rounded-lg font-medium"
                           />
                           <p className="text-gray-400 text-sm mt-2">
                             💡 Supports CSV, JSON, TSV, and newline-delimited JSON formats
@@ -399,7 +398,7 @@ export function DatasetPoisoningPage() {
                             value={hfDatasetId}
                             onChange={(e) => setHfDatasetId(e.target.value)}
                             placeholder="e.g., username/dataset-name"
-                            className="w-full bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
+                            className="w-full bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg font-medium"
                           />
                           <p className="text-gray-400 text-sm mt-2">
                             💡 Example: huggingface/datasets or username/my-dataset
@@ -414,7 +413,7 @@ export function DatasetPoisoningPage() {
                             value={hfConfig}
                             onChange={(e) => setHfConfig(e.target.value)}
                             placeholder="e.g., main, train, validation"
-                            className="w-full bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
+                            className="w-full bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg font-medium"
                           />
                         </div>
                       </TabsContent>
@@ -429,7 +428,7 @@ export function DatasetPoisoningPage() {
                         value={datasetName}
                         onChange={(e) => setDatasetName(e.target.value)}
                         placeholder="my-dataset"
-                        className="w-full bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
+                        className="w-full bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg font-medium"
                       />
                     </div>
                   </CardContent>
