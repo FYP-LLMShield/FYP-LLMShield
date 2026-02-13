@@ -15,6 +15,18 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 
+# Windows PATH fix: Add Python Scripts directory to PATH
+if sys.platform == "win32":
+    try:
+        scripts_dir = os.path.join(
+            os.path.dirname(os.path.dirname(sys.prefix)),
+            "AppData", "Roaming", "Python", f"Python{sys.version_info.major}{sys.version_info.minor}", "Scripts"
+        )
+        if os.path.exists(scripts_dir) and scripts_dir not in os.environ.get('PATH', ''):
+            os.environ['PATH'] = scripts_dir + os.pathsep + os.environ.get('PATH', '')
+    except Exception:
+        pass
+
 @dataclass
 class Vulnerability:
     """Vulnerability finding from SAST tools"""
@@ -63,19 +75,39 @@ class SASTService:
         """Check if Semgrep is installed"""
         # Try multiple ways to find semgrep
         attempts = [
-            lambda: subprocess.run(["semgrep", "--version"], capture_output=True, timeout=5),
-            lambda: subprocess.run([sys.executable, "-m", "semgrep", "--version"], capture_output=True, timeout=5),
-            lambda: shutil.which("semgrep") is not None,
+            lambda: subprocess.run(["semgrep", "--version"], capture_output=True, timeout=30),
+            lambda: subprocess.run([sys.executable, "-m", "semgrep", "--version"], capture_output=True, timeout=30),
+            lambda: subprocess.run([shutil.which("semgrep") or "semgrep", "--version"], capture_output=True, timeout=30) if shutil.which("semgrep") else None,
         ]
+
+        # Windows: try pysemgrep.exe and semgrep.exe in user Scripts directory
+        if sys.platform == "win32":
+            user_scripts = os.path.expanduser("~")
+            user_scripts = os.path.join(
+                user_scripts,
+                "AppData", "Roaming", "Python",
+                f"Python{sys.version_info.major}{sys.version_info.minor}",
+                "Scripts"
+            )
+            # Try pysemgrep.exe first (more reliable on Windows)
+            pysemgrep = os.path.join(user_scripts, "pysemgrep.exe")
+            if os.path.exists(pysemgrep):
+                attempts.insert(0, lambda: subprocess.run([pysemgrep, "--version"], capture_output=True, timeout=30))
+            # Then try semgrep.exe
+            semgrep_exe = os.path.join(user_scripts, "semgrep.exe")
+            if os.path.exists(semgrep_exe):
+                attempts.insert(1, lambda: subprocess.run([semgrep_exe, "--version"], capture_output=True, timeout=30))
 
         for attempt in attempts:
             try:
                 result = attempt()
+                if result is None:
+                    continue
                 if isinstance(result, bool):
                     return result
                 if isinstance(result, subprocess.CompletedProcess):
                     return result.returncode == 0
-            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception, TypeError):
                 continue
 
         return False
@@ -113,6 +145,30 @@ class SASTService:
             [tool_path] if tool_path else None,
         ]
 
+        # Windows: try pysemgrep.exe and other executables in user Scripts directory
+        if sys.platform == "win32":
+            user_scripts = os.path.expanduser("~")
+            user_scripts = os.path.join(
+                user_scripts,
+                "AppData", "Roaming", "Python",
+                f"Python{sys.version_info.major}{sys.version_info.minor}",
+                "Scripts"
+            )
+
+            # For semgrep, try pysemgrep first
+            if tool_name == "semgrep":
+                pysemgrep = os.path.join(user_scripts, "pysemgrep.exe")
+                if os.path.exists(pysemgrep):
+                    attempts.insert(0, [pysemgrep])
+                semgrep_exe = os.path.join(user_scripts, "semgrep.exe")
+                if os.path.exists(semgrep_exe):
+                    attempts.insert(1, [semgrep_exe])
+            else:
+                # For other tools, try {tool_name}.exe
+                tool_exe = os.path.join(user_scripts, f"{tool_name}.exe")
+                if os.path.exists(tool_exe):
+                    attempts.insert(0, [tool_exe])
+
         for cmd in attempts:
             if cmd is None:
                 continue
@@ -120,11 +176,11 @@ class SASTService:
                 result = subprocess.run(
                     cmd + ["--version"],
                     capture_output=True,
-                    timeout=5
+                    timeout=30
                 )
                 if result.returncode == 0:
                     return cmd
-            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception, TypeError):
                 continue
 
         return None

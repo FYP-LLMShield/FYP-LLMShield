@@ -394,3 +394,27 @@ async def scanner_health():
         },
         "timestamp": datetime.now().isoformat()
     }
+
+
+@router.post("/test-scan", response_model=SASTResponse)
+async def test_scan(request: TextScanRequest):
+    """Test endpoint for SAST scanning (no authentication required for demo/testing)"""
+
+    if not request.content.strip():
+        raise HTTPException(status_code=400, detail="Content cannot be empty")
+
+    try:
+        # Run SAST analysis on text
+        findings = await sast_service.scan_text(
+            request.content,
+            request.filename
+        )
+
+        # Create response
+        return create_sast_response("text", findings)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"SAST scan failed: {str(e)}"
+        )
