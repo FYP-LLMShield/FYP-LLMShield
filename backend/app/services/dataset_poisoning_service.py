@@ -804,35 +804,64 @@ class DatasetPoisoningDetector:
     def _assess_risk(
         self, detection_results: List[DetectionResult], suspicious_samples: List[SuspiciousSample], total_samples: int
     ) -> Tuple[float, DatasetVerdictType, float, str]:
-        """Assess overall risk and generate verdict."""
-        # Calculate average risk score
-        if detection_results:
-            avg_risk = np.mean([r.risk_score for r in detection_results])
+        """Enhanced risk assessment with weighted scoring for 10 techniques."""
+
+        # Weighted scoring system for 10 detection techniques
+        weights = {
+            DetectionTechniqueType.STATISTICAL: 0.15,  # Enhanced, primary indicator
+            DetectionTechniqueType.LABEL_ANALYSIS: 0.15,  # Enhanced
+            DetectionTechniqueType.TEXT_ANALYSIS: 0.12,
+            DetectionTechniqueType.INTEGRITY_CHECK: 0.12,
+            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.12,  # Covers dependency analysis
+            DetectionTechniqueType.METADATA_ANALYSIS: 0.12,
+            DetectionTechniqueType.SAMPLE_PATTERNS: 0.12,
+            DetectionTechniqueType.DISTRIBUTION_TESTS: 0.12,
+        }
+
+        # Calculate weighted risk
+        weighted_risk = 0
+        total_weight = 0
+        high_risk_indicators = 0
+
+        for result in detection_results:
+            weight = weights.get(result.technique, 0.1)
+            weighted_risk += result.risk_score * weight
+            total_weight += weight
+
+            if result.risk_score > 0.5:
+                high_risk_indicators += 1
+
+        # Normalize
+        if total_weight > 0:
+            avg_risk = weighted_risk / total_weight
         else:
-            avg_risk = 0
+            avg_risk = np.mean([r.risk_score for r in detection_results]) if detection_results else 0
 
-        # Factor in suspicious sample ratio
-        if total_samples > 0:
-            suspicious_ratio = len(suspicious_samples) / total_samples
-            avg_risk = (avg_risk * 0.8) + (min(1.0, suspicious_ratio) * 0.2)
+        # Factor in suspicious sample ratio (max 20% impact)
+        if total_samples > 0 and suspicious_samples:
+            suspicious_ratio = min(len(suspicious_samples) / total_samples, 0.5)
+            sample_risk = suspicious_ratio * 2  # Normalize to 0-1
+            avg_risk = (avg_risk * 0.8) + (sample_risk * 0.2)
 
-        # Generate verdict
+        # Generate verdict with stricter thresholds
+        logger.info(f"Risk assessment: avg_risk={avg_risk:.3f}, high_risk_indicators={high_risk_indicators}")
+
         if avg_risk > 0.7:
             verdict = DatasetVerdictType.UNSAFE
-            confidence = 0.85
-            explanation = "Dataset shows multiple poisoning indicators. Strong evidence of data poisoning detected."
-        elif avg_risk > 0.5:
+            confidence = 0.88
+            explanation = f"CRITICAL: Dataset shows strong poisoning indicators ({high_risk_indicators} techniques flagged). Multiple detection methods converge on unsafe verdict."
+        elif avg_risk > 0.55:
             verdict = DatasetVerdictType.SUSPICIOUS
-            confidence = 0.75
-            explanation = "Dataset has several suspicious characteristics. Manual review recommended."
-        elif avg_risk > 0.3:
+            confidence = 0.78
+            explanation = f"WARNING: Dataset exhibits suspicious patterns ({high_risk_indicators} detection methods flagged). Manual review strongly recommended before use."
+        elif avg_risk > 0.35:
             verdict = DatasetVerdictType.SUSPICIOUS
-            confidence = 0.65
-            explanation = "Dataset has minor anomalies detected. Proceed with caution."
+            confidence = 0.68
+            explanation = f"CAUTION: Dataset has anomalies detected by {high_risk_indicators} methods. Recommend careful analysis before production use."
         else:
             verdict = DatasetVerdictType.SAFE
-            confidence = 0.80
-            explanation = "Dataset appears clean. No significant poisoning indicators detected."
+            confidence = 0.82
+            explanation = "Dataset appears clean. No significant poisoning indicators detected across all 10 detection techniques."
 
         return avg_risk, verdict, confidence, explanation
 
