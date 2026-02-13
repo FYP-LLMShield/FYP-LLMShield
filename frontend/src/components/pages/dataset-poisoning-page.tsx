@@ -269,10 +269,10 @@ export function DatasetPoisoningPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-12">
+        <div className="mb-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-4 mb-3">
                 <div className="p-3 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg border border-purple-400/50 shadow-lg shadow-purple-500/20">
                   <Database className="w-7 h-7 text-purple-300" />
                 </div>
@@ -300,7 +300,7 @@ export function DatasetPoisoningPage() {
 
         {/* Setup Phase */}
         {analysisPhase === "setup" && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {error && (
               <div className="bg-red-950/50 border-2 border-red-500/60 rounded-xl p-6 backdrop-blur-md shadow-xl shadow-red-500/20">
                 <div className="flex items-start space-x-4">
@@ -313,65 +313,66 @@ export function DatasetPoisoningPage() {
               </div>
             )}
 
-            <div className="space-y-6">
+            <div className="space-y-3">
               {/* Input Card */}
               <div>
                 <Card className="border-2 border-purple-500/60 shadow-2xl shadow-purple-500/30 h-full bg-gradient-to-br from-slate-900 to-slate-800">
-                  <CardHeader className="pb-6 border-b border-purple-500/40 bg-gradient-to-r from-purple-950/50 to-transparent">
-                    <CardTitle className="text-white text-3xl font-bold flex items-center gap-3">
-                      <div className="p-3 bg-gradient-to-br from-purple-500/40 to-pink-500/30 rounded-lg">
-                        <FileUp className="w-7 h-7 text-purple-300" />
+                  <CardHeader className="pb-4 border-b border-purple-500/40 bg-gradient-to-r from-purple-950/50 to-transparent">
+                    <CardTitle className="text-white text-2xl font-bold flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-purple-500/40 to-pink-500/30 rounded-lg">
+                        <FileUp className="w-6 h-6 text-purple-300" />
                       </div>
                       Dataset Input
                     </CardTitle>
-                    <p className="text-gray-300 text-base mt-3 font-medium">Choose how to provide your dataset</p>
+                    <p className="text-gray-300 text-sm mt-2 font-medium">Choose how to provide your dataset</p>
                   </CardHeader>
-                  <CardContent className="pt-8">
+                  <CardContent className="pt-5">
                     <Tabs value={inputTab} onValueChange={(val) => setInputTab(val as InputTab)} className="w-full">
-                      <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-purple-500/30">
-                        <TabsTrigger value="text" className="flex items-center gap-2">
+                      <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-purple-500/30 mb-4">
+                        <TabsTrigger value="text" className="flex items-center gap-2 text-sm">
                           <Copy className="w-4 h-4" />
                           <span className="hidden sm:inline">Text Paste</span>
                         </TabsTrigger>
-                        <TabsTrigger value="file" className="flex items-center gap-2">
+                        <TabsTrigger value="file" className="flex items-center gap-2 text-sm">
                           <Upload className="w-4 h-4" />
                           <span className="hidden sm:inline">File Upload</span>
                         </TabsTrigger>
-                        <TabsTrigger value="huggingface" className="flex items-center gap-2">
+                        <TabsTrigger value="huggingface" className="flex items-center gap-2 text-sm">
                           <Link className="w-4 h-4" />
                           <span className="hidden sm:inline">HF Dataset</span>
                         </TabsTrigger>
                       </TabsList>
 
                       {/* Text Paste Tab */}
-                      <TabsContent value="text" className="space-y-4 mt-6">
+                      <TabsContent value="text" className="space-y-3 mt-4">
                         <div>
-                          <Label className="text-gray-200 text-base font-semibold block mb-3">
+                          <Label className="text-gray-200 text-sm font-semibold block mb-2">
                             Paste Dataset Content (CSV, JSON, or TSV)
                           </Label>
                           <Textarea
                             value={textContent}
                             onChange={(e) => setTextContent(e.target.value)}
                             placeholder="Paste your CSV, JSON, or TSV data here..."
-                            className="w-full h-64 bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all duration-300 p-4 rounded-lg font-medium"
+                            className="w-full h-64 bg-white !text-black placeholder-gray-400 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all duration-300 p-4 rounded-lg"
+                            style={{ color: '#000000' }}
                           />
                           <p className="text-gray-400 text-sm mt-2">
-                            💡 Supports CSV, JSON, TSV, and newline-delimited JSON formats
+                            💡 Supports CSV, JSON, JSONL, TSV formats
                           </p>
                         </div>
                       </TabsContent>
 
                       {/* File Upload Tab */}
-                      <TabsContent value="file" className="space-y-4 mt-6">
+                      <TabsContent value="file" className="space-y-3 mt-4">
                         <div>
-                          <Label className="text-gray-200 text-base font-semibold block mb-3">
+                          <Label className="text-gray-200 text-sm font-semibold block mb-2">
                             Upload Dataset File
                           </Label>
                           <div className="border-2 border-dashed border-purple-500/30 rounded-lg p-8 text-center hover:border-purple-500/60 transition-all">
                             <input
                               type="file"
                               onChange={handleFileUpload}
-                              accept=".csv,.json,.tsv,.txt,.xlsx,.zip"
+                              accept=".csv,.json,.jsonl,.tsv,.txt,.xlsx,.zip"
                               className="hidden"
                               id="file-upload"
                             />
@@ -381,7 +382,7 @@ export function DatasetPoisoningPage() {
                                 {selectedFile ? selectedFile.name : "Click to upload or drag and drop"}
                               </p>
                               <p className="text-gray-400 text-sm mt-1">
-                                CSV, JSON, TSV, XLSX, ZIP (max 500MB)
+                                CSV, JSON, JSONL, TSV, XLSX, ZIP (max 500MB)
                               </p>
                             </label>
                           </div>
@@ -389,16 +390,17 @@ export function DatasetPoisoningPage() {
                       </TabsContent>
 
                       {/* HuggingFace Tab */}
-                      <TabsContent value="huggingface" className="space-y-4 mt-6">
+                      <TabsContent value="huggingface" className="space-y-3 mt-4">
                         <div>
-                          <Label className="text-gray-200 text-base font-semibold block mb-3">
+                          <Label className="text-gray-200 text-sm font-semibold block mb-2">
                             HuggingFace Dataset ID
                           </Label>
                           <Input
                             value={hfDatasetId}
                             onChange={(e) => setHfDatasetId(e.target.value)}
                             placeholder="e.g., username/dataset-name"
-                            className="w-full bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg font-medium"
+                            className="w-full bg-white !text-black placeholder-gray-400 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
+                            style={{ color: '#000000' }}
                           />
                           <p className="text-gray-400 text-sm mt-2">
                             💡 Example: huggingface/datasets or username/my-dataset
@@ -406,29 +408,31 @@ export function DatasetPoisoningPage() {
                         </div>
 
                         <div>
-                          <Label className="text-gray-200 text-base font-semibold block mb-3">
+                          <Label className="text-gray-200 text-sm font-semibold block mb-2">
                             Config/Split (Optional)
                           </Label>
                           <Input
                             value={hfConfig}
                             onChange={(e) => setHfConfig(e.target.value)}
                             placeholder="e.g., main, train, validation"
-                            className="w-full bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg font-medium"
+                            className="w-full bg-white !text-black placeholder-gray-400 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
+                            style={{ color: '#000000' }}
                           />
                         </div>
                       </TabsContent>
                     </Tabs>
 
                     {/* Dataset Name */}
-                    <div className="mt-6">
-                      <Label className="text-gray-200 text-base font-semibold block mb-3">
+                    <div className="mt-4">
+                      <Label className="text-gray-200 text-sm font-semibold block mb-2">
                         Dataset Name
                       </Label>
                       <Input
                         value={datasetName}
                         onChange={(e) => setDatasetName(e.target.value)}
                         placeholder="my-dataset"
-                        className="w-full bg-white text-slate-900 placeholder-gray-500 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg font-medium"
+                        className="w-full bg-white !text-black placeholder-gray-400 border-2 border-purple-500/40 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
+                        style={{ color: '#000000' }}
                       />
                     </div>
                   </CardContent>

@@ -31,7 +31,6 @@ from app.routes.scan_history import router as scan_history_router
 from app.routes.prompt_injection import router as prompt_injection_router
 from app.routes.data_poisoning import router as data_poisoning_router
 from app.routes.poisoning_simulation import router as poisoning_simulation_router
-from app.routes.dataset_poisoning_routes import router as dataset_poisoning_router
 
 
 @asynccontextmanager
@@ -133,18 +132,13 @@ app.include_router(
 )
 app.include_router(
     data_poisoning_router,
-    prefix=f"{settings.API_V1_STR}/data-poisoning",
+    prefix=f"{settings.API_V1_STR}/dataset-poisoning",
     tags=["Data Poisoning Detection"]
 )
 app.include_router(
     poisoning_simulation_router,
     prefix=f"{settings.API_V1_STR}/poisoning-simulation",
     tags=["Poisoning Simulation"]
-)
-app.include_router(
-    dataset_poisoning_router,
-    prefix=f"{settings.API_V1_STR}/dataset-poisoning",
-    tags=["Dataset Poisoning Detection"]
 )
 
 
