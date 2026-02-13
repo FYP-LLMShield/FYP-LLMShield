@@ -827,63 +827,89 @@ class DatasetPoisoningDetector:
     def _assess_risk(
         self, detection_results: List[DetectionResult], suspicious_samples: List[SuspiciousSample], total_samples: int
     ) -> Tuple[float, DatasetVerdictType, float, str]:
-        """Enhanced risk assessment with weighted scoring for 10 techniques."""
+        """Enhanced risk assessment with stronger detection of poisoning patterns."""
 
-        # Weighted scoring system for 10 detection techniques
-        weights = {
-            DetectionTechniqueType.STATISTICAL: 0.15,  # Enhanced, primary indicator
-            DetectionTechniqueType.LABEL_ANALYSIS: 0.15,  # Enhanced
-            DetectionTechniqueType.TEXT_ANALYSIS: 0.12,
-            DetectionTechniqueType.INTEGRITY_CHECK: 0.12,
-            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.12,  # Covers dependency analysis
-            DetectionTechniqueType.METADATA_ANALYSIS: 0.12,
-            DetectionTechniqueType.SAMPLE_PATTERNS: 0.12,
-            DetectionTechniqueType.DISTRIBUTION_TESTS: 0.12,
-        }
-
-        # Calculate weighted risk
         weighted_risk = 0
         total_weight = 0
         high_risk_indicators = 0
+        critical_flags = 0  # Track critical poisoning indicators
 
+        # Weighted scoring system for 10 detection techniques
+        weights = {
+            DetectionTechniqueType.LABEL_ANALYSIS: 0.25,  # INCREASED - highest weight for label poisoning
+            DetectionTechniqueType.STATISTICAL: 0.20,
+            DetectionTechniqueType.TEXT_ANALYSIS: 0.20,  # INCREASED - code injection is critical
+            DetectionTechniqueType.INTEGRITY_CHECK: 0.12,
+            DetectionTechniqueType.SAMPLE_PATTERNS: 0.12,
+            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.06,
+            DetectionTechniqueType.METADATA_ANALYSIS: 0.03,
+            DetectionTechniqueType.DISTRIBUTION_TESTS: 0.02,
+        }
+
+        # Calculate weighted risk and check for critical indicators
         for result in detection_results:
             weight = weights.get(result.technique, 0.1)
             weighted_risk += result.risk_score * weight
             total_weight += weight
 
-            if result.risk_score > 0.5:
+            if result.risk_score > 0.3:
                 high_risk_indicators += 1
 
-        # Normalize
+            # Check for critical poisoning patterns in findings
+            if result.findings:
+                for finding in result.findings:
+                    finding_lower = finding.lower()
+                    # Critical indicators that suggest poisoning
+                    if any(keyword in finding_lower for keyword in [
+                        "poison", "attack", "backdoor", "trigger",
+                        "path traversal", "injection", "sql", "script",
+                        "suspicious naming", "unusual pattern"
+                    ]):
+                        critical_flags += 1
+                        weighted_risk += 0.15  # Add extra risk for critical findings
+
+        # Normalize weighted risk
         if total_weight > 0:
             avg_risk = weighted_risk / total_weight
         else:
-            avg_risk = np.mean([r.risk_score for r in detection_results]) if detection_results else 0
+            avg_risk = 0.1
 
-        # Factor in suspicious sample ratio (max 20% impact)
-        if total_samples > 0 and suspicious_samples:
-            suspicious_ratio = min(len(suspicious_samples) / total_samples, 0.5)
-            sample_risk = suspicious_ratio * 2  # Normalize to 0-1
-            avg_risk = (avg_risk * 0.8) + (sample_risk * 0.2)
+        # Boost risk if multiple techniques flag issues
+        if high_risk_indicators >= 3:
+            avg_risk = min(1.0, avg_risk * 1.3)  # 30% boost
 
-        # Generate verdict with stricter thresholds
-        logger.info(f"Risk assessment: avg_risk={avg_risk:.3f}, high_risk_indicators={high_risk_indicators}")
+        # Heavy penalty for critical flags
+        if critical_flags > 0:
+            avg_risk = min(1.0, avg_risk + (critical_flags * 0.2))
 
-        if avg_risk > 0.7:
+        # Factor in duplicates and repetition (strong poisoning indicators)
+        if high_risk_indicators > 0 and suspicious_samples:
+            suspicious_ratio = len(suspicious_samples) / max(total_samples, 1)
+            if suspicious_ratio > 0.1:
+                avg_risk = min(1.0, avg_risk + 0.15)
+
+        # Ensure minimum risk if suspicious patterns found
+        if critical_flags > 0 and avg_risk < 0.4:
+            avg_risk = 0.45  # Minimum for poisoning patterns
+
+        # Generate verdict with corrected thresholds
+        logger.info(f"Risk assessment: avg_risk={avg_risk:.3f}, high_risk={high_risk_indicators}, critical_flags={critical_flags}")
+
+        if avg_risk >= 0.65:
             verdict = DatasetVerdictType.UNSAFE
-            confidence = 0.88
-            explanation = f"CRITICAL: Dataset shows strong poisoning indicators ({high_risk_indicators} techniques flagged). Multiple detection methods converge on unsafe verdict."
-        elif avg_risk > 0.55:
+            confidence = 0.90
+            explanation = f"CRITICAL: Strong evidence of data poisoning detected ({critical_flags} critical indicators). {high_risk_indicators} detection techniques flagged suspicious patterns. DO NOT USE."
+        elif avg_risk >= 0.45:
             verdict = DatasetVerdictType.SUSPICIOUS
-            confidence = 0.78
-            explanation = f"WARNING: Dataset exhibits suspicious patterns ({high_risk_indicators} detection methods flagged). Manual review strongly recommended before use."
-        elif avg_risk > 0.35:
+            confidence = 0.82
+            explanation = f"WARNING: Dataset exhibits poisoning indicators ({critical_flags} critical patterns detected). {high_risk_indicators} detection methods flagged anomalies. Manual review strongly recommended."
+        elif avg_risk >= 0.25:
             verdict = DatasetVerdictType.SUSPICIOUS
-            confidence = 0.68
-            explanation = f"CAUTION: Dataset has anomalies detected by {high_risk_indicators} methods. Recommend careful analysis before production use."
+            confidence = 0.72
+            explanation = f"CAUTION: Dataset has anomalies detected ({high_risk_indicators} methods flagged concerns). Investigate before production use."
         else:
             verdict = DatasetVerdictType.SAFE
-            confidence = 0.82
+            confidence = 0.80
             explanation = "Dataset appears clean. No significant poisoning indicators detected across all 10 detection techniques."
 
         return float(avg_risk), verdict, confidence, explanation
