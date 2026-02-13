@@ -389,8 +389,8 @@ async def scanner_health():
     return {
         "status": "healthy" if (sast_service.semgrep_available or sast_service.trufflehog_available) else "degraded",
         "tools": {
-            "semgrep": "✅ Available" if sast_service.semgrep_available else "❌ Not installed",
-            "trufflehog": "✅ Available" if sast_service.trufflehog_available else "❌ Not installed"
+            "semgrep": "OK - Available" if sast_service.semgrep_available else "ERROR - Not installed",
+            "trufflehog": "OK - Available" if sast_service.trufflehog_available else "ERROR - Not installed"
         },
         "timestamp": datetime.now().isoformat()
     }

@@ -43,13 +43,13 @@ class SASTService:
     Provides unified interface for analyzing C/C++ code
     """
 
-    # Severity emoji mapping
+    # Severity emoji mapping (ASCII-safe for Windows compatibility)
     SEVERITY_EMOJIS = {
-        "Critical": "🔴",
-        "High": "🟠",
-        "Medium": "🟡",
-        "Low": "🔵",
-        "Info": "⚪"
+        "Critical": "[!!!]",
+        "High": "[!]",
+        "Medium": "[*]",
+        "Low": "[+]",
+        "Info": "[i]"
     }
 
     def __init__(self):
