@@ -178,35 +178,32 @@ class DataPoisoningScanner:
 
     async def _run_behavioral_tests(self, model_id: str) -> List[BehavioralTestResult]:
         """
-        Run comprehensive behavioral and weight-based tests.
-        Focus on ACTUAL poisoning detection, not name-based heuristics.
+        Run focused poisoning detection tests.
+        Focus on ACTUAL weight-based and behavioral poisoning detection.
 
-        Tests:
-        1. Code Pattern Detection - look for conditional logic and backdoors in code
-        2. Weight Anomaly Detection - statistical analysis of model weights
-        3. Architecture Integrity - verify structure matches declaration
-        4. File Serialization Safety - check for unsafe formats
-        5. Behavioral Consistency - test if model gives consistent outputs
+        Tests (3 primary):
+        1. Weight Anomaly Detection (PRIMARY) - detects weight poisoning indicators
+           - Extreme outliers, sparse patterns, unusual distributions
+        2. File Serialization Safety - checks for unsafe file formats
+           - Safetensors (safe) vs pickle/unsafe formats
+        3. Behavioral Consistency Check - detects trigger-based behavior
+           - Does model output change with specific inputs?
+
+        REMOVED:
+        - Code Pattern Detection (HF already detects malicious code)
+        - Architecture Integrity (not reliable for poisoning detection)
         """
         tests = []
 
-        # Test 1: Code Pattern Detection (dangerous code patterns)
-        code_pattern_test = await self._test_code_pattern_detection(model_id)
-        tests.append(code_pattern_test)
-
-        # Test 2: Weight Anomaly Detection (PRIMARY - detects weight poisoning)
+        # Test 1: Weight Anomaly Detection (PRIMARY - detects weight poisoning)
         weight_anomaly_test = await self._test_weight_anomaly_detection(model_id)
         tests.append(weight_anomaly_test)
 
-        # Test 3: Architecture Integrity Check
-        architecture_test = await self._test_architecture_integrity(model_id)
-        tests.append(architecture_test)
-
-        # Test 4: File Serialization Safety
+        # Test 2: File Serialization Safety
         serialization_test = await self._test_serialization_safety(model_id)
         tests.append(serialization_test)
 
-        # Test 5: Behavioral Consistency Check (if API available)
+        # Test 3: Behavioral Consistency Check (if API available)
         behavior_test = await self._test_behavioral_consistency(model_id)
         tests.append(behavior_test)
 
@@ -632,10 +629,12 @@ class DataPoisoningScanner:
                     risk_indicators += 1
 
             # 4. Try to analyze actual weight patterns (ACTUAL WEIGHT DOWNLOAD)
+            actual_weight_analyzed = False
             try:
                 # Try to download and analyze real weights
                 weight_analysis = await self._analyze_actual_weights(model_id)
                 if weight_analysis:
+                    actual_weight_analyzed = True
                     if weight_analysis.get("has_outliers"):
                         anomalies.append("⚠️ Extreme weight outliers detected (>100x std)")
                         risk_indicators += 2  # Higher weight for actual detection
@@ -645,20 +644,23 @@ class DataPoisoningScanner:
                     if weight_analysis.get("has_unusual_distribution"):
                         anomalies.append("⚠️ Unusual weight distribution detected")
                         risk_indicators += 1
+                else:
+                    # Weight download failed - mark as INCONCLUSIVE later
+                    logger.debug(f"Could not download actual weights for {model_id}")
+                    # Try API fallback for metadata
+                    try:
+                        weight_data = await self._analyze_weight_statistics_from_api(model_id)
+                        if weight_data:
+                            if weight_data.get("has_outliers"):
+                                anomalies.append("⚠️ Weight anomalies detected (via metadata)")
+                                risk_indicators += 1
+                            if weight_data.get("has_sparse_patterns"):
+                                anomalies.append("⚠️ Unusual parameter patterns detected")
+                                risk_indicators += 1
+                    except Exception as e2:
+                        logger.debug(f"API fallback also failed: {e2}")
             except Exception as e:
-                logger.debug(f"Could not download weights: {e}. Trying API fallback...")
-                # Fallback to API-based analysis
-                try:
-                    weight_data = await self._analyze_weight_statistics_from_api(model_id)
-                    if weight_data:
-                        if weight_data.get("has_outliers"):
-                            anomalies.append("⚠️ Weight anomalies detected (via metadata)")
-                            risk_indicators += 1
-                        if weight_data.get("has_sparse_patterns"):
-                            anomalies.append("⚠️ Unusual parameter patterns detected")
-                            risk_indicators += 1
-                except Exception as e2:
-                    logger.debug(f"API fallback also failed: {e2}")
+                logger.debug(f"Weight analysis exception: {e}")
 
             # Calculate risk score
             risk_score = min(1.0, risk_indicators / max_risk)
@@ -670,9 +672,22 @@ class DataPoisoningScanner:
                 "risk_indicators": risk_indicators,
                 "risk_score": risk_score,
                 "weight_integrity": 1.0 - risk_score,
+                "actual_weights_analyzed": actual_weight_analyzed,
             }
 
             details_text = " | ".join(anomalies[:3]) if anomalies else "✓ Weight distribution appears normal"
+
+            # If actual weights couldn't be analyzed, mark as inconclusive
+            if not actual_weight_analyzed and not safetensors_info and not anomalies:
+                return BehavioralTestResult(
+                    test_name="Weight Anomaly Detection",
+                    category=TestCategory.CONSISTENCY,
+                    passed=True,
+                    confidence=0.3,
+                    details="⚠️ Could not download actual weights for analysis - unable to verify weight integrity",
+                    metrics=metrics,
+                    status="inconclusive",
+                )
 
             return BehavioralTestResult(
                 test_name="Weight Anomaly Detection",
@@ -681,6 +696,7 @@ class DataPoisoningScanner:
                 confidence=confidence,
                 details=details_text,
                 metrics=metrics,
+                status="completed",
             )
 
         except Exception as e:
@@ -864,8 +880,29 @@ class DataPoisoningScanner:
             f"inconclusive={inconclusive_count}"
         )
 
+        # Check weight analysis status - CRITICAL for determining safety
+        weight_test = next((t for t in behavioral_tests if t.test_name == "Weight Anomaly Detection"), None)
+        weight_analysis_inconclusive = weight_test and weight_test.status == "inconclusive"
+
+        logger.debug(
+            f"Weight test status: {weight_test.status if weight_test else 'NOT_FOUND'}, "
+            f"inconclusive={weight_analysis_inconclusive}"
+        )
+
         # Decision logic: Risk × Confidence
-        if combined_risk > 0.7:
+        # KEY: If weight analysis couldn't run, DON'T mark as SAFE
+        if weight_analysis_inconclusive:
+            # Can't verify weights = can't be confident = SUSPICIOUS
+            verdict = VerdictType.SUSPICIOUS
+            explanation = (
+                f"⚠️ CRITICAL: Could not fully analyze model weights. "
+                f"Without weight verification, cannot confidently determine safety. "
+                f"Manual review STRONGLY recommended."
+            )
+            confidence = 0.45
+            logger.warning(f"Weight analysis inconclusive for {weight_test.test_name if weight_test else 'unknown model'}")
+
+        elif combined_risk > 0.7:
             # High risk detected clearly
             verdict = VerdictType.UNSAFE
             explanation = (
@@ -898,16 +935,20 @@ class DataPoisoningScanner:
             # Check if all COMPLETED tests passed (no actual failures found)
             failed_in_completed = sum(1 for t in completed_tests if not t.passed)
 
-            if failed_in_completed == 0 and assessment_confidence >= 0.4:
-                # No failures in completed tests + decent coverage = SAFE
+            # MUST have weight test completed to mark as SAFE
+            weight_test_completed = weight_test and weight_test.status == "completed"
+
+            if failed_in_completed == 0 and assessment_confidence >= 0.5 and weight_test_completed:
+                # No failures + good coverage + weight verified = SAFE ✅
                 verdict = VerdictType.SAFE
                 explanation = (
-                    f"Model appears safe. File format is secure, no dangerous code detected, "
-                    f"and weight distribution is normal. "
+                    f"Model appears safe. "
+                    f"Weight analysis completed with no anomalies detected, "
+                    f"file format is secure, and no behavioral anomalies found. "
                     f"Standard security practices recommended."
                 )
-                # Confidence: higher if more tests completed
-                confidence = min(0.90, 0.75 + (assessment_confidence * 0.15))
+                # Confidence: higher if weight test completed
+                confidence = min(0.90, 0.80 + (assessment_confidence * 0.10))
             elif assessment_confidence < 0.3:
                 # Very few tests completed - too uncertain
                 verdict = VerdictType.SUSPICIOUS
