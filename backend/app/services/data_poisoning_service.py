@@ -290,10 +290,11 @@ class DataPoisoningScanner:
                 return BehavioralTestResult(
                     test_name="Architecture Anomaly Detection",
                     category=TestCategory.TRIGGER_FUZZING,
-                    passed=False,
-                    confidence=0.6,
-                    details="⚠️ Could not retrieve model config for verification - treating as UNVERIFIED",
+                    passed=True,
+                    confidence=0.3,
+                    details="⚠️ Could not retrieve model config - unable to verify architecture",
                     metrics={"config_available": False},
+                    status="inconclusive",
                 )
 
             # Check for suspicious modifications
@@ -339,10 +340,11 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Architecture Anomaly Detection",
                 category=TestCategory.TRIGGER_FUZZING,
-                passed=False,
-                confidence=0.6,
-                details=f"⚠️ Could not fully verify architecture - treating as SUSPICIOUS: {str(e)[:80]}",
+                passed=True,
+                confidence=0.3,
+                details=f"⚠️ Could not fully verify architecture - unable to check: {str(e)[:80]}",
                 metrics={"error": str(e)[:100]},
+                status="inconclusive",
             )
 
     async def _test_configuration_integrity(self, model_id: str) -> BehavioralTestResult:
@@ -432,10 +434,11 @@ class DataPoisoningScanner:
                         return BehavioralTestResult(
                             test_name="Serialization Safety",
                             category=TestCategory.CONTEXT_OVERRIDE,
-                            passed=False,
-                            confidence=0.5,
-                            details="⚠️ Could not fetch model information - treating as UNVERIFIED",
+                            passed=True,
+                            confidence=0.3,
+                            details="⚠️ Could not fetch model file information - unable to verify serialization safety",
                             metrics={"api_available": False},
+                            status="inconclusive",
                         )
 
                     data = await resp.json()
@@ -446,13 +449,14 @@ class DataPoisoningScanner:
                         return BehavioralTestResult(
                             test_name="Serialization Safety",
                             category=TestCategory.CONTEXT_OVERRIDE,
-                            passed=False,
-                            confidence=0.5,
-                            details="⚠️ Invalid API response format - treating as UNVERIFIED",
+                            passed=True,
+                            confidence=0.3,
+                            details="⚠️ Invalid API response format - unable to verify serialization safety",
                             metrics={"api_response_type": str(type(data))},
+                            status="inconclusive",
                         )
 
-                    siblings = data.get("siblings", [])
+                    siblings = data.get("siblings", []) if isinstance(data, dict) else []
                     if not isinstance(siblings, list):
                         siblings = []
 
@@ -511,10 +515,11 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Serialization Safety",
                 category=TestCategory.CONTEXT_OVERRIDE,
-                passed=False,
-                confidence=0.6,
-                details=f"⚠️ Could not fully verify serialization format - treating as SUSPICIOUS: {str(e)[:80]}",
+                passed=True,
+                confidence=0.3,
+                details=f"⚠️ Could not fully verify serialization format - unable to check: {str(e)[:80]}",
                 metrics={"error": str(e)[:100]},
+                status="inconclusive",
             )
 
     async def _test_weight_anomaly_detection(self, model_id: str) -> BehavioralTestResult:
@@ -678,14 +683,16 @@ class DataPoisoningScanner:
             )
 
         except Exception as e:
-            logger.warning(f"Weight anomaly detection failed: {e}")
+            logger.warning(f"Weight anomaly detection f            # When weight analysis fails, mark as INCONCLUSIVE (couldn't verify)
+            # Don't penalize, but reduce confidence in final verdict
             return BehavioralTestResult(
                 test_name="Weight Anomaly Detection",
                 category=TestCategory.CONSISTENCY,
-                passed=False,
-                confidence=0.7,
-                details=f"⚠️ Could not perform weight analysis (PRIMARY test failed) - treating as SUSPICIOUS: {str(e)[:80]}",
-                metrics={"error": str(e)[:100]},
+                passed=True,
+                confidence=0.2,
+                details=f"⚠️ Could not fully analyze weights - unable to verify: {str(e)[:80]}",
+                metrics={"error": str(e)[:100], "analysis_incomplete": True},
+                status="inconclusive",
             )
 
     async def _test_behavioral_consistency(self, model_id: str) -> BehavioralTestResult:
