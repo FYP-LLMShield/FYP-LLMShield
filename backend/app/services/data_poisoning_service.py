@@ -432,15 +432,31 @@ class DataPoisoningScanner:
                         return BehavioralTestResult(
                             test_name="Serialization Safety",
                             category=TestCategory.CONTEXT_OVERRIDE,
-                            passed=True,
-                            confidence=0.3,
-                            details="Could not fetch model information",
+                            passed=False,
+                            confidence=0.5,
+                            details="⚠️ Could not fetch model information - treating as UNVERIFIED",
                             metrics={"api_available": False},
                         )
 
                     data = await resp.json()
+
+                    # Type safety: ensure data is dict
+                    if not isinstance(data, dict):
+                        logger.warning(f"Unexpected API response type for {model_id}: {type(data)}")
+                        return BehavioralTestResult(
+                            test_name="Serialization Safety",
+                            category=TestCategory.CONTEXT_OVERRIDE,
+                            passed=False,
+                            confidence=0.5,
+                            details="⚠️ Invalid API response format - treating as UNVERIFIED",
+                            metrics={"api_response_type": str(type(data))},
+                        )
+
                     siblings = data.get("siblings", [])
-                    file_names = [f["rfilename"].lower() for f in siblings]
+                    if not isinstance(siblings, list):
+                        siblings = []
+
+                    file_names = [f["rfilename"].lower() for f in siblings if isinstance(f, dict)]
 
                     # Categorize files
                     unsafe_files = []
@@ -495,9 +511,9 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Serialization Safety",
                 category=TestCategory.CONTEXT_OVERRIDE,
-                passed=True,
-                confidence=0.3,
-                details=f"Could not fully verify serialization format: {str(e)[:100]}",
+                passed=False,
+                confidence=0.6,
+                details=f"⚠️ Could not fully verify serialization format - treating as SUSPICIOUS: {str(e)[:80]}",
                 metrics={"error": str(e)[:100]},
             )
 
@@ -521,15 +537,32 @@ class DataPoisoningScanner:
                         return BehavioralTestResult(
                             test_name="Weight Anomaly Detection",
                             category=TestCategory.CONSISTENCY,
-                            passed=True,
-                            confidence=0.1,
-                            details="Could not access model metadata",
+                            passed=False,
+                            confidence=0.6,
+                            details="⚠️ Could not access model metadata - treating as UNVERIFIED",
                             metrics={"metadata_available": False},
                         )
 
                     data = await resp.json()
+
+                    # Type safety: ensure data is dict, not list
+                    if not isinstance(data, dict):
+                        logger.warning(f"Unexpected API response type for {model_id}: {type(data)}")
+                        return BehavioralTestResult(
+                            test_name="Weight Anomaly Detection",
+                            category=TestCategory.CONSISTENCY,
+                            passed=False,
+                            confidence=0.6,
+                            details="⚠️ Invalid API response format - treating as SUSPICIOUS",
+                            metrics={"api_response_type": str(type(data))},
+                        )
+
                     safetensors_info = data.get("safetensors", {})
                     siblings = data.get("siblings", [])
+
+                    # Validate siblings is a list
+                    if not isinstance(siblings, list):
+                        siblings = []
 
             # Anomalies found
             anomalies = []
