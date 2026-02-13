@@ -354,7 +354,7 @@ export function DatasetPoisoningPage() {
                             value={textContent}
                             onChange={(e) => setTextContent(e.target.value)}
                             placeholder="Paste your CSV, JSON, or TSV data here..."
-                            className="w-full h-64 bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 p-4 rounded-lg"
+                            className="w-full h-64 bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all duration-300 p-4 rounded-lg"
                           />
                           <p className="text-gray-400 text-sm mt-2">
                             💡 Supports CSV, JSON, TSV, and newline-delimited JSON formats
@@ -399,7 +399,7 @@ export function DatasetPoisoningPage() {
                             value={hfDatasetId}
                             onChange={(e) => setHfDatasetId(e.target.value)}
                             placeholder="e.g., username/dataset-name"
-                            className="w-full bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all py-3 px-4 rounded-lg"
+                            className="w-full bg-slate-900/80 backdrop-blur-md border-2 border-purple-500/40 text-white placeholder-gray-400 focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/30 transition-all py-3 px-4 rounded-lg"
                           />
                           <p className="text-gray-400 text-sm mt-2">
                             💡 Example: huggingface/datasets or username/my-dataset
