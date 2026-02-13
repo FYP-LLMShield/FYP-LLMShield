@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
         for name, instance in mcp_instances.items():
             app.mount(f"/mcp/{name}", instance.get_app())
         app.state.mcp_initialized = True
-        print("🛡️  Security scanner modules loaded")
+        print("[OK] Security scanner modules loaded")
     except Exception as e:
         print("STARTUP WARNING (MCP):", str(e))
         traceback.print_exc()
