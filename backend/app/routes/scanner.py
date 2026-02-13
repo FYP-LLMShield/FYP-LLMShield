@@ -139,6 +139,7 @@ class ExecutiveSummary(BaseModel):
     files_affected: int
     critical_issues: int
     immediate_actions_required: int
+    estimated_fix_time: str = Field(default="", description="Estimated time to fix all issues")
     top_risks: List[str] = Field(default_factory=list, description="Top 3 risk categories")
     compliance_concerns: List[str] = Field(default_factory=list, description="CWE/Security standard violations")
 
@@ -1565,7 +1566,10 @@ async def scan_upload(
         raise HTTPException(status_code=500, detail=f"Upload scan failed: {str(e)}")
 
 @router.post("/text/pdf")
-async def scan_text_pdf(request: TextScanRequest):
+async def scan_text_pdf(
+    request: TextScanRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
     """Scan text and return PDF report."""
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
@@ -1607,7 +1611,8 @@ async def scan_text_pdf(request: TextScanRequest):
 @router.post("/upload/pdf")
 async def scan_upload_pdf(
     file: UploadFile = File(...),
-    scan_types: str = "secrets,cpp_vulns"
+    scan_types: str = "secrets,cpp_vulns",
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """Upload file and return PDF report."""
     if not file.filename:
@@ -1877,7 +1882,10 @@ async def scan_github(
         raise HTTPException(status_code=400, detail=f"GitHub scan failed: {str(e)[:200]}")
 
 @router.post("/github/pdf")
-async def scan_github_pdf(request: RepoScanRequest):
+async def scan_github_pdf(
+    request: RepoScanRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
     """Clone GitHub repository and return PDF report."""
     if not _GIT_OK:
         raise HTTPException(status_code=500, detail="Git not available. Install gitpython: pip install gitpython")

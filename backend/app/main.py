@@ -27,6 +27,7 @@ from app.routes.profile import router as profile_router
 
 # Import the unified security scanner components
 from app.routes.scanner import router as scanner_router
+from app.routes.sast_scanner import router as sast_scanner_router
 from app.routes.scan_history import router as scan_history_router
 from app.routes.prompt_injection import router as prompt_injection_router
 from app.routes.data_poisoning import router as data_poisoning_router
@@ -103,11 +104,17 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/auth", 
     tags=["Email Verification"]
 )
-# Add the security scanner router
+# Add the security scanner router (regex-based - legacy)
 app.include_router(
-    scanner_router, 
-    prefix=f"{settings.API_V1_STR}/scan", 
+    scanner_router,
+    prefix=f"{settings.API_V1_STR}/scan",
     tags=["Security Scanner"]
+)
+# Add the SAST scanner router (Semgrep + TruffleHog - modern)
+app.include_router(
+    sast_scanner_router,
+    prefix=f"{settings.API_V1_STR}/sast",
+    tags=["SAST Scanner (Semgrep + TruffleHog)"]
 )
 # Add the scan history router
 app.include_router(

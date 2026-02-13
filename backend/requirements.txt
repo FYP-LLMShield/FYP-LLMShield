@@ -49,3 +49,11 @@ postgrest>=0.13.0
 
 # Optional: Large package, install separately if needed
 # llama-cpp-python>=0.2.0
+
+# SAST Tools for Code Analysis
+semgrep>=1.45.0
+truffleHog>=3.0.0
+pyyaml>=6.0
+
+# MCP (Model Context Protocol) for SAST integration
+mcp>=0.1.0
