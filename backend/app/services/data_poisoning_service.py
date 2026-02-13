@@ -272,9 +272,9 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Code Pattern Detection",
                 category=TestCategory.BASELINE_SAFETY,
-                passed=True,
-                confidence=0.5,
-                details=f"Could not fully analyze code patterns: {str(e)[:100]}",
+                passed=False,
+                confidence=0.6,
+                details=f"⚠️ Could not fully analyze code patterns - treating as SUSPICIOUS: {str(e)[:80]}",
                 metrics={"error": str(e)[:100]},
             )
 
@@ -290,9 +290,9 @@ class DataPoisoningScanner:
                 return BehavioralTestResult(
                     test_name="Architecture Anomaly Detection",
                     category=TestCategory.TRIGGER_FUZZING,
-                    passed=True,
-                    confidence=0.4,
-                    details="Could not retrieve model config for verification",
+                    passed=False,
+                    confidence=0.6,
+                    details="⚠️ Could not retrieve model config for verification - treating as UNVERIFIED",
                     metrics={"config_available": False},
                 )
 
@@ -339,9 +339,9 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Architecture Anomaly Detection",
                 category=TestCategory.TRIGGER_FUZZING,
-                passed=True,
-                confidence=0.3,
-                details=f"Could not fully verify architecture: {str(e)[:100]}",
+                passed=False,
+                confidence=0.6,
+                details=f"⚠️ Could not fully verify architecture - treating as SUSPICIOUS: {str(e)[:80]}",
                 metrics={"error": str(e)[:100]},
             )
 
@@ -670,9 +670,9 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Weight Anomaly Detection",
                 category=TestCategory.CONSISTENCY,
-                passed=True,
-                confidence=0.2,
-                details=f"Could not perform weight analysis: {str(e)[:100]}",
+                passed=False,
+                confidence=0.7,
+                details=f"⚠️ Could not perform weight analysis (PRIMARY test failed) - treating as SUSPICIOUS: {str(e)[:80]}",
                 metrics={"error": str(e)[:100]},
             )
 
@@ -685,7 +685,8 @@ class DataPoisoningScanner:
         2. Access to model's inference endpoint
         3. Testing multiple prompts with variations
 
-        Current implementation returns PASS (inconclusive) since we can't query model.
+        Current implementation: Since we can't query model without API token,
+        we FAIL (conservative approach) rather than blindly PASS.
         """
         try:
             # Try to get model inference information
@@ -696,28 +697,40 @@ class DataPoisoningScanner:
                         return BehavioralTestResult(
                             test_name="Behavioral Consistency Check",
                             category=TestCategory.CONSISTENCY,
-                            passed=True,
-                            confidence=0.1,
-                            details="Could not access model for behavioral testing (API unavailable)",
+                            passed=False,
+                            confidence=0.5,
+                            details="⚠️ Could not access model for behavioral testing - treating as UNVERIFIED",
                             metrics={"api_available": False},
                         )
 
                     data = await resp.json()
+
+                    # Type safety check
+                    if not isinstance(data, dict):
+                        return BehavioralTestResult(
+                            test_name="Behavioral Consistency Check",
+                            category=TestCategory.CONSISTENCY,
+                            passed=False,
+                            confidence=0.5,
+                            details="⚠️ Invalid API response format - treating as UNVERIFIED",
+                            metrics={"api_response_type": str(type(data))},
+                        )
+
                     pipeline_tag = data.get("pipeline_tag", "")
 
-                    # If model has inference capability, note it
+                    # If model has inference capability, note it but still FAIL (can't test without token)
                     if pipeline_tag:
-                        details = f"Model supports: {pipeline_tag}. Behavioral testing would require API token and inference access."
+                        details = f"⚠️ Model supports {pipeline_tag}, but full behavioral testing requires API token. Unable to verify."
                     else:
-                        details = "Model inference capability unknown. Behavioral testing requires inference API."
+                        details = "⚠️ Model inference capability unknown - behavioral testing not possible without API access."
 
             return BehavioralTestResult(
                 test_name="Behavioral Consistency Check",
                 category=TestCategory.CONSISTENCY,
-                passed=True,
-                confidence=0.2,
+                passed=False,
+                confidence=0.5,
                 details=details,
-                metrics={"requires_inference": True, "pipeline": pipeline_tag},
+                metrics={"requires_inference": True, "pipeline": pipeline_tag, "status": "UNVERIFIED"},
             )
 
         except Exception as e:
@@ -725,9 +738,9 @@ class DataPoisoningScanner:
             return BehavioralTestResult(
                 test_name="Behavioral Consistency Check",
                 category=TestCategory.CONSISTENCY,
-                passed=True,
-                confidence=0.1,
-                details="Behavioral testing requires inference API access",
+                passed=False,
+                confidence=0.6,
+                details=f"⚠️ Behavioral testing requires inference API access - treating as UNVERIFIED: {str(e)[:60]}",
                 metrics={"error": str(e)[:50]},
             )
 
