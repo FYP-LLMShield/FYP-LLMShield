@@ -56,30 +56,78 @@ class SASTService:
         """Initialize SAST service"""
         self.semgrep_available = self._check_semgrep()
         self.trufflehog_available = self._check_trufflehog()
+        self.semgrep_cmd = self._find_tool_command("semgrep")
+        self.trufflehog_cmd = self._find_tool_command("trufflehog")
 
     def _check_semgrep(self) -> bool:
         """Check if Semgrep is installed"""
-        try:
-            result = subprocess.run(
-                ["semgrep", "--version"],
-                capture_output=True,
-                timeout=5
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
+        # Try multiple ways to find semgrep
+        attempts = [
+            lambda: subprocess.run(["semgrep", "--version"], capture_output=True, timeout=5),
+            lambda: subprocess.run([sys.executable, "-m", "semgrep", "--version"], capture_output=True, timeout=5),
+            lambda: shutil.which("semgrep") is not None,
+        ]
+
+        for attempt in attempts:
+            try:
+                result = attempt()
+                if isinstance(result, bool):
+                    return result
+                if isinstance(result, subprocess.CompletedProcess):
+                    return result.returncode == 0
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                continue
+
+        return False
 
     def _check_trufflehog(self) -> bool:
         """Check if TruffleHog is installed"""
-        try:
-            result = subprocess.run(
-                ["trufflehog", "--version"],
-                capture_output=True,
-                timeout=5
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
+        # Try multiple ways to find trufflehog
+        attempts = [
+            lambda: subprocess.run(["trufflehog", "--version"], capture_output=True, timeout=5),
+            lambda: subprocess.run([sys.executable, "-m", "trufflehog", "--version"], capture_output=True, timeout=5),
+            lambda: shutil.which("trufflehog") is not None,
+        ]
+
+        for attempt in attempts:
+            try:
+                result = attempt()
+                if isinstance(result, bool):
+                    return result
+                if isinstance(result, subprocess.CompletedProcess):
+                    return result.returncode == 0
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                continue
+
+        return False
+
+    def _find_tool_command(self, tool_name: str) -> Optional[List[str]]:
+        """
+        Find the correct command to run a tool
+        Returns command as list suitable for subprocess.run()
+        """
+        tool_path = shutil.which(tool_name)
+        attempts = [
+            [tool_name],
+            [sys.executable, "-m", tool_name],
+            [tool_path] if tool_path else None,
+        ]
+
+        for cmd in attempts:
+            if cmd is None:
+                continue
+            try:
+                result = subprocess.run(
+                    cmd + ["--version"],
+                    capture_output=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    return cmd
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                continue
+
+        return None
 
     async def scan_text(self, content: str, filename: str = "code.c") -> List[Vulnerability]:
         """
@@ -197,15 +245,14 @@ class SASTService:
         Returns:
             List of vulnerabilities found by Semgrep
         """
-        if not self.semgrep_available:
+        if not self.semgrep_available or not self.semgrep_cmd:
             return []
 
         findings = []
 
         try:
             # Run semgrep with C-specific rules
-            cmd = [
-                "semgrep",
+            cmd = self.semgrep_cmd + [
                 "--json",
                 "--config=p/c",  # C/C++ rules
                 target_path
@@ -248,15 +295,14 @@ class SASTService:
         Returns:
             List of secrets found by TruffleHog
         """
-        if not self.trufflehog_available:
+        if not self.trufflehog_available or not self.trufflehog_cmd:
             return []
 
         findings = []
 
         try:
             # Run trufflehog with JSON output
-            cmd = [
-                "trufflehog",
+            cmd = self.trufflehog_cmd + [
                 "filesystem",
                 target_path,
                 "--json",
