@@ -28,6 +28,8 @@ class DetectionTechniqueType(str, Enum):
     METADATA_ANALYSIS = "metadata_analysis"
     SAMPLE_PATTERNS = "sample_patterns"
     DISTRIBUTION_TESTS = "distribution_tests"
+    ENTROPY_ANALYSIS = "entropy_analysis"
+    FEATURE_DEPENDENCIES = "feature_dependencies"
 
 
 class DetectionResult(BaseModel):

@@ -836,19 +836,21 @@ class DatasetPoisoningDetector:
 
         # Weighted scoring system for 10 detection techniques
         weights = {
-            DetectionTechniqueType.LABEL_ANALYSIS: 0.25,  # INCREASED - highest weight for label poisoning
-            DetectionTechniqueType.STATISTICAL: 0.20,
-            DetectionTechniqueType.TEXT_ANALYSIS: 0.20,  # INCREASED - code injection is critical
+            DetectionTechniqueType.LABEL_ANALYSIS: 0.25,  # HIGHEST - label poisoning is critical
+            DetectionTechniqueType.STATISTICAL: 0.15,
+            DetectionTechniqueType.TEXT_ANALYSIS: 0.20,  # HIGH - code injection is critical
             DetectionTechniqueType.INTEGRITY_CHECK: 0.12,
             DetectionTechniqueType.SAMPLE_PATTERNS: 0.12,
-            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.06,
-            DetectionTechniqueType.METADATA_ANALYSIS: 0.03,
-            DetectionTechniqueType.DISTRIBUTION_TESTS: 0.02,
+            DetectionTechniqueType.ENTROPY_ANALYSIS: 0.10,  # ADDED - low-entropy features
+            DetectionTechniqueType.CORRELATION_ANALYSIS: 0.03,
+            DetectionTechniqueType.METADATA_ANALYSIS: 0.02,
+            DetectionTechniqueType.DISTRIBUTION_TESTS: 0.01,
+            DetectionTechniqueType.FEATURE_DEPENDENCIES: 0.00,  # PLACEHOLDER - minimal weight
         }
 
         # Calculate weighted risk and check for critical indicators
         for result in detection_results:
-            weight = weights.get(result.technique, 0.1)
+            weight = weights.get(result.technique, 0.05)
             weighted_risk += result.risk_score * weight
             total_weight += weight
 
@@ -863,10 +865,9 @@ class DatasetPoisoningDetector:
                     if any(keyword in finding_lower for keyword in [
                         "poison", "attack", "backdoor", "trigger",
                         "path traversal", "injection", "sql", "script",
-                        "suspicious naming", "unusual pattern"
+                        "suspicious naming", "suspicious label", "unusual pattern"
                     ]):
                         critical_flags += 1
-                        weighted_risk += 0.15  # Add extra risk for critical findings
 
         # Normalize weighted risk
         if total_weight > 0:
@@ -874,13 +875,20 @@ class DatasetPoisoningDetector:
         else:
             avg_risk = 0.1
 
+        # Apply strong penalties for critical indicators
+        if critical_flags > 0:
+            # Significantly boost risk for poisoning keywords - non-linear increase
+            critical_boost = min(0.4, critical_flags * 0.15)  # Up to 0.4 boost per flag
+            avg_risk = min(1.0, avg_risk + critical_boost)
+
         # Boost risk if multiple techniques flag issues
         if high_risk_indicators >= 3:
-            avg_risk = min(1.0, avg_risk * 1.3)  # 30% boost
+            avg_risk = min(1.0, avg_risk + 0.15)  # Add 15% if 3+ techniques failed
 
-        # Heavy penalty for critical flags
-        if critical_flags > 0:
-            avg_risk = min(1.0, avg_risk + (critical_flags * 0.2))
+        # Boost risk if multiple techniques with different types of issues
+        if high_risk_indicators >= 2:
+            if critical_flags == 0:  # Don't double-penalize if already has critical flags
+                avg_risk = min(1.0, avg_risk + 0.10)  # Smaller boost if no critical flags
 
         # Factor in duplicates and repetition (strong poisoning indicators)
         if high_risk_indicators > 0 and suspicious_samples:
@@ -889,28 +897,28 @@ class DatasetPoisoningDetector:
                 avg_risk = min(1.0, avg_risk + 0.15)
 
         # Ensure minimum risk if suspicious patterns found
-        if critical_flags > 0 and avg_risk < 0.4:
-            avg_risk = 0.45  # Minimum for poisoning patterns
+        if critical_flags > 0 and avg_risk < 0.35:
+            avg_risk = 0.40  # Minimum for poisoning patterns (increased from 0.45)
 
-        # Generate verdict with corrected thresholds
+        # Generate verdict with improved thresholds
         logger.info(f"Risk assessment: avg_risk={avg_risk:.3f}, high_risk={high_risk_indicators}, critical_flags={critical_flags}")
 
-        if avg_risk >= 0.65:
+        if avg_risk >= 0.60:
             verdict = DatasetVerdictType.UNSAFE
             confidence = 0.90
-            explanation = f"CRITICAL: Strong evidence of data poisoning detected ({critical_flags} critical indicators). {high_risk_indicators} detection techniques flagged suspicious patterns. DO NOT USE."
-        elif avg_risk >= 0.45:
+            explanation = f"🔴 CRITICAL: Strong evidence of data poisoning detected ({critical_flags} critical indicators). {high_risk_indicators} detection techniques flagged suspicious patterns. DO NOT USE."
+        elif avg_risk >= 0.40:
             verdict = DatasetVerdictType.SUSPICIOUS
-            confidence = 0.82
-            explanation = f"WARNING: Dataset exhibits poisoning indicators ({critical_flags} critical patterns detected). {high_risk_indicators} detection methods flagged anomalies. Manual review strongly recommended."
-        elif avg_risk >= 0.25:
+            confidence = 0.85
+            explanation = f"🟠 WARNING: Dataset exhibits poisoning indicators ({critical_flags} critical patterns detected). {high_risk_indicators} detection methods flagged anomalies. Manual review strongly recommended."
+        elif avg_risk >= 0.20:
             verdict = DatasetVerdictType.SUSPICIOUS
-            confidence = 0.72
-            explanation = f"CAUTION: Dataset has anomalies detected ({high_risk_indicators} methods flagged concerns). Investigate before production use."
+            confidence = 0.78
+            explanation = f"🟡 CAUTION: Dataset has anomalies detected ({high_risk_indicators} detection methods flagged concerns). Investigate before production use."
         else:
             verdict = DatasetVerdictType.SAFE
             confidence = 0.80
-            explanation = "Dataset appears clean. No significant poisoning indicators detected across all 10 detection techniques."
+            explanation = "🟢 Dataset appears clean. No significant poisoning indicators detected across all 10 detection techniques."
 
         return float(avg_risk), verdict, confidence, explanation
 

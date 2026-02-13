@@ -108,14 +108,40 @@ async def analyze_huggingface_dataset(
 
         try:
             # Load dataset from HF
-            logger.info(f"Loading HF dataset: {request.huggingface_dataset_id}")
+            dataset_id = request.huggingface_dataset_id.strip()
+            logger.info(f"Raw input: {dataset_id}")
 
-            config = request.huggingface_config or "default"
-            dataset = load_dataset(
-                request.huggingface_dataset_id,
-                config,
-                trust_remote_code=True,
-            )
+            # Extract dataset ID from full URL if provided
+            # Handle formats like:
+            # - openbmb/UltraData-Math
+            # - https://huggingface.co/datasets/openbmb/UltraData-Math
+            # - https://huggingface.co/datasets/openbmb/UltraData-Math/
+            if "huggingface.co" in dataset_id:
+                # Remove protocol
+                dataset_id = dataset_id.replace("https://", "").replace("http://", "")
+                # Remove domain
+                dataset_id = dataset_id.replace("huggingface.co/", "")
+                # Remove /datasets/ if present
+                dataset_id = dataset_id.replace("datasets/", "")
+                # Remove trailing slash
+                dataset_id = dataset_id.rstrip("/")
+
+            logger.info(f"Extracted dataset ID: {dataset_id}")
+
+            # Load without trust_remote_code (deprecated in newer versions)
+            try:
+                # Try loading with specified config if provided
+                if request.huggingface_config:
+                    dataset = load_dataset(dataset_id, request.huggingface_config)
+                else:
+                    # Load without config (will use default split)
+                    dataset = load_dataset(dataset_id)
+            except Exception as e:
+                # If it fails, try with trust_remote_code=False explicitly
+                if request.huggingface_config:
+                    dataset = load_dataset(dataset_id, request.huggingface_config, trust_remote_code=False)
+                else:
+                    dataset = load_dataset(dataset_id, trust_remote_code=False)
 
             # Convert to DataFrame (use first split if multiple)
             if isinstance(dataset, dict):
@@ -140,11 +166,30 @@ async def analyze_huggingface_dataset(
             return result
 
         except Exception as e:
+            error_msg = str(e).lower()
             logger.error(f"HF dataset loading error: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=400,
-                detail=f"Could not load HuggingFace dataset: {str(e)}"
-            )
+
+            # Provide specific error messages for common issues
+            if "trust_remote_code" in error_msg or "loading script" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Dataset '{dataset_id}' requires a loading script which is no longer supported. Please use a dataset in standard format (CSV, Parquet, etc.) or check the dataset's documentation for alternative versions."
+                )
+            elif "couldn't find" in error_msg or "filenotfound" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Dataset '{dataset_id}' not found. Please verify: (1) You're using a DATASET, not a MODEL (datasets.huggingface.co, not huggingface.co/models), (2) Format is 'username/dataset-name' (e.g., 'wikitext/wikitext-103-v1'), (3) Dataset name is spelled correctly"
+                )
+            elif "authentica" in error_msg or "unauthorized" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot access dataset '{dataset_id}'. It may be private or require authentication."
+                )
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Could not load HuggingFace dataset: {str(e)}"
+                )
 
     except HTTPException:
         raise
