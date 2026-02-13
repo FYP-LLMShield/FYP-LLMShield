@@ -88,22 +88,29 @@ class DatasetPoisoningDetector:
             # Generate recommendation
             recommendation = self._generate_recommendation(verdict, overall_risk)
 
+            # Convert detection results to ensure no numpy types
+            for det_result in detection_results:
+                det_result.risk_score = float(det_result.risk_score)
+                det_result.confidence = float(det_result.confidence)
+                if det_result.metrics:
+                    det_result.metrics = convert_numpy_types(det_result.metrics)
+
             # Build result
             result = DatasetAnalysisResult(
                 analysis_id=analysis_id,
                 dataset_name=dataset_name,
                 input_method=input_method,
                 verdict=verdict,
-                confidence=confidence,
+                confidence=float(confidence),
                 explanation=explanation,
                 detection_results=detection_results,
                 suspicious_samples=suspicious_samples[:10],  # Top 10
-                total_samples=len(df),
-                total_features=len(df.columns),
-                suspicious_sample_count=len(suspicious_samples),
-                overall_risk_score=overall_risk,
+                total_samples=int(len(df)),
+                total_features=int(len(df.columns)),
+                suspicious_sample_count=int(len(suspicious_samples)),
+                overall_risk_score=float(overall_risk),
                 recommendation=recommendation,
-                summary_metrics=self._build_summary_metrics(df),
+                summary_metrics=convert_numpy_types(self._build_summary_metrics(df)),
                 status="completed",
             )
 
@@ -125,6 +132,7 @@ class DatasetPoisoningDetector:
                 recommendation="Could not complete analysis. Please check dataset format.",
                 status="failed",
                 error_message=str(e),
+                summary_metrics={},
             )
 
     def _parse_dataset(self, content: str, input_method: str) -> Optional[pd.DataFrame]:
