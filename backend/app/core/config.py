@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
     GROQ_MODEL: Optional[str] = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
+    # Qdrant Configuration (for RAG Chatbot)
+    QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
+    QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_API_KEY: Optional[str] = os.getenv("QDRANT_API_KEY")
+
     # xAI Grok - for LLM-based prompt injection evaluation
     XAI_API_KEY: Optional[str] = os.getenv("XAI_API_KEY")
 
