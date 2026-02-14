@@ -50,6 +50,18 @@ async def lifespan(app: FastAPI):
         print("STARTUP WARNING (MongoDB):", str(e))
         traceback.print_exc()
 
+    # Initialize chatbot services - Qdrant only (embedding model lazy-loads on first use)
+    try:
+        print("🔄 Initializing RAG chatbot components...")
+        # Only connect Qdrant on startup (embedding model will lazy-load on first chat)
+        from app.services.qdrant_service import get_qdrant_service
+        get_qdrant_service()  # Connect to Qdrant
+        print("✅ Qdrant connected. Embedding model will lazy-load on first chat request.")
+    except Exception as e:
+        print("⚠️  STARTUP WARNING (Qdrant):", str(e))
+        print("   Make sure Qdrant is running: docker run -p 6333:6333 qdrant/qdrant")
+        # Don't crash startup - Qdrant can be optional
+
     # MCP: do not fail app startup
     try:
         await initialize_mcp_servers()
