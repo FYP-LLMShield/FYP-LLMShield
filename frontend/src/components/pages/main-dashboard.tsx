@@ -220,7 +220,7 @@ export const MainDashboard = memo(() => {
           />
           <HeroCard
             title="Security Assistant"
-            accent="violet"
+            accent="purple"
             href="/dashboard/chatbot"
             artSrc="/art/chat.png"
             icon={MessageCircle}
