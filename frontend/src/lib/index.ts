@@ -1,5 +1,5 @@
 export * from "./api"
-export * from "./utils.js"
+export * from "./utils"
 
 
 
