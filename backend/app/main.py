@@ -141,6 +141,12 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/poisoning-simulation",
     tags=["Poisoning Simulation"]
 )
+# Add the RAG chatbot router
+app.include_router(
+    chatbot_router,
+    prefix=f"{settings.API_V1_STR}/chat",
+    tags=["Chatbot"]
+)
 
 
 @app.get("/")
