@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { Button } from "../ui/button"
-import { Home, User, Shield, Database, Code, History, Settings, ChevronLeft, ChevronRight } from "lucide-react"
+import { Home, User, Shield, Database, Code, History, Settings, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react"
 
 interface SidebarProps {
   collapsed: boolean

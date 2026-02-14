@@ -166,6 +166,16 @@ function App() {
               }
             />
             <Route
+              path="/dashboard/chatbot"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ChatbotPageComponent />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard/history"
               element={
                 <ProtectedRoute>
