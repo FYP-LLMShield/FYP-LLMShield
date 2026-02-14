@@ -15,6 +15,7 @@ const menuItems = [
   { label: "Data Poisoning", href: "/dashboard/data-poisoning", icon: Database, color: "#EF4444" },
   { label: "Vector Security", href: "/dashboard/vector-security", icon: Shield, color: "#22C55E" },
   { label: "C or C++ Code Scanning", href: "/dashboard/code-scanning", icon: Code, color: "#EAB308" },
+  { label: "Security Assistant", href: "/dashboard/chatbot", icon: MessageCircle, color: "#A78BFA" },
   { label: "History", href: "/dashboard/history", icon: History, color: "#6B7280" },
   { label: "Settings", href: "/dashboard/settings", icon: Settings, color: "#22C55E" },
 ]
