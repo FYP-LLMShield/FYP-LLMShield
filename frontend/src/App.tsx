@@ -33,6 +33,7 @@ const CodeScannerPage = React.lazy(() => import('./components/pages/code-scannin
 const SettingsPage = React.lazy(() => import('./components/pages/settings-page').then(module => ({ default: module.SettingsPage })));
 const HistoryPage = React.lazy(() => import('./components/pages/history-page').then(module => ({ default: module.HistoryPage })));
 const DataPoisoningPage = React.lazy(() => import('./components/pages/dataset-poisoning-page').then(module => ({ default: module.default })));
+const ChatbotPageComponent = React.lazy(() => import('./components/pages/chatbot-page').then(module => ({ default: module.ChatbotPage })));
 const UserProfilePage = React.lazy(() => import('./pages/dashboard/UserProfilePage'));
 const MFASettingsPage = React.lazy(() => import('./pages/dashboard/MFASettingsPage'));
 
