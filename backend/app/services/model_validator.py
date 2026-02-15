@@ -328,8 +328,8 @@ class ModelValidator:
         Retries on transient failures (429, 500, 502, 503, 504, network errors).
         Uses exponential backoff for retries.
         """
-        max_retries = 3
-        base_delay = 1.0  # Start with 1 second
+        max_retries = 2  # Reduced from 3 to 2 retries (too slow with 60s timeouts)
+        base_delay = 0.5  # Reduced from 1s to 0.5s for faster failure detection
         
         for attempt in range(max_retries):
             try:
@@ -422,17 +422,28 @@ class ModelValidator:
                 logger.debug(f"Request payload prepared for {provider}")
                 
                 try:
-                    async with httpx.AsyncClient(timeout=60.0) as client:
+                    logger.info(f"[MODEL] Making request to {provider} endpoint: {endpoint}")
+                    logger.debug(f"[MODEL] Payload: {payload}")
+
+                    # Use longer timeout for local models - they can take 30-60+ seconds
+                    timeout = 120.0  # 120 seconds for Ollama/local models (they can be slow)
+                    async with httpx.AsyncClient(timeout=timeout) as client:
+                        logger.info(f"[MODEL] Calling endpoint with {timeout}s timeout...")
                         response = await client.post(endpoint, json=payload)
-                        
+                        logger.info(f"[MODEL] Got response with status code: {response.status_code}")
+
                     # Handle HTTP status codes
                     if response.status_code == 200:
+                        logger.debug(f"[MODEL] Response text length: {len(response.text)}")
                         response_data = response.json()
+                        logger.debug(f"[MODEL] Parsed JSON response")
+
                         if provider == "ollama":
                             text = response_data.get("response", "")
                         else:  # local
                             text = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                        
+
+                        logger.info(f"[MODEL] Extracted response text ({len(text)} chars)")
                         return {
                             "success": True,
                             "response": text,
@@ -466,15 +477,21 @@ class ModelValidator:
                             raise NonRetryableError(error_msg)
                             
                 except httpx.TimeoutException as e:
+                    logger.error(f"[MODEL] Request timeout for {provider}: {str(e)}")
                     raise RetryableError(f"Request timeout: {str(e)}")
                 except httpx.ConnectError as e:
+                    logger.error(f"[MODEL] Connection error for {provider}: {str(e)}")
                     raise RetryableError(f"Connection error: {str(e)}")
                 except httpx.NetworkError as e:
+                    logger.error(f"[MODEL] Network error for {provider}: {str(e)}")
                     raise RetryableError(f"Network error: {str(e)}")
                 except RetryableError:
                     raise  # Re-raise retryable errors
                 except NonRetryableError:
                     raise  # Re-raise non-retryable errors
+                except Exception as e:
+                    logger.error(f"[MODEL] Unexpected error for {provider}: {str(e)}")
+                    raise
             
             # For custom providers, handle flexible configuration
             if provider == "custom":
@@ -509,7 +526,7 @@ class ModelValidator:
                 }
                 
                 try:
-                    async with httpx.AsyncClient(timeout=60.0) as client:
+                    async with httpx.AsyncClient(timeout=25.0) as client:  # Reduced from 60 to 25 seconds
                         response = await client.post(endpoint, headers=headers, json=payload)
                         
                     if response.status_code == 200:

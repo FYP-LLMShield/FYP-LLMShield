@@ -1522,11 +1522,22 @@ async def test_model(request: TestRequest, current_user: Optional[UserInDB] = De
             
             try:
                 # Debug: Print model config being used
-                print(f"Testing probe {i+1} with model config: {model_config}")
-                
-                # Make real API call to the model
-                model_response = await model_validator.make_request(model_config, probe)
-                
+                print(f"Testing probe {i+1}/{len(all_probes)} with model config: {model_config}")
+
+                # Make real API call to the model with timeout
+                try:
+                    model_response = await asyncio.wait_for(
+                        model_validator.make_request(model_config, probe),
+                        timeout=35.0  # Hard timeout after 35 seconds (model has 60s, give it 35s total)
+                    )
+                except asyncio.TimeoutError:
+                    print(f"Model request timeout for probe {i+1}")
+                    model_response = {
+                        "success": False,
+                        "error": "Model request timeout after 35 seconds",
+                        "response": None
+                    }
+
                 print(f"Model response for probe {i+1}: {model_response}")
                 
                 if model_response and "response" in model_response and model_response["response"]:
@@ -1614,7 +1625,10 @@ async def test_model(request: TestRequest, current_user: Optional[UserInDB] = De
         )
         
     except Exception as e:
-        logger.error(f"Error during prompt injection testing: {str(e)}")
+        logger.error(f"Error during prompt injection testing: {str(e)}", exc_info=True)
+        import traceback
+        error_msg = f"Testing failed: {str(e)}\n{traceback.format_exc()}"
+        print(f"ERROR: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Testing failed: {str(e)}")
 
 @router.post("/scan-document", response_model=DocumentScanResult)
@@ -2438,19 +2452,41 @@ async def test_model_stream(request: TestRequest, current_user: Optional[UserInD
             
             for i, (probe, category) in enumerate(all_probes):
                 probe_start = time.time()
-                
+
                 try:
-                    # Make real API call to the model
-                    model_response = await model_validator.make_request(model_config, probe)
-                    
+                    # Make real API call to the model with timeout
+                    logger.info(f"[STREAM] Probe {i+1}/{total_probes}: Starting request to model")
+                    try:
+                        # Use 140s timeout (more than httpx 120s timeout to let model_validator handle it)
+                        model_response = await asyncio.wait_for(
+                            model_validator.make_request(model_config, probe),
+                            timeout=140.0
+                        )
+                        logger.info(f"[STREAM] Probe {i+1}: Got response from model")
+                    except asyncio.TimeoutError:
+                        logger.error(f"[STREAM] Probe {i+1}: Model request timeout after 140 seconds")
+                        model_response = {
+                            "success": False,
+                            "error": "Model request timeout after 140 seconds"
+                        }
+                    except Exception as e:
+                        logger.error(f"[STREAM] Probe {i+1}: Exception during model request: {str(e)}", exc_info=True)
+                        model_response = {
+                            "success": False,
+                            "error": f"Model request failed: {str(e)}"
+                        }
+
+                    logger.debug(f"[STREAM] Probe {i+1}: Model response: {model_response}")
+
                     if model_response and "response" in model_response and model_response["response"]:
                         actual_response = model_response["response"]
                     elif model_response and "error" in model_response:
                         actual_response = f"Model Error: {model_response['error']}"
                     else:
                         actual_response = "No response received from model"
-                        
+
                 except Exception as e:
+                    logger.error(f"[STREAM] Probe {i+1}: Unexpected exception: {str(e)}", exc_info=True)
                     actual_response = f"Connection Error: {str(e)}"
                 
                 # Analyze response for violations (Grok when available, else probe engine)
