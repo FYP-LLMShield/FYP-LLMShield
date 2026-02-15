@@ -42,29 +42,40 @@ interface GoogleCredentialResponse {
 interface UseGoogleSignInProps {
   onSuccess?: (response: any) => void;
   onError?: (error: any) => void;
+  onAuthStart?: () => void;
+  onAuthEnd?: () => void;
   clientId?: string;
+  /** true = sign up (create user if needed), false = sign in (only if user exists) */
+  isSignUp?: boolean;
 }
 
 export const useGoogleSignIn = ({ 
   onSuccess, 
   onError,
-  clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || ''
+  onAuthStart,
+  onAuthEnd,
+  clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '',
+  isSignUp = true,
 }: UseGoogleSignInProps = {}) => {
   
   const handleCredentialResponse = useCallback(async (response: GoogleCredentialResponse) => {
+    onAuthStart?.();
     try {
-      const result = await authAPI.googleSignIn({ id_token: response.credential });
+      const mode = isSignUp ? 'signup' : 'signin';
+      const result = await authAPI.googleSignIn({ id_token: response.credential, mode });
       
       if (result.success && result.data) {
         onSuccess?.(result.data);
       } else {
-        onError?.(new Error(result.error || 'Google Sign-In failed'));
+        onError?.(new Error(result.error || result.data?.detail || 'Google Sign-In failed'));
       }
     } catch (error) {
       console.error('Google Sign-In error:', error);
       onError?.(error);
+    } finally {
+      onAuthEnd?.();
     }
-  }, [onSuccess, onError]);
+  }, [onSuccess, onError, onAuthStart, onAuthEnd, isSignUp]);
 
   const initializeGoogleSignIn = useCallback(() => {
     console.log('Initializing Google Sign-In with clientId:', clientId);

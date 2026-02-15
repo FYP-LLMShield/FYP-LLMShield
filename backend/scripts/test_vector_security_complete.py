@@ -299,10 +299,10 @@ class VectorSecurityTester:
                     else:
                         self.print_info("No ranking manipulations detected")
                     
-                    # Check query results
-                    query_results = result.get('query_results', [])
-                    successful = [qr for qr in query_results if qr.get('status') == 'success']
-                    failed = [qr for qr in query_results if qr.get('status') == 'error']
+                    # Check query summaries (API returns query_summaries)
+                    query_summaries = result.get('query_summaries', result.get('query_results', []))
+                    successful = [qr for qr in query_summaries if qr.get('status') == 'success']
+                    failed = [qr for qr in query_summaries if qr.get('status') == 'error']
                     
                     print(f"\n  Query Execution:")
                     print(f"    - Successful: {len(successful)}")

@@ -21,3 +21,14 @@ async def close_mongo_connection():
 async def get_database() -> AsyncIOMotorDatabase:
     """Get database instance"""
     return mongodb.database
+
+
+async def ping_mongo() -> bool:
+    """Ping MongoDB to verify connectivity. Used for readiness probes."""
+    try:
+        if mongodb.client is None:
+            return False
+        await mongodb.client.admin.command("ping")
+        return True
+    except Exception:
+        return False

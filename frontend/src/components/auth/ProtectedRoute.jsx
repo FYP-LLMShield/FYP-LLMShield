@@ -16,9 +16,9 @@ const ProtectedRoute = ({ children }) => {
     return <LoadingSpinner />
   }
 
-  // Redirect to login if no user after initialization
+  // Redirect to auth (login) if no user after initialization
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/auth" replace />
   }
 
   return children

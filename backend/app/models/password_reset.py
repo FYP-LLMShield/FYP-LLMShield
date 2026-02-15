@@ -12,16 +12,17 @@ import hashlib
 class PasswordResetToken(BaseModel):
     """Password reset token model"""
     id: Optional[str] = None
-    user_id: str
+    user_id: str  # MongoDB ObjectId string, or Supabase UUID when source=supabase
     email: EmailStr
     token_hash: str
     expires_at: datetime
     created_at: datetime
     used: bool = False
+    source: Optional[str] = "mongodb"  # "mongodb" | "supabase" for which DB to update on reset
 
     @classmethod
-    def create_for_user(cls, user_id: str, email: str) -> Tuple["PasswordResetToken", str]:
-        """Create password reset token for user"""
+    def create_for_user(cls, user_id: str, email: str, source: str = "mongodb") -> Tuple["PasswordResetToken", str]:
+        """Create password reset token for user. source: 'mongodb' | 'supabase'."""
         # Generate secure random token
         raw_token = secrets.token_urlsafe(32)
         
@@ -34,7 +35,8 @@ class PasswordResetToken(BaseModel):
             token_hash=token_hash,
             expires_at=datetime.utcnow() + timedelta(hours=1),  # 1 hour expiry
             created_at=datetime.utcnow(),
-            used=False
+            used=False,
+            source=source
         )
         
         return token_obj, raw_token
@@ -50,7 +52,7 @@ class PasswordResetToken(BaseModel):
 
     def to_dict(self) -> dict:
         """Convert to dictionary for database storage"""
-        return {
+        d = {
             "user_id": self.user_id,
             "email": self.email,
             "token_hash": self.token_hash,
@@ -58,6 +60,9 @@ class PasswordResetToken(BaseModel):
             "created_at": self.created_at,
             "used": self.used
         }
+        if getattr(self, "source", None):
+            d["source"] = self.source
+        return d
 
 
 class ForgotPasswordRequest(BaseModel):

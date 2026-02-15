@@ -49,6 +49,26 @@ async def lifespan(app: FastAPI):
         print("STARTUP WARNING (MongoDB):", str(e))
         traceback.print_exc()
 
+    # Supabase: log availability so we can see why users might not be stored there
+    try:
+        from app.utils.supabase_client import supabase_service
+        if supabase_service.is_available():
+            print("✅ Supabase: enabled (users will be stored in Supabase + MongoDB)")
+        else:
+            print("⚠️ Supabase: disabled (set SUPABASE_PROJECT_URL and SUPABASE_SERVICE_KEY in .env; users stored in MongoDB only)")
+    except Exception as e:
+        print("⚠️ Supabase: check failed:", str(e))
+
+    # Email (verification + password reset): loaded from repo root or backend .env
+    try:
+        from app.utils.email_service import EmailConfig
+        if EmailConfig.is_configured():
+            print("✅ Email: configured (verification and password-reset emails will be sent)")
+        else:
+            print("⚠️ Email: not configured (set EMAIL_USERNAME and EMAIL_PASSWORD in .env in project root or backend/)")
+    except Exception as e:
+        print("⚠️ Email: check failed:", str(e))
+
     # MCP: do not fail app startup
     try:
         await initialize_mcp_servers()
@@ -211,6 +231,40 @@ async def readiness():
             content={"status": "not_ready", "reason": "database_unavailable"},
         )
     return {"status": "ready"}
+
+
+@app.get("/health/supabase")
+async def health_supabase():
+    """
+    Check Supabase connectivity and users table access.
+    supabase_auth_primary: when True, frontend can try Supabase Auth first and use backend as fallback.
+    """
+    from app.core.config import settings
+    db_configured = bool(settings.SUPABASE_PROJECT_URL and settings.SUPABASE_SERVICE_KEY)
+    auth_configured = bool(settings.SUPABASE_PROJECT_URL and settings.SUPABASE_ANON_KEY and settings.SUPABASE_JWT_SECRET)
+    out = {
+        "supabase_configured": db_configured,
+        "supabase_auth_primary": auth_configured,
+        "supabase_reachable": False,
+        "message": "",
+    }
+    if not db_configured:
+        out["message"] = "Set SUPABASE_PROJECT_URL and SUPABASE_SERVICE_KEY in .env (use service_role key, not anon)."
+        return out
+    try:
+        from app.utils.supabase_client import supabase_service
+        if not supabase_service.is_available():
+            out["message"] = "Supabase client failed to initialize (check URL and key)."
+            return out
+        result = supabase_service.get_client().table("users").select("id").limit(1).execute()
+        out["supabase_reachable"] = True
+        out["message"] = "Supabase users table is reachable."
+        if auth_configured:
+            out["message"] += " Supabase Auth is primary; backend auth is used when Supabase is unavailable."
+    except Exception as e:
+        out["message"] = str(e)
+        out["error_detail"] = getattr(e, "details", None) or getattr(e, "message", None)
+    return out
 
 
 if __name__ == "__main__":

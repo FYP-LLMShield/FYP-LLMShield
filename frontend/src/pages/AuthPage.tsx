@@ -53,30 +53,64 @@ const formatErrorMessage = (err: any): string => {
 const AuthPage: React.FC = memo(() => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { login, signup, setUser } = useAuth();
+  const { login, signup, setUser, isLoading, isInitialized } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   // Add error state to store backend error messages
   const [loginError, setLoginError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState('');
   const [signupError, setSignupError] = useState('');
   const [signupSuccess, setSignupSuccess] = useState('');
   const [showMfaVerification, setShowMfaVerification] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
+  const [mfaVerifying, setMfaVerifying] = useState(false);
 
-  // Google Sign-In integration
+  // Show overlay when user is logging in / signing up / signing in with Google (until redirect)
+  const authInProgress = (isInitialized && isLoading) || googleAuthLoading || mfaVerifying;
+
+  // Google Sign-In: sign-up form = create user if needed; login form = only allow if user exists
   const { renderGoogleButton, initializeGoogleSignIn } = useGoogleSignIn({
+    isSignUp,
+    onAuthStart: () => setGoogleAuthLoading(true),
+    onAuthEnd: () => setGoogleAuthLoading(false),
     onSuccess: (response) => {
-      console.log('Google Sign-In successful:', response);
-      setUser(response.user);
-      navigate('/dashboard');
+      setLoginError('');
+      setSignupError('');
+      if (response.access_token) {
+        localStorage.setItem('access_token', response.access_token);
+        authAPI.setToken(response.access_token);
+      }
+      if (response.refresh_token) {
+        localStorage.setItem('refresh_token', response.refresh_token);
+      }
+      const userData = {
+        id: response.user?.id ?? null,
+        email: response.user?.email ?? '',
+        name: response.user?.name ?? response.user?.email?.split('@')[0] ?? 'User',
+        plan: 'free',
+        isVerified: response.user?.is_verified ?? true,
+        mfaEnabled: response.user?.mfa_enabled ?? false,
+      };
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setGoogleAuthLoading(false);
+      setLoginSuccess(
+        response.is_new_user
+          ? 'Account created successfully. Redirecting to dashboard.'
+          : 'Login successful ... redirecting to dashboard.'
+      );
+      setTimeout(() => navigate('/dashboard'), 1500);
     },
-    onError: (error) => {
-      console.error('Google Sign-In failed:', error);
-      setLoginError('Google Sign-In failed. Please try again.');
-    }
+    onError: (err) => {
+      setGoogleAuthLoading(false);
+      const msg = err?.message || err?.error || 'Google Sign-In failed. Please try again.';
+      if (isSignUp) setSignupError(msg);
+      else setLoginError(msg);
+    },
   });
 
   // Handle Google Sign-In button click
@@ -105,23 +139,21 @@ const AuthPage: React.FC = memo(() => {
     }
   }, [initializeGoogleSignIn]);
 
-  // Render Google button in a div element
+  // Render Google's button into containers (required for reliable popup; we use dark theme)
   const renderGoogleSignInButton = useCallback((containerId: string) => {
     const container = document.getElementById(containerId);
     if (container && window.google) {
-      // Clear any existing content
       container.innerHTML = '';
       renderGoogleButton(container, {
-        theme: 'outline',
+        theme: 'filled_black',
         size: 'large',
         text: 'continue_with',
         shape: 'rectangular',
-        width: '100%'
+        width: '100%',
       });
     }
   }, [renderGoogleButton]);
 
-  // Effect to render Google buttons after component mounts
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isSignUp) {
@@ -129,8 +161,7 @@ const AuthPage: React.FC = memo(() => {
       } else {
         renderGoogleSignInButton('google-signin-login');
       }
-    }, 500); // Small delay to ensure DOM is ready
-
+    }, 600);
     return () => clearTimeout(timer);
   }, [isSignUp, renderGoogleSignInButton]);
 
@@ -156,8 +187,8 @@ const AuthPage: React.FC = memo(() => {
   // Handle login form submission - memoized for performance
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    // Clear previous errors
     setLoginError('');
+    setLoginSuccess('');
     setMfaError('');
     
     if (rememberMe) {
@@ -171,8 +202,8 @@ const AuthPage: React.FC = memo(() => {
     if (email && password) {
       try {
         await login(email, password);
-        // Navigate to dashboard in same window
-        navigate('/dashboard');
+        setLoginSuccess('Login successful ... redirecting to dashboard.');
+        setTimeout(() => navigate('/dashboard'), 1500);
       } catch (error: any) {
         console.error('Login failed:', error);
         // Check if MFA verification is required
@@ -188,8 +219,9 @@ const AuthPage: React.FC = memo(() => {
 
   // Handle MFA verification
   const handleMfaVerification = useCallback(async (code: string) => {
+    setMfaVerifying(true);
+    setMfaError('');
     try {
-      setMfaError('');
       // Get the partial token from localStorage
       const partialToken = localStorage.getItem('partial_token');
       if (!partialToken) {
@@ -227,17 +259,18 @@ const AuthPage: React.FC = memo(() => {
         const userData = {
           id: data.user.id,
           email: data.user.email,
-          name: data.user.full_name || data.user.email.split('@')[0],
+          name: data.user.name || data.user.full_name || data.user.email.split('@')[0],
           plan: "free",
           isVerified: data.user.is_verified,
           mfaEnabled: data.user.mfa_enabled
         };
         
-        // Update user state and localStorage directly
-         setUser(userData);
-         localStorage.setItem("user", JSON.stringify(userData));
-         
-         navigate('/dashboard');
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        setShowMfaVerification(false);
+        setMfaVerifying(false);
+        setLoginSuccess('Login successful ... redirecting to dashboard.');
+        setTimeout(() => navigate('/dashboard'), 1500);
       } else {
         const errorData = await response.json();
         // If unauthorized, the partial token might be expired
@@ -255,6 +288,8 @@ const AuthPage: React.FC = memo(() => {
         setShowMfaVerification(false);
       }
       setMfaError(formatErrorMessage(error));
+    } finally {
+      setMfaVerifying(false);
     }
   }, [navigate, setUser]);
 
@@ -265,14 +300,38 @@ const AuthPage: React.FC = memo(() => {
   }, []);
 
   useEffect(() => {
-    // Check if URL has signup parameter
     const params = new URLSearchParams(location.search);
     if (params.get('signup') === 'true') {
       setIsSignUp(true);
     } else {
-      setIsSignUp(false); // Ensure it's false if signup param is not present
+      setIsSignUp(false);
     }
   }, [location]);
+
+  // Handle email verification link (?verify=1&token=...)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    const verify = params.get('verify');
+    if (verify !== '1' || !token) return;
+    const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+    fetch(`${apiBase}/auth/verify-email/${encodeURIComponent(token)}`, { method: 'POST' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setLoginSuccess('Email verified. You can now log in.');
+          setIsSignUp(false);
+          navigate('/auth', { replace: true });
+        } else {
+          setLoginError(data?.detail || 'Verification failed. The link may have expired.');
+          navigate('/auth', { replace: true });
+        }
+      })
+      .catch(() => {
+        setLoginError('Verification request failed. Please try again.');
+        navigate('/auth', { replace: true });
+      });
+  }, [location.search, navigate]);
 
   // Handle signup form submission
   const handleSignup = useCallback(async (e: React.FormEvent, name: string, username: string) => {
@@ -284,13 +343,12 @@ const AuthPage: React.FC = memo(() => {
     if (email && password && name && username) {
       try {
         await signup(name, username, email, password);
-        // Show success message
-        setSignupSuccess('Account created successfully! Please login to continue.');
-        // Navigate to login page after a short delay
+        setSignupSuccess('Created account successfully. Please log in below.');
         setTimeout(() => {
           setIsSignUp(false);
+          setSignupSuccess('');
           navigate('/auth');
-        }, 2000);
+        }, 2500);
       } catch (error: any) {
         console.error('Signup failed:', error);
         // Store the error message from the backend
@@ -360,6 +418,57 @@ const AuthPage: React.FC = memo(() => {
         >
           {/* Main Rectangle Container */}
           <div className="relative w-full h-auto min-h-[inherit] bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden grid md:grid-cols-2 items-stretch">
+            {/* Loading overlay: moving circle + blurred background */}
+            {authInProgress && (
+              <div
+                className="absolute inset-0 z-30 flex flex-col items-center justify-center rounded-2xl bg-gray-900/70 backdrop-blur-xl"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <div className="flex flex-col items-center gap-5">
+                  {/* Moving circle: rotating ring with teal arc */}
+                  <div className="relative flex items-center justify-center">
+                    <div className="h-14 w-14 animate-spin auth-loading-spin">
+                      <svg className="h-14 w-14 block" viewBox="0 0 56 56" aria-hidden="true">
+                        <circle
+                          cx="28"
+                          cy="28"
+                          r="24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          className="text-white/25"
+                        />
+                        <circle
+                          cx="28"
+                          cy="28"
+                          r="24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                          strokeDasharray="75 150"
+                          transform="rotate(-90 28 28)"
+                          className="text-teal-400"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-white font-medium text-lg">
+                    {googleAuthLoading
+                      ? 'Please wait…'
+                      : mfaVerifying
+                        ? 'Verifying code…'
+                        : isSignUp
+                          ? 'Creating your account…'
+                          : 'Signing you in…'}
+                  </p>
+                  {!googleAuthLoading && (
+                    <p className="text-white/70 text-sm">Taking you to the dashboard</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Left Side - Form */}
             <div className="relative z-20 p-4 sm:p-6 flex items-start md:items-center justify-center overflow-y-auto md:overflow-visible max-h-[75svh] sm:max-h-[70svh] md:max-h-none smooth-scroll scroll-container">
@@ -383,6 +492,7 @@ const AuthPage: React.FC = memo(() => {
                           error={signupError}
                           successMessage={signupSuccess}
                           handleGoogleSignIn={handleGoogleSignIn}
+                          submitting={isInitialized && isLoading}
                         />
                     ) : showMfaVerification ? (
                       <MfaVerificationForm
@@ -390,6 +500,7 @@ const AuthPage: React.FC = memo(() => {
                         onBack={handleBackToLogin}
                         error={mfaError}
                         email={email}
+                        loading={mfaVerifying}
                       />
                     ) : (
                       <LoginForm
@@ -402,8 +513,10 @@ const AuthPage: React.FC = memo(() => {
                         setRememberMe={setRememberMe}
                         handleLogin={handleLogin}
                         error={loginError}
+                        successMessage={loginSuccess}
                         handleGoogleSignIn={handleGoogleSignIn}
                         setShowForgotPasswordModal={setShowForgotPasswordModal}
+                        submitting={isInitialized && isLoading}
                       />
                     )}
                   </motion.div>
@@ -440,10 +553,11 @@ const AuthPage: React.FC = memo(() => {
         </motion.div>
       </div>
 
-      {/* Forgot Password Modal */}
+      {/* Forgot Password Modal: uses login form email so user is not asked to type it again */}
       <ForgotPasswordModal
         isOpen={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}
+        prefillEmail={email}
       />
     </div>
   );
@@ -461,10 +575,11 @@ interface AuthFormProps {
   setRememberMe?: (remember: boolean) => void;
   handleLogin?: (e: React.FormEvent) => void;
   handleSignup?: (e: React.FormEvent, name: string, username: string) => void;
-  error?: string; // Add error prop
-  successMessage?: string; // Add success message prop
+  error?: string;
+  successMessage?: string;
   handleGoogleSignIn?: () => void;
   setShowForgotPasswordModal?: (show: boolean) => void;
+  submitting?: boolean;
 }
 
 const LoginForm: React.FC<AuthFormProps> = memo(({
@@ -476,9 +591,11 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
   rememberMe = false,
   setRememberMe = () => {},
   handleLogin = () => {},
-  error = '', // Add error prop with default value
+  error = '',
+  successMessage = '',
   handleGoogleSignIn,
-  setShowForgotPasswordModal
+  setShowForgotPasswordModal,
+  submitting = false
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   return (
@@ -493,10 +610,19 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
       </div>
 
       <form className="space-y-3" onSubmit={handleLogin}>
-        {/* Display error message if it exists */}
         {error && (
           <div className="text-red-500 text-sm bg-red-100/10 p-2 rounded border border-red-500/30">
             {error}
+          </div>
+        )}
+        {successMessage && (
+          <div className="text-green-500 text-sm bg-green-100/10 p-3 rounded-lg border border-green-500/30 shadow-sm">
+            <div className="flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {successMessage}
+            </div>
           </div>
         )}
         
@@ -586,17 +712,30 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
 
         <motion.button
            type="submit"
-           whileHover={{ scale: 1.02 }}
-           whileTap={{ scale: 0.98 }}
-           className="w-full py-2.5 px-4 mt-2 text-white font-semibold rounded-lg shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center"
+           disabled={submitting}
+           whileHover={submitting ? undefined : { scale: 1.02 }}
+           whileTap={submitting ? undefined : { scale: 0.98 }}
+           className="w-full py-2.5 px-4 mt-2 text-white font-semibold rounded-lg shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
            style={{ backgroundColor: '#14b8a6' }}
-           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0f9488'}
-           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#14b8a6'}
+           onMouseEnter={(e) => !submitting && (e.currentTarget.style.backgroundColor = '#0f9488')}
+           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#14b8a6')}
          >
-           <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-           </svg>
-           Login
+           {submitting ? (
+             <>
+               <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+               </svg>
+               Signing in…
+             </>
+           ) : (
+             <>
+               <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+               </svg>
+               Login
+             </>
+           )}
          </motion.button>
 
         <div className="mt-4">
@@ -609,7 +748,9 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
             </div>
           </div>
 
-          <div id="google-signin-login" className="w-full"></div>
+          <div className="rounded-lg border border-teal-500/60 bg-gray-800/80 p-1 min-h-[48px] flex items-center justify-center">
+            <div id="google-signin-login" className="w-full min-h-[40px]" />
+          </div>
         </div>
 
         <p className="pt-4 text-center text-sm text-white/60">
@@ -639,9 +780,10 @@ const SignUpForm = memo(({
   setEmail = () => {},
   password = '',
   setPassword = () => {},
-  error = '', 
+  error = '',
   successMessage = '',
-  handleGoogleSignIn
+  handleGoogleSignIn,
+  submitting = false
 }: AuthFormProps) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -954,17 +1096,30 @@ const SignUpForm = memo(({
 
         <motion.button
            type="submit"
-           whileHover={{ scale: 1.02 }}
-           whileTap={{ scale: 0.98 }}
-           className="w-full py-3 px-4 text-white font-semibold rounded-lg shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center"
+           disabled={submitting}
+           whileHover={submitting ? undefined : { scale: 1.02 }}
+           whileTap={submitting ? undefined : { scale: 0.98 }}
+           className="w-full py-3 px-4 text-white font-semibold rounded-lg shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
            style={{ backgroundColor: '#14b8a6' }}
-           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0f9488'}
-           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#14b8a6'}
+           onMouseEnter={(e) => !submitting && (e.currentTarget.style.backgroundColor = '#0f9488')}
+           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#14b8a6')}
          >
-           <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-           </svg>
-           Create Account
+           {submitting ? (
+             <>
+               <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+               </svg>
+               Creating account…
+             </>
+           ) : (
+             <>
+               <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+               </svg>
+               Create Account
+             </>
+           )}
          </motion.button>
 
         <div className="mt-4">
@@ -977,24 +1132,8 @@ const SignUpForm = memo(({
             </div>
           </div>
 
-          <div
-            id="google-signin-signup"
-            className="w-full"
-            /* Keep fallback styling for when the Google script hasn't rendered yet */
-          >
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              className="w-full mb-3 flex items-center justify-center gap-2 rounded-lg border border-gray-600 bg-white text-gray-800 py-2.5 font-medium hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#EA4335" d="M12 10.8v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.8-4.1 2.8-6.9 0-.7-.1-1.4-.2-2H12z"/>
-                <path fill="#34A853" d="M6.5 14.3l-.9.7-2.5 1.9C4.6 20.3 8 22 12 22c2.4 0 4.5-.8 6-2.2l-3.1-2.4c-.8.5-1.8.8-2.9.8-2.2 0-4-1.5-4.6-3.6z"/>
-                <path fill="#4A90E2" d="M3.1 7.3C2.4 8.8 2 10.4 2 12s.4 2.2 1.1 3.7l3.5-2.7c-.2-.5-.3-1.1-.3-1.7 0-.6.1-1.2.3-1.7L3.1 7.3z"/>
-                <path fill="#FBBC05" d="M12 6c1.3 0 2.5.4 3.4 1.3l2.6-2.6C16.5 2.9 14.4 2 12 2 8 2 4.6 3.7 3.1 7.3l3.5 2.7C7.9 7.5 9.8 6 12 6z"/>
-              </svg>
-              Continue with Google
-            </button>
+          <div className="rounded-lg border border-teal-500/60 bg-gray-800/80 p-1 min-h-[48px] flex items-center justify-center">
+            <div id="google-signin-signup" className="w-full min-h-[40px]" />
           </div>
         </div>
         
@@ -1024,13 +1163,15 @@ const MfaVerificationForm: React.FC<{
   onBack: () => void;
   error: string;
   email: string;
-}> = memo(({ onVerify, onBack, error, email }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  loading?: boolean;
+}> = memo(({ onVerify, onBack, error, email, loading: loadingProp }) => {
+  const [localLoading, setLocalLoading] = useState(false);
+  const loading = loadingProp ?? localLoading;
 
   const handleCodeComplete = async (code: string) => {
-    setIsLoading(true);
+    setLocalLoading(true);
     await onVerify(code);
-    setIsLoading(false);
+    setLocalLoading(false);
   };
 
   return (
@@ -1050,7 +1191,7 @@ const MfaVerificationForm: React.FC<{
       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
         <TOTPInput
           onComplete={handleCodeComplete}
-          loading={isLoading}
+          loading={loading}
           error={error}
         />
       </div>

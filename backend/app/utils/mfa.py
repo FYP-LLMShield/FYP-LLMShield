@@ -1,5 +1,6 @@
 import secrets
 import base64
+import hashlib
 import qrcode
 import io
 import pyotp
@@ -8,6 +9,9 @@ from passlib.context import CryptContext
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Salt for recovery code hashing (so we don't rely on passlib in MFA setup path)
+_MFA_RECOVERY_SALT = b"llmshield-mfa-recovery-v1"
 
 class MFAUtils:
     
@@ -88,17 +92,24 @@ class MFAUtils:
     
     @staticmethod
     def hash_recovery_code(code: str) -> str:
-        """Hash recovery code for storage"""
-        # Remove formatting before hashing
-        clean_code = code.replace('-', '').upper()
-        return pwd_context.hash(clean_code)
+        """Hash recovery code for storage (uses SHA-256 to avoid passlib/bcrypt init in MFA path)."""
+        clean_code = code.replace('-', '').upper().encode("utf-8")
+        h = hashlib.sha256(_MFA_RECOVERY_SALT + clean_code).hexdigest()
+        return f"sha256${h}"
     
     @staticmethod
     def verify_recovery_code(code: str, hashed_code: str) -> bool:
-        """Verify recovery code against hash"""
-        # Remove formatting and normalize before verification
+        """Verify recovery code against hash (supports sha256$ and legacy bcrypt)."""
+        if not hashed_code:
+            return False
         clean_code = code.replace('-', '').upper()
-        return pwd_context.verify(clean_code, hashed_code)
+        if hashed_code.startswith("sha256$"):
+            expected = hashlib.sha256(_MFA_RECOVERY_SALT + clean_code.encode("utf-8")).hexdigest()
+            return hashed_code == f"sha256${expected}"
+        try:
+            return pwd_context.verify(clean_code, hashed_code)
+        except Exception:
+            return False
     
     @staticmethod
     def generate_trusted_device_token() -> str:

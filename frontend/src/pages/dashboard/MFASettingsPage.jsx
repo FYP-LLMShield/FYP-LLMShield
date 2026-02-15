@@ -35,20 +35,27 @@ const MFASettingsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleEnableMFA = async () => {
+  const handleEnableMFA = useCallback(async () => {
     setIsLoading(true)
     setError("")
+    setSuccess("")
     try {
       const data = await initiateMfaSetup()
-      setSetupData(data)
-      setSetupStep(1)
+      if (data && (data.qr_code || data.secret)) {
+        const recoveryCodes = Array.isArray(data.recovery_codes) ? data.recovery_codes : (Array.isArray(data.recoveryCodes) ? data.recoveryCodes : [])
+        setSetupData({ ...data, recovery_codes: recoveryCodes })
+        setSetupStep(1)
+      } else {
+        setError("Failed to load MFA setup. Please try again.")
+      }
     } catch (err) {
       console.error('MFA Setup error:', err)
-      setError(err.message || "Failed to initiate MFA setup")
+      const msg = err?.message || err?.error || (typeof err?.detail === 'string' ? err.detail : Array.isArray(err?.detail) ? err.detail.map(d => d.msg || d).join(', ') : null) || "Failed to initiate MFA setup"
+      setError(msg)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [initiateMfaSetup])
 
   const handleVerifySetup = async () => {
     if (totpCode.length !== 6) {
@@ -71,15 +78,15 @@ const MFASettingsPage = () => {
   }
 
   const handleDisableMFA = useCallback(async () => {
-    if (!currentPassword || totpCode.length !== 6) {
-      setError("Please enter your password and a 6-digit TOTP code")
+    if (totpCode.length !== 6) {
+      setError("Please enter the 6-digit verification code from your authenticator app")
       return
     }
 
     setIsLoading(true)
     setError("")
     try {
-      await disableMfa(currentPassword, totpCode)
+      await disableMfa(currentPassword || "", totpCode)
       setSuccess("MFA has been disabled successfully")
       setCurrentPassword("")
       setTotpCode("")
@@ -90,16 +97,17 @@ const MFASettingsPage = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [currentPassword, totpCode, disableMfa])
+  }, [totpCode, disableMfa])
 
   const handleRegenerateRecoveryCodes = async () => {
     setIsLoading(true)
     setError("")
     try {
       const data = await regenerateRecoveryCodes()
-      setSetupData({ ...setupData, recovery_codes: data.recovery_codes })
-      setCurrentRecoveryCodes(data.recovery_codes)
-      setSuccess("Recovery codes have been regenerated")
+      const codes = Array.isArray(data?.recovery_codes) ? data.recovery_codes : (Array.isArray(data?.recoveryCodes) ? data.recoveryCodes : [])
+      setCurrentRecoveryCodes(codes)
+      setShowRecoveryCodes(true)
+      setSuccess("Recovery codes have been regenerated. Save them below.")
     } catch (err) {
       setError(err.message || "Failed to regenerate recovery codes")
     } finally {
@@ -254,7 +262,7 @@ const MFASettingsPage = () => {
       </div>
 
       <RecoveryCodes 
-        codes={setupData?.recovery_codes}
+        codes={Array.isArray(setupData?.recovery_codes) ? setupData.recovery_codes : (Array.isArray(setupData?.recoveryCodes) ? setupData.recoveryCodes : [])}
         onRegenerate={handleRegenerateRecoveryCodes}
         loading={isLoading}
       />
@@ -303,15 +311,17 @@ const MFASettingsPage = () => {
             </div>
           )}
 
-          {(() => {
-            console.log('Render condition check:', {
-              mfaEnabled: mfaStatus.enabled,
-              setupData: !!setupData,
-              shouldShowEnableButton: !mfaStatus.enabled && !setupData
-            })
-            return !mfaStatus.enabled && !setupData
-          })() ? (
+          {!mfaStatus.enabled && !setupData ? (
             <div className="space-y-6">
+              {error && (
+                <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-lg flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-red-400 font-medium">Setup failed</p>
+                    <p className="text-red-300/90 text-sm mt-1">{error}</p>
+                  </div>
+                </div>
+              )}
               <div className="bg-blue-900/20 border border-blue-500/30 p-6 rounded-lg">
                 <div className="flex items-center space-x-3 mb-4">
                   <Smartphone className="w-6 h-6 text-blue-400" />
@@ -334,16 +344,29 @@ const MFASettingsPage = () => {
                     <span>Includes backup recovery codes</span>
                   </li>
                 </ul>
-                <button
+                <motion.button
+                  type="button"
                   onClick={handleEnableMFA}
                   disabled={isLoading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                  whileHover={isLoading ? undefined : { scale: 1.02 }}
+                  whileTap={isLoading ? undefined : { scale: 0.98 }}
+                  className="min-h-[48px] w-full sm:w-auto sm:min-w-[180px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-80 text-white py-3 px-6 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-800 select-none touch-manipulation"
                 >
-                  {isLoading ? "Setting up..." : "Enable MFA"}
-                </button>
+                  {isLoading ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Setting up…
+                    </span>
+                  ) : (
+                    "Enable MFA"
+                  )}
+                </motion.button>
               </div>
             </div>
-          ) : setupData && !mfaStatus.enabled ? (
+          ) : setupData ? (
             <div>
               {setupStep === 1 && <QRCodeStep />}
               {setupStep === 2 && <VerifyStep />}
@@ -461,14 +484,14 @@ const DisableMFAForm = memo(({
       <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
       <h3 className="text-xl font-semibold text-white mb-2">Disable Two-Factor Authentication</h3>
       <p className="text-gray-400 mb-6">
-        This will make your account less secure. Please enter your password and a verification code to confirm.
+        This will make your account less secure. Enter the verification code from your authenticator app. If you signed up with email, also enter your password.
       </p>
     </div>
 
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-2">
-          Current Password
+          Current Password <span className="text-gray-500 font-normal">(leave blank if you signed up with Google)</span>
         </label>
         <div className="relative">
           <input
@@ -479,7 +502,7 @@ const DisableMFAForm = memo(({
               setError("")
             }}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none pr-12"
-            placeholder="Enter your current password"
+            placeholder="Enter password if you use email sign-in"
           />
           <button
             type="button"
@@ -517,7 +540,7 @@ const DisableMFAForm = memo(({
 
       <button
         onClick={handleDisableMFA}
-        disabled={isLoading || !currentPassword || totpCode.length !== 6}
+        disabled={isLoading || totpCode.length !== 6}
         className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
       >
         {isLoading ? "Disabling..." : "Disable MFA"}

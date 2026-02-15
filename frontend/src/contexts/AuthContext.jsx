@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useState } from "react"
 import { authAPI, mfaAPI } from '../lib/api'
+import { supabase, isSupabaseAuthAvailable, isSupabaseUnavailableError } from '../lib/supabase'
 
 const AuthContext = createContext()
 
@@ -22,25 +22,68 @@ export const AuthProvider = ({ children }) => {
     recoveryCodesRemaining: 0
   })
 
-  // Real login function with backend API
+  // Login: try Supabase Auth first; if Supabase is down, use backend (fallback)
   const login = async (email, password) => {
     setIsLoading(true)
     try {
+      // 1) Try Supabase Auth first (primary)
+      if (isSupabaseAuthAvailable() && supabase) {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+          if (!error && data?.session && data?.user) {
+            const session = data.session
+            const u = data.user
+            // Only allow login for users who have confirmed their email (prevents "sign in" with never-registered or unverified accounts)
+            if (!u.email_confirmed_at) {
+              setIsLoading(false)
+              throw new Error('Please verify your email before signing in. Check your inbox for the verification link.')
+            }
+            const userData = {
+              id: u?.id || null,
+              email: u?.email || email,
+              name: u?.user_metadata?.full_name || u?.user_metadata?.name || email.split('@')[0],
+              plan: "free",
+              isVerified: true,
+              mfaEnabled: false
+            }
+            localStorage.setItem('access_token', session.access_token)
+            authAPI.setToken(session.access_token)
+            setUser(userData)
+            localStorage.setItem("user", JSON.stringify(userData))
+            setIsLoading(false)
+            return userData
+          }
+          if (error && isSupabaseUnavailableError(error)) {
+            // Supabase down -> fallback to backend
+          } else if (error) {
+            setIsLoading(false)
+            throw new Error(error.message || 'Login failed')
+          }
+        } catch (supabaseErr) {
+          if (isSupabaseUnavailableError(supabaseErr)) {
+            // Fall through to backend fallback
+          } else {
+            setIsLoading(false)
+            throw supabaseErr
+          }
+        }
+      }
+
+      // 2) Fallback: backend auth (when Supabase Auth unavailable or not configured)
       const response = await authAPI.login({ email, password })
-      
-      // Check if MFA verification is required
-      if (response.data && response.data.mfa_required) {
+      // Only treat as success when we have a valid 200 response with user and token (never for non-existent users)
+      if (!response.success || !response.data) {
         setIsLoading(false)
-        // Store the partial token for MFA verification
+        throw new Error(response.error || 'Incorrect email or password')
+      }
+      if (response.data.mfa_required) {
+        setIsLoading(false)
         localStorage.setItem('partial_token', response.data.partial_token)
-        // Throw error with MFA requirement info for the UI to handle
         const mfaError = new Error('MFA verification required')
         mfaError.requiresMfa = true
         throw mfaError
       }
-      
-      if (response.success && response.data && response.data.user) {
-        // Store tokens FIRST - this is critical for authentication!
+      if (response.data.user && response.data.access_token) {
         if (response.data.access_token) {
           localStorage.setItem('access_token', response.data.access_token)
           authAPI.setToken(response.data.access_token)
@@ -48,27 +91,20 @@ export const AuthProvider = ({ children }) => {
         if (response.data.refresh_token) {
           localStorage.setItem('refresh_token', response.data.refresh_token)
         }
-        
         const userData = {
           id: response.data.user.id || null,
           email: response.data.user.email || email,
-          name: response.data.user.full_name || email.split('@')[0],
-          plan: "free", // Default plan
+          name: response.data.user.name || response.data.user.full_name || email.split('@')[0],
+          plan: "free",
           isVerified: response.data.user.is_verified || false,
-          mfaEnabled: false // Will be updated after fetching MFA status
+          mfaEnabled: false
         }
-        
         setUser(userData)
         localStorage.setItem("user", JSON.stringify(userData))
-        
-        // Fetch MFA status after successful login
         try {
           const mfaResponse = await mfaAPI.getStatus()
           if (mfaResponse.success && mfaResponse.data) {
-            const updatedUserData = {
-              ...userData,
-              mfaEnabled: mfaResponse.data.mfa_enabled
-            }
+            const updatedUserData = { ...userData, mfaEnabled: mfaResponse.data.mfa_enabled }
             setUser(updatedUserData)
             localStorage.setItem("user", JSON.stringify(updatedUserData))
             setMfaStatus({
@@ -80,50 +116,81 @@ export const AuthProvider = ({ children }) => {
         } catch (mfaError) {
           console.warn('Failed to fetch MFA status:', mfaError)
         }
-        
         setIsLoading(false)
         return userData
-      } else {
-        setIsLoading(false)
-        throw new Error(response.error || 'Login failed')
       }
+      setIsLoading(false)
+      throw new Error(response.error || 'Login failed')
     } catch (error) {
       setIsLoading(false)
       throw error
     }
   }
 
-  // Real signup function with backend API
+  // Signup: try Supabase Auth first; if Supabase is down, use backend (fallback)
   const signup = async (name, username, email, password) => {
     setIsLoading(true)
     try {
-      const response = await authAPI.register({ 
-        name, 
+      // 1) Try Supabase Auth first (primary)
+      if (isSupabaseAuthAvailable() && supabase) {
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { full_name: name, username }
+            }
+          })
+          if (!error) {
+            // Supabase may require email confirmation; don't set user/token
+            const userData = {
+              id: data?.user?.id || null,
+              email: data?.user?.email || email,
+              name,
+              username,
+              plan: "free",
+              isVerified: !!data?.user?.email_confirmed_at
+            }
+            setIsLoading(false)
+            return userData
+          }
+          if (error && isSupabaseUnavailableError(error)) {
+            // Fall through to backend fallback
+          } else {
+            setIsLoading(false)
+            throw new Error(error.message || 'Registration failed')
+          }
+        } catch (supabaseErr) {
+          if (isSupabaseUnavailableError(supabaseErr)) {
+            // Fall through to backend fallback
+          } else {
+            setIsLoading(false)
+            throw supabaseErr
+          }
+        }
+      }
+
+      // 2) Fallback: backend register (when Supabase Auth unavailable or not configured)
+      const response = await authAPI.register({
+        name,
         username,
-        email, 
-        password 
+        email,
+        password
       })
-      
       if (response.success && response.data) {
-        // Handle the actual backend response format
-        // Backend returns: {message, user_id, email, verification_required}
         const userData = {
           id: response.data.user_id || null,
           email: response.data.email || email,
-          name: name, // Use the provided name
-          username: username, // Use the provided username
-          plan: "free", // Default plan
-          isVerified: false // New registrations are not verified initially
+          name,
+          username,
+          plan: "free",
+          isVerified: false
         }
-        
-        setUser(userData)
-        localStorage.setItem("user", JSON.stringify(userData))
         setIsLoading(false)
         return userData
-      } else {
-        setIsLoading(false)
-        throw new Error(response.error || 'Registration failed')
       }
+      setIsLoading(false)
+      throw new Error(response.error || 'Registration failed')
     } catch (error) {
       setIsLoading(false)
       // Handle validation errors from backend
@@ -165,13 +232,21 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const logout = () => {
-    authAPI.logout() // Clear token from API client
+  const logout = async () => {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut()
+      } catch (e) {
+        console.warn('Supabase signOut:', e)
+      }
+    }
+    authAPI.logout()
     setUser(null)
     setMfaStatus({ enabled: false, setupComplete: false, recoveryCodesRemaining: 0 })
     localStorage.removeItem("user")
     localStorage.removeItem("access_token")
     localStorage.removeItem("refresh_token")
+    localStorage.removeItem("partial_token")
   }
 
   // MFA-related functions
@@ -340,12 +415,39 @@ export const AuthProvider = ({ children }) => {
   React.useEffect(() => {
     const initializeAuth = async () => {
       setIsLoading(true)
-      
+
+      // 1) Try Supabase Auth session first (primary)
+      if (isSupabaseAuthAvailable() && supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user && session?.access_token) {
+            const u = session.user
+            const userData = {
+              id: u.id,
+              email: u.email,
+              name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0],
+              plan: "free",
+              isVerified: !!u.email_confirmed_at,
+              mfaEnabled: false
+            }
+            setUser(userData)
+            localStorage.setItem("user", JSON.stringify(userData))
+            localStorage.setItem('access_token', session.access_token)
+            authAPI.setToken(session.access_token)
+            setIsLoading(false)
+            setIsInitialized(true)
+            return
+          }
+        } catch (e) {
+          console.warn('Supabase getSession failed, using backend session if any:', e)
+        }
+      }
+
+      // 2) Fallback: backend session (localStorage)
       const savedUser = localStorage.getItem("user")
       const token = localStorage.getItem('access_token')
       const refreshToken = localStorage.getItem('refresh_token')
-      
-      // Optimistically restore user from localStorage to prevent redirect during validation
+
       if (savedUser && token) {
         try {
           const parsedUser = JSON.parse(savedUser)

@@ -87,7 +87,8 @@ export const authAPI = {
   login: (payload: any) => apiClient.request("/auth/login", { method: "POST", body: payload }),
   register: (payload: any) => apiClient.request("/auth/register", { method: "POST", body: payload }),
   getCurrentUser: () => apiClient.request("/auth/me"),
-  googleSignIn: (payload: any) => apiClient.request("/auth/google", { method: "POST", body: payload }),
+  googleSignIn: (payload: { id_token: string; mode?: "signup" | "signin" }) =>
+    apiClient.request("/auth/google", { method: "POST", body: payload }),
   forgotPassword: (payload: any) => apiClient.request("/auth/forgot-password", { method: "POST", body: payload }),
   resetPassword: (payload: any) => apiClient.request("/auth/reset-password", { method: "POST", body: payload }),
 }
@@ -97,7 +98,7 @@ export const mfaAPI = {
   getStatus: () => apiClient.request("/auth/mfa/status"),
   initiateSetup: () => apiClient.request("/auth/mfa/setup/initiate", { method: "POST" }),
   completeSetup: (payload: any) => apiClient.request("/auth/mfa/setup/complete", { method: "POST", body: payload }),
-  regenerateRecoveryCodes: () => apiClient.request("/auth/mfa/recovery-codes", { method: "POST" }),
+  regenerateRecoveryCodes: () => apiClient.request("/auth/mfa/recovery/regenerate", { method: "POST" }),
   disable: (payload: any) => apiClient.request("/auth/mfa/disable", { method: "POST", body: payload }),
 }
 
