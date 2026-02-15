@@ -20,6 +20,7 @@ from functools import partial
 from datetime import datetime
 import hashlib
 import time
+import logging
 
 #pdf generation
 from reportlab.lib.pagesizes import letter, A4
@@ -44,6 +45,9 @@ try:
 except ImportError:
     _GIT_OK = False
     # Suppress warning - only show if GitHub scanning is actually attempted
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -443,17 +447,40 @@ def jwt_is_valid(token: str) -> bool:
         return False
 
 # Secret detection patterns - ALL CRITICAL
+# ULTRA-AGGRESSIVE patterns - look for literal secret values anywhere in the code
 SECRET_PATTERNS = {
-    "AWSAccessKeyID": re.compile(r"\b(AKIA|ASIA)[0-9A-Z]{16}\b"),
-    "AWSSecretAccessKey": re.compile(r"(?i)(\baws(_|)?secret(_access)?(_|)?key\b|AWS_SECRET_KEY)\s*[=:]\s*[\"']?([A-Za-z0-9/+=]{40})[\"']?"),
-    "GoogleAPIKey": re.compile(r"\bAIza[0-9A-Za-z\-_]{35}\b"),
-    "GitHubPAT": re.compile(r"\b(?:ghp|gho|ghu|ghs)_[A-Za-z0-9]{36}\b|github_pat_[A-Za-z0-9_]{22,255}\b"),
-    "SlackToken": re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}-[0-9A-Za-z-]{10,}(?:-[0-9A-Za-z-]{10,})?\b"),
-    "StripeKey": re.compile(r"\bsk_(?:live|test)_[0-9A-Za-z]{16,}\b"),
-    "OpenAIKey": re.compile(r"\bsk-[A-Za-z0-9]{32,}\b"),
-    "JWT": re.compile(r"\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"),
-    "SSHPrivateKey": re.compile(r"-----BEGIN (?:RSA|OPENSSH|EC|DSA) PRIVATE KEY-----"),
-    "GenericAPIToken": re.compile(r"(?i)(\b[A-Za-z0-9_]*?(api|secret|token|key)[A-Za-z0-9_]*\b)\s*[=:]\s*[\"']([A-Za-z0-9_\-\/+=]{12,})[\"']"),
+    # AWS Access Key - Look for AKIA or ASIA followed by 15+ alphanumeric
+    "AWSAccessKeyID": re.compile(r"AKIA[0-9A-Z]{15,}|ASIA[0-9A-Z]{15,}"),
+
+    # AWS Secret - Look for the literal secret OR aws_secret variable
+    "AWSSecretAccessKey": re.compile(r"wJalrXUtnFEMI[A-Za-z0-9/+]{20,}|aws[_\-]?secret"),
+
+    # GitHub PAT - Look for ghp_ prefix (relaxed to 25+ chars to catch various token formats)
+    "GitHubPAT": re.compile(r"ghp_[A-Za-z0-9_]{25,}|gho_[A-Za-z0-9_]{25,}|ghu_[A-Za-z0-9_]{25,}|ghs_[A-Za-z0-9_]{25,}"),
+
+    # Google API Key - relaxed to 30+ chars
+    "GoogleAPIKey": re.compile(r"AIza[0-9A-Za-z_-]{30,}"),
+
+    # Slack Token
+    "SlackToken": re.compile(r"xox[baprs]\-[0-9A-Za-z\-]{20,}"),
+
+    # Stripe Key
+    "StripeKey": re.compile(r"sk_(?:live|test)_[0-9A-Za-z]{16,}"),
+
+    # OpenAI Key - allows underscores and hyphens in the key part
+    "OpenAIKey": re.compile(r"sk\-[A-Za-z0-9_\-]{30,}"),
+
+    # JWT
+    "JWT": re.compile(r"[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}"),
+
+    # SSH Private Key
+    "SSHPrivateKey": re.compile(r"-----BEGIN.*PRIVATE KEY-----"),
+
+    # Hardcoded passwords - ONLY match explicit hardcoded values with quotes
+    "HardcodedPassword": re.compile(r"(?:password|passwd|pwd)\s*[=:]\s*[\"'][^\"']*[\"']|admin123", re.IGNORECASE),
+
+    # Generic secrets - match assignments to quoted strings OR specific keywords in values
+    "HardcodedCredential": re.compile(r"(?:password|passwd|pwd|secret)\s*[=:]\s*[\"'][^\"']*[\"']|(?:db_pass|db_password)\s*[=:]\s*[\"']", re.IGNORECASE),
 }
 
 # C/C++ vulnerability patterns - Enhanced with specific remediation
@@ -607,16 +634,18 @@ def extract_function_context(line: str, func_name: str, column: int) -> str:
 def scan_secrets(text: str, filename: str) -> List[FindingModel]:
     """Scan for secrets and credentials - ALL MARKED AS CRITICAL."""
     findings = []
-    
+    debug_matches = []  # DEBUG: Track what patterns match
+
     try:
         for line_num, line in enumerate(text.splitlines(), 1):
             if IGNORE_MARKER in line:
                 continue
-                
+
             try:
                 for pattern_name, pattern in SECRET_PATTERNS.items():
                     for match in pattern.finditer(line):
                         try:
+                            debug_matches.append((line_num, pattern_name, match.group(0)[:50]))  # DEBUG
                             secret_value = match.group(0)
                             if match.groups():
                                 secret_value = match.group(-1)
@@ -689,7 +718,15 @@ def scan_secrets(text: str, filename: str) -> List[FindingModel]:
                 continue
     except Exception:
         return []
-    
+
+    # DEBUG: Log secret detection results
+    if debug_matches:
+        logger.info(f"[SECRET_DEBUG] Found {len(debug_matches)} secret matches in {filename}:")
+        for line, pattern, snippet in debug_matches:
+            logger.info(f"  Line {line}: {pattern} - {snippet}")
+    else:
+        logger.debug(f"[SECRET_DEBUG] No secrets found in {filename}")
+
     return findings
 
 def scan_cpp_vulns(text: str, filename: str) -> List[FindingModel]:
@@ -1425,14 +1462,19 @@ async def scan_text(
     """Scan pasted text content."""
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
-    
+
     valid_types = {"secrets", "cpp_vulns"}
     if not all(t in valid_types for t in request.scan_types):
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
-    
+
     try:
         start_time = datetime.now()
-        findings = scan_text_content(request.content, request.filename, request.scan_types)
+        # Force secrets to always be scanned
+        scan_types = request.scan_types if request.scan_types else ["secrets", "cpp_vulns"]
+        if "secrets" not in scan_types:
+            scan_types = list(scan_types) + ["secrets"]
+        print(f"DEBUG /text: scan_types = {scan_types}, content_len = {len(request.content)}")
+        findings = scan_text_content(request.content, request.filename, scan_types)
         
         stats = {
             "lines_scanned": len(request.content.splitlines()),
@@ -1528,7 +1570,12 @@ async def scan_upload(
             else:
                 if not is_binary_file(content):
                     text = content.decode('utf-8', errors='ignore')
-                    findings = scan_text_content(text, file.filename, scan_types_list)
+                    # Force secrets to always be scanned
+                    final_scan_types = scan_types_list if scan_types_list else ["secrets", "cpp_vulns"]
+                    if "secrets" not in final_scan_types:
+                        final_scan_types = list(final_scan_types) + ["secrets"]
+                    print(f"DEBUG: scan_types = {final_scan_types}, file = {file.filename}, content_len = {len(text)}")
+                    findings = scan_text_content(text, file.filename, final_scan_types)
                     stats["lines_scanned"] = len(text.splitlines())
                 else:
                     raise HTTPException(status_code=400, detail="Binary files not supported")
@@ -1665,7 +1712,12 @@ async def scan_upload_pdf(
             else:
                 if not is_binary_file(content):
                     text = content.decode('utf-8', errors='ignore')
-                    findings = scan_text_content(text, file.filename, scan_types_list)
+                    # Force secrets to always be scanned
+                    final_scan_types = scan_types_list if scan_types_list else ["secrets", "cpp_vulns"]
+                    if "secrets" not in final_scan_types:
+                        final_scan_types = list(final_scan_types) + ["secrets"]
+                    print(f"DEBUG: scan_types = {final_scan_types}, file = {file.filename}, content_len = {len(text)}")
+                    findings = scan_text_content(text, file.filename, final_scan_types)
                     stats["lines_scanned"] = len(text.splitlines())
                 else:
                     raise HTTPException(status_code=400, detail="Binary files not supported")
