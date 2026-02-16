@@ -27,6 +27,7 @@ from app.routes.profile import router as profile_router
 
 # Import the unified security scanner components
 from app.routes.scanner import router as scanner_router
+from app.routes.hybrid_scanner import router as hybrid_scanner_router
 from app.routes.scan_history import router as scan_history_router
 from app.routes.prompt_injection import router as prompt_injection_router
 from app.routes.data_poisoning import router as data_poisoning_router
@@ -107,14 +108,20 @@ app.include_router(
 )
 # Add the security scanner router
 app.include_router(
-    scanner_router, 
-    prefix=f"{settings.API_V1_STR}/scan", 
+    scanner_router,
+    prefix=f"{settings.API_V1_STR}/scan",
     tags=["Security Scanner"]
+)
+# Add the hybrid scanner router (regex + LLM)
+app.include_router(
+    hybrid_scanner_router,
+    prefix=f"{settings.API_V1_STR}/hybrid-scan",
+    tags=["Hybrid Scanner (Regex + LLM)"]
 )
 # Add the scan history router
 app.include_router(
-    scan_history_router, 
-    prefix=f"{settings.API_V1_STR}", 
+    scan_history_router,
+    prefix=f"{settings.API_V1_STR}",
     tags=["Scan History"]
 )
 app.include_router(
