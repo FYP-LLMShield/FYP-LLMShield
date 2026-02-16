@@ -65,6 +65,8 @@ const AuthPage: React.FC = memo(() => {
   const [showMfaVerification, setShowMfaVerification] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showEmailVerificationPending, setShowEmailVerificationPending] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   // Google Sign-In integration
   const { renderGoogleButton, initializeGoogleSignIn } = useGoogleSignIn({
@@ -265,12 +267,46 @@ const AuthPage: React.FC = memo(() => {
   }, []);
 
   useEffect(() => {
-    // Check if URL has signup parameter
+    // Check if URL has signup or verify parameter
     const params = new URLSearchParams(location.search);
+
+    // Handle email verification via token
+    const verifyToken = params.get('token');
+    if (params.get('verify') === '1' && verifyToken) {
+      console.log('Email verification token found:', verifyToken);
+      // Call verification endpoint
+      const verifyEmail = async () => {
+        try {
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1'}/auth/verify-email/${verifyToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setSignupSuccess('Email verified successfully! You can now log in.');
+            setShowEmailVerificationPending(false);
+            setIsSignUp(false);
+            // Remove verification params from URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            const errorData = await response.json();
+            setSignupError(errorData.detail || 'Email verification failed. Token may be invalid or expired.');
+          }
+        } catch (error) {
+          console.error('Email verification error:', error);
+          setSignupError('Error verifying email. Please try again.');
+        }
+      };
+      verifyEmail();
+    }
+
+    // Check if URL has signup parameter
     if (params.get('signup') === 'true') {
       setIsSignUp(true);
-    } else {
-      setIsSignUp(false); // Ensure it's false if signup param is not present
+    } else if (!verifyToken) {
+      // Only set to false if not verifying email
+      setIsSignUp(false);
     }
   }, [location]);
 
@@ -280,24 +316,20 @@ const AuthPage: React.FC = memo(() => {
     // Clear previous messages
     setSignupError('');
     setSignupSuccess('');
-    
+
     if (email && password && name && username) {
       try {
         await signup(name, username, email, password);
-        // Show success message
-        setSignupSuccess('Account created successfully! Please login to continue.');
-        // Navigate to login page after a short delay
-        setTimeout(() => {
-          setIsSignUp(false);
-          navigate('/auth');
-        }, 2000);
+        // Show email verification pending screen
+        setVerificationEmail(email);
+        setShowEmailVerificationPending(true);
       } catch (error: any) {
         console.error('Signup failed:', error);
         // Store the error message from the backend
         setSignupError(formatErrorMessage(error));
       }
     }
-  }, [email, password, navigate, signup]);
+  }, [email, password, signup]);
 
   // Toggle between login and signup - memoized to prevent unnecessary re-renders
   const toggleAuthMode = useCallback(() => {
@@ -372,7 +404,70 @@ const AuthPage: React.FC = memo(() => {
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.4 }}
                   >
-                    {isSignUp ? (
+                    {showEmailVerificationPending ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.4 }}
+                        className="w-full max-w-md mx-auto"
+                      >
+                        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8 text-center">
+                          <div className="mb-8">
+                            {/* Animated email icon */}
+                            <motion.div
+                              animate={{ y: [0, -10, 0] }}
+                              transition={{ duration: 3, repeat: Infinity }}
+                              className="w-20 h-20 bg-gradient-to-br from-accent-teal/30 to-accent-teal/10 border border-accent-teal/40 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                            >
+                              <svg className="w-10 h-10 text-accent-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            </motion.div>
+                            <h2 className="text-3xl font-bold text-white mb-3">Check Your Email!</h2>
+                            <p className="text-accent-teal font-semibold">Verification Required</p>
+                          </div>
+
+                          <div className="space-y-4 mb-8">
+                            <p className="text-gray-300 text-base leading-relaxed">
+                              We've sent a verification link to
+                            </p>
+                            <p className="text-accent-teal font-semibold text-lg break-all px-4 py-3 bg-white/5 border border-accent-teal/30 rounded-lg">
+                              {verificationEmail}
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                              Click the verification link in the email to confirm your account and proceed to login.
+                            </p>
+                          </div>
+
+                          {/* Info box */}
+                          <div className="bg-gradient-to-r from-accent-teal/10 to-accent-teal/5 border border-accent-teal/30 rounded-xl p-4 mb-8">
+                            <div className="flex items-start gap-3">
+                              <svg className="w-5 h-5 text-accent-teal flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                              </svg>
+                              <p className="text-sm text-gray-300">
+                                <strong className="text-accent-teal">Tip:</strong> If you don't see the email, check your spam or junk folder.
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setShowEmailVerificationPending(false);
+                              setIsSignUp(false);
+                            }}
+                            className="w-full bg-gradient-to-r from-accent-teal to-cyan-500 hover:from-accent-teal/90 hover:to-cyan-500/90 text-gray-900 font-bold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-105 mb-4"
+                          >
+                            Go to Login
+                          </button>
+
+                          <p className="text-gray-500 text-xs">
+                            After clicking the verification link, you'll be able to log in to your account.
+                          </p>
+                        </div>
+                      </motion.div>
+                    ) : isSignUp ? (
                       <SignUpForm
                           toggleAuthMode={toggleAuthMode}
                           handleSignup={handleSignup}

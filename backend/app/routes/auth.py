@@ -50,7 +50,7 @@ async def register(user_data: UserRegistration):
                 from app.core.database import get_database
                 from app.utils.email_service import EmailService, EmailConfig
                 db = await get_database()
-                if db:
+                if db is not None:
                     email_service = EmailService(db)
                     if EmailConfig.is_configured():
                         await email_service.send_verification_link_email(
