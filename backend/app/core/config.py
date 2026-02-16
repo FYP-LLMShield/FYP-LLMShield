@@ -73,9 +73,18 @@ class Settings(BaseSettings):
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        return v
+        # Handle environment variable input
+        env_val = os.getenv("BACKEND_CORS_ORIGINS")
+        if env_val:
+            # If comma-separated string from env
+            return [i.strip() for i in env_val.split(",") if i.strip()]
+        # If already a list or None from Pydantic default
+        if isinstance(v, str) and v:
+            return [i.strip() for i in v.split(",") if i.strip()]
+        if isinstance(v, list):
+            return v
+        # Fallback to default
+        return ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
     
     @field_validator("MODEL_ENCRYPTION_KEY", mode="before")
     @classmethod
