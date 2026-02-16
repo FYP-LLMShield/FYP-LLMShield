@@ -285,22 +285,44 @@ export function CodeScanningPage() {
   const downloadPdfReport = async () => {
     try {
       setError(null);
-      
+
       let pdfBlob;
       if (inputMethod === "code") {
-        pdfBlob = await scannerAPI.getTextScanPDF({ 
+        if (!codeInput.trim()) {
+          setError("No code content to generate PDF for. Please run a scan first.");
+          return;
+        }
+        pdfBlob = await scannerAPI.getTextScanPDF({
           content: codeInput,
           scan_types: ["cpp_vulns"]
         });
       } else if (inputMethod === "file") {
+        if (!selectedFiles.length) {
+          setError("No files selected. Please run a scan first.");
+          return;
+        }
         pdfBlob = await scannerAPI.getUploadScanPDF(selectedFiles, ["cpp_vulns"]);
       } else if (inputMethod === "github") {
-        pdfBlob = await scannerAPI.getRepositoryScanPDF({ 
+        if (!repoUrl.trim()) {
+          setError("No repository URL provided. Please run a scan first.");
+          return;
+        }
+        pdfBlob = await scannerAPI.getRepositoryScanPDF({
           repo_url: repoUrl,
           scan_types: ["cpp_vulns"]
         });
       }
-      
+
+      if (!pdfBlob) {
+        setError("Failed to generate PDF: No response received from server");
+        return;
+      }
+
+      if ((pdfBlob as any)?.success === false) {
+        setError(`Failed to generate PDF: ${(pdfBlob as any)?.error || 'Unknown error'}`);
+        return;
+      }
+
       if ((pdfBlob as any)?.success && (pdfBlob as any)?.data) {
         // Create a download link for the PDF
         const url = URL.createObjectURL((pdfBlob as any).data);
@@ -311,8 +333,11 @@ export function CodeScanningPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+      } else {
+        setError("Failed to generate PDF: Invalid response structure");
       }
     } catch (err: any) {
+      console.error("PDF Download Error:", err);
       setError(`Failed to download PDF report: ${err.message}`);
     }
   };
