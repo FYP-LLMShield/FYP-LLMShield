@@ -1,3 +1,5 @@
+
+
 """
 Security Scanner Router - FastAPI routes for vulnerability and secret detection
 =============================================================================
@@ -37,9 +39,9 @@ from pydantic import BaseModel, Field
 from app.utils.auth import get_current_user
 from app.models.user import UserInDB
 from app.services.scan_history_service import save_scan_to_history
+from app.core.config import settings
+import asyncio
 import logging
-
-logger = logging.getLogger(__name__)
 
 try:
     from git import Repo
@@ -72,10 +74,10 @@ def get_cached_scan(cache_key: str) -> Optional[dict]:
 def cache_scan(cache_key: str, response: dict):
     """Cache scan response."""
     _SCAN_CACHE[cache_key] = (time.time(), response)
-
+    
     # Cleanup old cache entries
     current_time = time.time()
-    keys_to_delete = [k for k, (ts, _) in _SCAN_CACHE.items()
+    keys_to_delete = [k for k, (ts, _) in _SCAN_CACHE.items() 
                       if current_time - ts > CACHE_TTL_SECONDS]
     for k in keys_to_delete:
         del _SCAN_CACHE[k]
@@ -142,6 +144,7 @@ class ExecutiveSummary(BaseModel):
     files_affected: int
     critical_issues: int
     immediate_actions_required: int
+    estimated_fix_time: str = Field(default="", description="Estimated time to fix all issues")
     top_risks: List[str] = Field(default_factory=list, description="Top 3 risk categories")
     compliance_concerns: List[str] = Field(default_factory=list, description="CWE/Security standard violations")
 
@@ -813,6 +816,148 @@ def scan_cpp_vulns(text: str, filename: str) -> List[FindingModel]:
     
     return findings
 
+def deep_analyze_with_gemini(content: str, filename: str) -> List[FindingModel]:
+    """Deep comprehensive analysis with Gemini 2.5 - finds EVERYTHING.
+
+    Analyzes code for:
+    - SECRETS: API keys, passwords, tokens, credentials, PII
+    - VULNERABILITIES: Logic flaws, memory errors, race conditions
+    - SECURITY ISSUES: Weak crypto, input validation, architectural flaws
+
+    Returns both types of findings in one comprehensive analysis.
+    """
+    if not settings.GEMINI_API_KEY:
+        return []
+
+    try:
+        import httpx
+        logger = logging.getLogger(__name__)
+
+        # Use full code for deep analysis (up to token limit)
+        code_snippet = content[:4000] if len(content) > 4000 else content
+
+        gemini_prompt = f"""You are an expert security code auditor. Do a DEEP COMPREHENSIVE analysis of this code.
+
+Find EVERYTHING that is a security risk:
+
+SECRETS & CREDENTIALS:
+- Hardcoded API keys, passwords, tokens
+- Database credentials
+- SSH/RSA private keys
+- OAuth tokens, JWT tokens
+- AWS/Azure/GCP secrets
+- PII (SSN, credit cards, emails)
+- Encryption keys
+- Config secrets
+
+CODE VULNERABILITIES:
+- Buffer overflow / stack overflow
+- Format string vulnerabilities
+- Memory errors (use-after-free, double-free, leaks)
+- Integer overflow/underflow
+- Race conditions / concurrency bugs
+- Logic flaws & data flow issues
+- SQL injection / Command injection
+- Unvalidated input handling
+- Weak randomness
+- Path traversal
+- Improper error handling
+- Weak cryptography
+- Architectural security flaws
+
+Code to analyze:
+```cpp
+{code_snippet}
+```
+
+Return ONLY valid JSON (no markdown, no code blocks):
+{{
+  "findings": [
+    {{
+      "type": "finding_type (e.g., 'Hardcoded API Key' or 'Buffer Overflow')",
+      "category": "secret|vulnerability",
+      "line": line_number,
+      "severity": "Critical|High|Medium|Low",
+      "message": "what was found and why it's bad",
+      "remediation": "how to fix it",
+      "cwe": ["CWE-ID"]
+    }}
+  ]
+}}"""
+
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+
+        payload = {
+            "contents": [{
+                "parts": [{"text": gemini_prompt}]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2000,  # More tokens for comprehensive analysis
+            }
+        }
+
+        gemini_findings = []
+
+        with httpx.Client(timeout=45.0) as client:  # Longer timeout for deep analysis
+            response = client.post(url, json=payload)
+
+            if response.status_code == 200:
+                data = response.json()
+                if "candidates" in data and data["candidates"]:
+                    text = data["candidates"][0]["content"]["parts"][0].get("text", "")
+                    logger.info(f"[GEMINI DEEP] Comprehensive analysis of {filename}...")
+
+                    try:
+                        # Remove markdown if present
+                        text = text.replace("```json", "").replace("```", "").strip()
+                        findings_data = json.loads(text)
+
+                        if "findings" in findings_data:
+                            for finding in findings_data["findings"]:
+                                severity = finding.get("severity", "Medium")
+                                category = finding.get("category", "vulnerability")
+                                severity_score = {"Critical": 5, "High": 4, "Medium": 3, "Low": 2, "Info": 1}.get(severity, 3)
+                                severity_emoji = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🔵", "Info": "⚪"}.get(severity, "⚪")
+
+                                # Determine category for display
+                                if category == "secret":
+                                    display_category = "hardcoded_secret"
+                                else:
+                                    display_category = "code_vulnerability"
+
+                                finding_obj = FindingModel(
+                                    type=finding.get("type", "Security Issue"),
+                                    category=display_category,
+                                    severity=severity,
+                                    severity_score=severity_score,
+                                    severity_emoji=severity_emoji,
+                                    cwe=finding.get("cwe", []),
+                                    message=finding.get("message", ""),
+                                    remediation=finding.get("remediation", ""),
+                                    confidence=0.85,  # LLM confidence
+                                    confidence_label="High",
+                                    file=filename,
+                                    line=finding.get("line", 1),
+                                    column=None,
+                                    snippet="(Gemini deep analysis)",
+                                    priority_rank=0 if severity == "Critical" else (1 if severity == "High" else 2),
+                                )
+                                gemini_findings.append(finding_obj)
+                                logger.info(f"[GEMINI DEEP] Found {category}: {finding.get('type')} at line {finding.get('line')}")
+
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"[GEMINI DEEP] JSON parse error: {e}")
+            else:
+                logger.warning(f"[GEMINI DEEP] API error: {response.status_code}")
+
+        return gemini_findings
+
+    except Exception as e:
+        logger.warning(f"[GEMINI DEEP] Analysis failed: {e}")
+        return []
+
+
 def scan_text_content(content: str, filename: str, scan_types: List[str]) -> List[FindingModel]:
     """Main scanning orchestrator."""
     all_findings = []
@@ -841,7 +986,28 @@ def scan_text_content(content: str, filename: str, scan_types: List[str]) -> Lis
         
         # Sort by priority rank (urgent first), then severity, then line
         unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.line))
-        
+
+        # DEEP COMPREHENSIVE GEMINI ANALYSIS - Always run for thorough security assessment
+        try:
+            gemini_findings = deep_analyze_with_gemini(content, filename)
+            if gemini_findings:
+                logger = logging.getLogger(__name__)
+                logger.info(f"[GEMINI DEEP] Found {len(gemini_findings)} issues (secrets + vulnerabilities)")
+
+                # Merge with regex findings, avoid duplicates
+                seen_keys = {(f.file, f.line, f.type) for f in unique_findings}
+                for gfinding in gemini_findings:
+                    key = (gfinding.file, gfinding.line, gfinding.type)
+                    if key not in seen_keys:
+                        unique_findings.append(gfinding)
+                        seen_keys.add(key)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"[GEMINI DEEP] Analysis optional - continuing with regex findings: {e}")
+
+        # Final sort
+        unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.line))
+
         return unique_findings
     except Exception as e:
         print(f"Unexpected error in scan_text_content: {str(e)}")
@@ -1466,7 +1632,7 @@ async def scan_text(
             import traceback
             traceback.print_exc()
             # Continue with the response even if history saving fails
-
+        
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
@@ -1560,7 +1726,7 @@ async def scan_upload(
                 import traceback
                 traceback.print_exc()
                 # Continue with the response even if history saving fails
-
+            
             return response
     except HTTPException:
         raise
@@ -1568,7 +1734,10 @@ async def scan_upload(
         raise HTTPException(status_code=500, detail=f"Upload scan failed: {str(e)}")
 
 @router.post("/text/pdf")
-async def scan_text_pdf(request: TextScanRequest):
+async def scan_text_pdf(
+    request: TextScanRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
     """Scan text and return PDF report."""
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
@@ -1610,7 +1779,8 @@ async def scan_text_pdf(request: TextScanRequest):
 @router.post("/upload/pdf")
 async def scan_upload_pdf(
     file: UploadFile = File(...),
-    scan_types: str = "secrets,cpp_vulns"
+    scan_types: str = "secrets,cpp_vulns",
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """Upload file and return PDF report."""
     if not file.filename:
@@ -1880,7 +2050,10 @@ async def scan_github(
         raise HTTPException(status_code=400, detail=f"GitHub scan failed: {str(e)[:200]}")
 
 @router.post("/github/pdf")
-async def scan_github_pdf(request: RepoScanRequest):
+async def scan_github_pdf(
+    request: RepoScanRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
     """Clone GitHub repository and return PDF report."""
     if not _GIT_OK:
         raise HTTPException(status_code=500, detail="Git not available. Install gitpython: pip install gitpython")

@@ -101,16 +101,21 @@ export const mfaAPI = {
   disable: (payload: any) => apiClient.request("/auth/mfa/disable", { method: "POST", body: payload }),
 }
 
-// -------- Scanner APIs --------
+// -------- Scanner APIs (Legacy - Regex based + PDF exports) --------
 export const scannerAPI = {
-  scanText: (payload: any) => apiClient.request("/scan/code", { method: "POST", body: payload }),
+  scanText: (payload: any) => apiClient.request("/scan/text", { method: "POST", body: payload }),
   uploadFiles: (files: File[], categories?: string[], useCache?: boolean, maxFileSize?: number, maxFiles?: number) => {
     const formData = new FormData()
-    files.forEach((file) => formData.append("files", file))
-    if (categories && categories.length) categories.forEach((cat) => formData.append("categories", cat))
-    if (typeof useCache === "boolean") formData.append("use_cache", String(useCache))
-    if (typeof maxFileSize === "number") formData.append("max_file_size", String(maxFileSize))
-    if (typeof maxFiles === "number") formData.append("max_files", String(maxFiles))
+    // Upload only the first file for single file endpoint
+    if (files.length > 0) {
+      formData.append("file", files[0])
+    }
+    // Convert categories array to comma-separated string
+    if (categories && categories.length) {
+      formData.append("scan_types", categories.join(","))
+    } else {
+      formData.append("scan_types", "secrets,cpp_vulns")
+    }
     return fetch(`${API_BASE}/scan/upload`, {
       method: "POST",
       body: formData,
@@ -120,11 +125,11 @@ export const scannerAPI = {
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
     })
   },
-  scanRepository: (payload: any) => apiClient.request("/scan/repo", { method: "POST", body: payload }),
-  getCacheStats: () => apiClient.request("/scan/cache/stats"),
-  clearCache: () => apiClient.request("/scan/cache/clear", { method: "POST" }),
+  scanRepository: (payload: any) => apiClient.request("/scan/github", { method: "POST", body: payload }),
+  getCacheStats: () => apiClient.request("/scan/cache/stats", { method: "GET" }),
+  clearCache: () => apiClient.request("/scan/cache/clear", { method: "GET" }),
   getTextScanPDF: async (payload: any) => {
-    const res = await fetch(`${API_BASE}/scan/code/pdf`, {
+    const res = await fetch(`${API_BASE}/scan/text/pdf`, {
       method: "POST",
       headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
       body: JSON.stringify(payload),
@@ -134,8 +139,16 @@ export const scannerAPI = {
   },
   getUploadScanPDF: async (files: File[], categories?: string[]) => {
     const formData = new FormData()
-    files.forEach((file) => formData.append("files", file))
-    if (categories && categories.length) categories.forEach((cat) => formData.append("categories", cat))
+    // Upload only the first file for single file endpoint
+    if (files.length > 0) {
+      formData.append("file", files[0])
+    }
+    // Convert categories array to comma-separated string
+    if (categories && categories.length) {
+      formData.append("scan_types", categories.join(","))
+    } else {
+      formData.append("scan_types", "secrets,cpp_vulns")
+    }
     const res = await fetch(`${API_BASE}/scan/upload/pdf`, {
       method: "POST",
       body: formData,
@@ -145,7 +158,7 @@ export const scannerAPI = {
     return res.ok ? { success: true, data: blob } : { success: false, error: res.statusText, data: blob }
   },
   getRepositoryScanPDF: async (payload: any) => {
-    const res = await fetch(`${API_BASE}/scan/repo/pdf`, {
+    const res = await fetch(`${API_BASE}/scan/github/pdf`, {
       method: "POST",
       headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
       body: JSON.stringify(payload),
@@ -153,6 +166,35 @@ export const scannerAPI = {
     const blob = await res.blob()
     return res.ok ? { success: true, data: blob } : { success: false, error: res.statusText, data: blob }
   },
+}
+
+// -------- SAST Scanner APIs (Semgrep + TruffleHog) --------
+export const sastAPI = {
+  // Scan pasted C/C++ code
+  scanText: (payload: any) => apiClient.request("/sast/text", { method: "POST", body: payload }),
+
+  // Upload and scan C/C++ file
+  uploadFile: (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    return fetch(`${API_BASE}/sast/upload`, {
+      method: "POST",
+      body: formData,
+      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+    }).then(async (res) => {
+      const data = await res.json().catch(() => null)
+      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
+    })
+  },
+
+  // Scan GitHub repository
+  scanRepository: (payload: any) => apiClient.request("/sast/github", { method: "POST", body: payload }),
+
+  // Get SAST scanner info and capabilities
+  getInfo: () => apiClient.request("/sast/", { method: "GET" }),
+
+  // Check SAST scanner health
+  getHealth: () => apiClient.request("/sast/health", { method: "GET" }),
 }
 
 export const scanHistoryAPI = {
