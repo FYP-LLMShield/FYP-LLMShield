@@ -129,42 +129,105 @@ export const scannerAPI = {
   getCacheStats: () => apiClient.request("/scan/cache/stats", { method: "GET" }),
   clearCache: () => apiClient.request("/scan/cache/clear", { method: "GET" }),
   getTextScanPDF: async (payload: any) => {
-    const res = await fetch(`${API_BASE}/scan/text/pdf`, {
-      method: "POST",
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-      body: JSON.stringify(payload),
-    })
-    const blob = await res.blob()
-    return res.ok ? { success: true, data: blob } : { success: false, error: res.statusText, data: blob }
+    try {
+      console.log("Calling PDF endpoint with payload:", payload);
+      const token = apiClient.token || localStorage.getItem("access_token")
+      const headers: any = {
+        "Content-Type": "application/json",
+      }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      console.log("Headers being sent:", { ...headers, Authorization: headers.Authorization ? "Bearer [TOKEN]" : "None" });
+
+      const res = await fetch(`${API_BASE}/scan/text/pdf`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      })
+      console.log(`PDF response status: ${res.status}`);
+      const blob = await res.blob()
+      console.log(`PDF blob size: ${blob.size} bytes`);
+      if (!res.ok) {
+        const errorText = await blob.text()
+        console.error("PDF Error:", errorText);
+        return { success: false, error: `${res.status}: ${res.statusText}`, data: blob }
+      }
+      return { success: true, data: blob }
+    } catch (err: any) {
+      console.error("PDF Fetch Error:", err);
+      return { success: false, error: err.message, data: null }
+    }
   },
   getUploadScanPDF: async (files: File[], categories?: string[]) => {
-    const formData = new FormData()
-    // Upload only the first file for single file endpoint
-    if (files.length > 0) {
-      formData.append("file", files[0])
+    try {
+      const formData = new FormData()
+      if (files.length > 0) {
+        formData.append("file", files[0])
+        console.log(`Uploading file for PDF: ${files[0].name}`);
+      }
+      if (categories && categories.length) {
+        formData.append("scan_types", categories.join(","))
+      } else {
+        formData.append("scan_types", "secrets,cpp_vulns")
+      }
+      console.log("Calling upload PDF endpoint");
+      const token = apiClient.token || localStorage.getItem("access_token")
+      const headers: any = {}
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      console.log("Headers being sent:", { ...headers, Authorization: headers.Authorization ? "Bearer [TOKEN]" : "None" });
+
+      const res = await fetch(`${API_BASE}/scan/upload/pdf`, {
+        method: "POST",
+        body: formData,
+        headers,
+      })
+      console.log(`Upload PDF response status: ${res.status}`);
+      const blob = await res.blob()
+      console.log(`PDF blob size: ${blob.size} bytes`);
+      if (!res.ok) {
+        const errorText = await blob.text()
+        console.error("Upload PDF Error:", errorText);
+        return { success: false, error: `${res.status}: ${res.statusText}`, data: blob }
+      }
+      return { success: true, data: blob }
+    } catch (err: any) {
+      console.error("Upload PDF Fetch Error:", err);
+      return { success: false, error: err.message, data: null }
     }
-    // Convert categories array to comma-separated string
-    if (categories && categories.length) {
-      formData.append("scan_types", categories.join(","))
-    } else {
-      formData.append("scan_types", "secrets,cpp_vulns")
-    }
-    const res = await fetch(`${API_BASE}/scan/upload/pdf`, {
-      method: "POST",
-      body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-    })
-    const blob = await res.blob()
-    return res.ok ? { success: true, data: blob } : { success: false, error: res.statusText, data: blob }
   },
   getRepositoryScanPDF: async (payload: any) => {
-    const res = await fetch(`${API_BASE}/scan/github/pdf`, {
-      method: "POST",
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
-      body: JSON.stringify(payload),
-    })
-    const blob = await res.blob()
-    return res.ok ? { success: true, data: blob } : { success: false, error: res.statusText, data: blob }
+    try {
+      console.log("Calling GitHub PDF endpoint with payload:", payload);
+      const token = apiClient.token || localStorage.getItem("access_token")
+      const headers: any = {
+        "Content-Type": "application/json",
+      }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      console.log("Headers being sent:", { ...headers, Authorization: headers.Authorization ? "Bearer [TOKEN]" : "None" });
+
+      const res = await fetch(`${API_BASE}/scan/github/pdf`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      })
+      console.log(`GitHub PDF response status: ${res.status}`);
+      const blob = await res.blob()
+      console.log(`PDF blob size: ${blob.size} bytes`);
+      if (!res.ok) {
+        const errorText = await blob.text()
+        console.error("GitHub PDF Error:", errorText);
+        return { success: false, error: `${res.status}: ${res.statusText}`, data: blob }
+      }
+      return { success: true, data: blob }
+    } catch (err: any) {
+      console.error("GitHub PDF Fetch Error:", err);
+      return { success: false, error: err.message, data: null }
+    }
   },
 }
 

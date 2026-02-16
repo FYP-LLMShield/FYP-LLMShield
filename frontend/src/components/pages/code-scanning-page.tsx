@@ -75,6 +75,7 @@ export function CodeScanningPage() {
   
   const [cacheStats, setCacheStats] = useState<any>(null)
   const [showCacheDialog, setShowCacheDialog] = useState(false)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -285,11 +286,13 @@ export function CodeScanningPage() {
   const downloadPdfReport = async () => {
     try {
       setError(null);
+      setIsDownloadingPdf(true);
 
       let pdfBlob;
       if (inputMethod === "code") {
         if (!codeInput.trim()) {
           setError("No code content to generate PDF for. Please run a scan first.");
+          setIsDownloadingPdf(false);
           return;
         }
         pdfBlob = await scannerAPI.getTextScanPDF({
@@ -299,12 +302,14 @@ export function CodeScanningPage() {
       } else if (inputMethod === "file") {
         if (!selectedFiles.length) {
           setError("No files selected. Please run a scan first.");
+          setIsDownloadingPdf(false);
           return;
         }
         pdfBlob = await scannerAPI.getUploadScanPDF(selectedFiles, ["cpp_vulns"]);
       } else if (inputMethod === "github") {
         if (!repoUrl.trim()) {
           setError("No repository URL provided. Please run a scan first.");
+          setIsDownloadingPdf(false);
           return;
         }
         pdfBlob = await scannerAPI.getRepositoryScanPDF({
@@ -315,11 +320,13 @@ export function CodeScanningPage() {
 
       if (!pdfBlob) {
         setError("Failed to generate PDF: No response received from server");
+        setIsDownloadingPdf(false);
         return;
       }
 
       if ((pdfBlob as any)?.success === false) {
         setError(`Failed to generate PDF: ${(pdfBlob as any)?.error || 'Unknown error'}`);
+        setIsDownloadingPdf(false);
         return;
       }
 
@@ -339,6 +346,8 @@ export function CodeScanningPage() {
     } catch (err: any) {
       console.error("PDF Download Error:", err);
       setError(`Failed to download PDF report: ${err.message}`);
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -633,13 +642,14 @@ export function CodeScanningPage() {
                   <Download className="w-4 h-4 mr-2" />
                   Export JSON
                 </Button>
-                <Button 
+                <Button
                   onClick={downloadPdfReport}
-                  variant="outline" 
-                  className="border-purple-500/30 text-purple-400 hover:bg-purple-500/20 bg-transparent hover-lift"
+                  disabled={isDownloadingPdf}
+                  variant="outline"
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-500/20 bg-transparent hover-lift disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Download PDF Report
+                  {isDownloadingPdf ? "Generating PDF..." : "Download PDF Report"}
                 </Button>
               </div>
             </div>

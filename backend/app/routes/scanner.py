@@ -51,6 +51,7 @@ except ImportError:
     # Suppress warning - only show if GitHub scanning is actually attempted
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Cache for GitHub scans
 _SCAN_CACHE = {}  # {repo_hash: (timestamp, scan_response)}
@@ -1739,23 +1740,27 @@ async def scan_text_pdf(
     current_user: UserInDB = Depends(get_current_user)
 ):
     """Scan text and return PDF report."""
+    logger.info(f"PDF Request received - Content length: {len(request.content) if request.content else 0}")
+
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
-    
+
     valid_types = {"secrets", "cpp_vulns"}
     if not all(t in valid_types for t in request.scan_types):
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
-    
+
     try:
+        logger.info("Starting PDF generation process...")
         start_time = datetime.now()
         findings = scan_text_content(request.content, request.filename, request.scan_types)
-        
+        logger.info(f"Scan completed - Found {len(findings)} issues")
+
         stats = {
             "lines_scanned": len(request.content.splitlines()),
             "content_size_bytes": len(request.content.encode('utf-8')),
             "scan_method": "text_paste"
         }
-        
+
         scan_response = create_enhanced_response(
             method="text",
             scan_types=request.scan_types,
@@ -1763,9 +1768,11 @@ async def scan_text_pdf(
             stats=stats,
             start_time=start_time
         )
-        
+        logger.info("Enhanced response created")
+
         pdf_bytes = generate_pdf_report(scan_response)
-        
+        logger.info(f"PDF generated successfully - Size: {len(pdf_bytes)} bytes")
+
         from fastapi.responses import Response
         return Response(
             content=pdf_bytes,
@@ -1773,6 +1780,7 @@ async def scan_text_pdf(
             headers={"Content-Disposition": f"attachment; filename=security_report_{scan_response.scan_id}.pdf"}
         )
     except Exception as e:
+        logger.error(f"PDF generation failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 
