@@ -33,16 +33,18 @@ jobs:
           source antenv/bin/activate
           pip install -r requirements.txt
 
-      # Deploy ONLY the backend folder contents (not the whole repo)
+      # Deploy backend contents at root (not inside a backend folder)
+      - name: Zip backend contents
+        run: |
+          cd backend
+          zip -r ../backend-app.zip . -x "antenv/*" ".venv/*" "venv/*"
+          cd ..
+      
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            backend/
-            !backend/antenv/
-            !backend/.venv/
-            !backend/venv/
+          path: backend-app.zip
 
       # 🚫 Opting Out of Oryx Build
       # If you prefer to disable the Oryx build process during deployment, follow these steps:
@@ -62,6 +64,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
+      
+      - name: Unzip artifact for deployment
+        run: unzip backend-app.zip -d .
       
       - name: Login to Azure
         uses: azure/login@v2
