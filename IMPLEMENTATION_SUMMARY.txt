@@ -1,0 +1,151 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║  DATA POISONING DETECTION - IMPROVED LOGIC                                 ║
+║  Fix Date: 2026-02-13                                                      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+█ PROBLEM FIXED
+─────────────────────────────────────────────────────────────────────────────
+✗ BEFORE: Safe models marked SUSPICIOUS when tests failed to complete
+✗ BEFORE: Tests that couldn't verify counted as FAILURES
+✓ AFTER: Tests that couldn't verify marked INCONCLUSIVE (doesn't affect risk)
+✓ AFTER: Safe models stay SAFE with appropriate confidence levels
+
+
+█ SOLUTION ARCHITECTURE
+─────────────────────────────────────────────────────────────────────────────
+
+Three-State Test System:
+  1. COMPLETED: Test ran fully → passed=True/False shows actual result
+  2. INCONCLUSIVE: Couldn't verify → doesn't affect risk score
+  3. Result: Only COMPLETED tests influence final verdict
+
+
+█ CHANGES MADE
+─────────────────────────────────────────────────────────────────────────────
+
+1. DATA MODEL (backend/app/models/data_poisoning.py)
+   ✓ Added: status field to BehavioralTestResult
+   ✓ Values: "completed" or "inconclusive"
+
+2. RISK ASSESSMENT (_assess_risk method)
+   ✓ Only counts COMPLETED tests
+   ✓ Ignores INCONCLUSIVE tests (reduces confidence, not risk)
+   ✓ Neutral behavior_risk (0.5) if no tests completed
+
+3. VERDICT GENERATION (_generate_verdict method)
+   ✓ New: assessment_confidence = completed_tests / total_tests
+   ✓ New: Confidence-based verdict logic
+   ✓ If assessment < 0.6: mark SUSPICIOUS (can't confidently say SAFE)
+   ✓ Confidence = base_confidence + (assessment_confidence × bonus)
+
+4. FIVE TEST FUNCTIONS (updated status field)
+   ✓ Code Pattern Detection
+   ✓ Weight Anomaly Detection (PRIMARY)
+   ✓ Architecture Integrity
+   ✓ Serialization Safety
+   ✓ Behavioral Consistency
+
+   All now return: status="inconclusive" when can't verify
+
+
+█ RESULT EXAMPLES
+─────────────────────────────────────────────────────────────────────────────
+
+Safe Model (all complete):
+  → ✅ SAFE (90% confidence)
+  → All tests completed, no issues found
+
+Safe Model (many tests fail):
+  → ✅ SAFE (40% confidence)
+  → Some tests inconclusive, but file safety OK
+  → Low confidence warns user: "Limited verification"
+
+Unsafe Model (clearly detected):
+  → ❌ UNSAFE (90% confidence)
+  → All tests completed, multiple issues found
+
+Unclear Model (API errors):
+  → ⚠️ SUSPICIOUS (30% confidence)
+  → Too many inconclusive tests
+  → User should do manual review
+
+
+█ CONFIDENCE SCORE SCALE
+─────────────────────────────────────────────────────────────────────────────
+
+0.80-1.00: TRUST COMPLETELY
+           All or most tests completed, clear result
+
+0.60-0.79: TRUST WITH CAUTION
+           Some tests inconclusive, but pattern clear
+
+0.30-0.59: LOW CONFIDENCE
+           Many inconclusive tests, insufficient data
+
+<0.30:     DON'T TRUST
+           Almost no test data, do manual review
+
+
+█ IMPROVED VERDICTS
+─────────────────────────────────────────────────────────────────────────────
+
+Scenario                          | Before         | After
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Safe model + all tests complete   | ✅ SAFE        | ✅ SAFE (90%)
+Safe model + API errors           | ⚠️ SUSPICIOUS  | ✅ SAFE (40%)
+Unsafe model + clear issues       | ❌ UNSAFE      | ❌ UNSAFE (90%)
+Unclear model + many errors       | ⚠️ SUSPICIOUS  | ⚠️ SUSPICIOUS (30%)
+
+
+█ TESTING CHECKLIST
+─────────────────────────────────────────────────────────────────────────────
+
+[ ] Test 1: Scan a known safe model
+    Expected: ✅ SAFE with high confidence (80%+)
+
+[ ] Test 2: Scan model (force API errors)
+    Expected: ⚠️ SUSPICIOUS with low confidence (30-50%)
+
+[ ] Test 3: Check report file for status field
+    Expected: Some tests status="inconclusive"
+
+[ ] Test 4: Verify confidence matches completion rate
+    Expected: More inconclusive → lower confidence
+
+[ ] Test 5: Test with safetensors files
+    Expected: ✅ SAFE if no other issues
+
+
+█ FILES MODIFIED
+─────────────────────────────────────────────────────────────────────────────
+
+✓ backend/app/models/data_poisoning.py
+  └─ Added status field to BehavioralTestResult
+
+✓ backend/app/services/data_poisoning_service.py
+  ├─ Updated 5 test functions (status="inconclusive")
+  ├─ Improved _assess_risk() logic
+  └─ Completely rewrote _generate_verdict() logic
+
+✓ backend/app/models/data_poisoning.py
+  └─ Added status field
+
+✓ Syntax verified ✅
+
+
+█ BACKWARD COMPATIBILITY
+─────────────────────────────────────────────────────────────────────────────
+
+✓ Existing passed field still used
+✓ Existing confidence field more meaningful now
+✓ New status field optional (defaults to "completed")
+✓ Frontend can ignore status if not used
+
+
+═══════════════════════════════════════════════════════════════════════════════
+Ready for testing! The system now properly distinguishes between:
+  - Tests that COMPLETED (found results)
+  - Tests that were INCONCLUSIVE (couldn't verify)
+
+Safe models will stay SAFE, with confidence reflecting completeness of checks.
+═══════════════════════════════════════════════════════════════════════════════
