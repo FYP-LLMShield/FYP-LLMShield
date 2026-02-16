@@ -33,6 +33,9 @@ from app.routes.data_poisoning import router as data_poisoning_router
 from app.routes.poisoning_simulation import router as poisoning_simulation_router
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown events."""
@@ -40,36 +43,38 @@ async def lifespan(app: FastAPI):
     app.state.db_connected = False
     app.state.mcp_initialized = False
 
-    # MongoDB: do not fail app startup so /health/live works and logs are visible
+    logger.info(f"🚀 Starting LLMShield Backend (Port: {settings.PORT}, Env: {settings.ENVIRONMENT})")
+
+    # MongoDB
     try:
         await connect_to_mongo()
         app.state.db_connected = True
-        print("🚀 Database connected successfully")
+        logger.info("🚀 Database connected successfully")
     except Exception as e:
-        print("STARTUP WARNING (MongoDB):", str(e))
+        logger.error(f"STARTUP ERROR (MongoDB): {e}")
         traceback.print_exc()
 
-    # Supabase: log availability so we can see why users might not be stored there
+    # Supabase diagnostics
     try:
         from app.utils.supabase_client import supabase_service
         if supabase_service.is_available():
-            print("✅ Supabase: enabled (users will be stored in Supabase + MongoDB)")
+            logger.info("✅ Supabase: enabled (users synced to Supabase + MongoDB)")
         else:
-            print("⚠️ Supabase: disabled (set SUPABASE_PROJECT_URL and SUPABASE_SERVICE_KEY in .env; users stored in MongoDB only)")
+            logger.warning("⚠️ Supabase: disabled (set SUPABASE_PROJECT_URL and SUPABASE_SERVICE_KEY in .env)")
     except Exception as e:
-        print("⚠️ Supabase: check failed:", str(e))
+        logger.error(f"⚠️ Supabase: check failed: {e}")
 
-    # Email (verification + password reset): loaded from repo root or backend .env
+    # Email diagnostics
     try:
         from app.utils.email_service import EmailConfig
         if EmailConfig.is_configured():
-            print("✅ Email: configured (verification and password-reset emails will be sent)")
+            logger.info("✅ Email: configured (verification and password-reset enabled)")
         else:
-            print("⚠️ Email: not configured (set EMAIL_USERNAME and EMAIL_PASSWORD in .env in project root or backend/)")
+            logger.warning("⚠️ Email: not configured (set EMAIL_USERNAME and EMAIL_PASSWORD in .env)")
     except Exception as e:
-        print("⚠️ Email: check failed:", str(e))
+        logger.error(f"⚠️ Email: check failed: {e}")
 
-    # MCP: do not fail app startup
+    # MCP servers
     try:
         await initialize_mcp_servers()
         await mcp_registry.start_all()
@@ -77,9 +82,9 @@ async def lifespan(app: FastAPI):
         for name, instance in mcp_instances.items():
             app.mount(f"/mcp/{name}", instance.get_app())
         app.state.mcp_initialized = True
-        print("🛡️  Security scanner modules loaded")
+        logger.info("🛡️ Security scanner modules loaded")
     except Exception as e:
-        print("STARTUP WARNING (MCP):", str(e))
+        logger.error(f"STARTUP ERROR (MCP): {e}")
         traceback.print_exc()
 
     yield
@@ -89,7 +94,8 @@ async def lifespan(app: FastAPI):
         await mcp_registry.stop_all()
     if getattr(app.state, "db_connected", False):
         await close_mongo_connection()
-    print("📴 Shutdown complete")
+    logger.info("📴 Shutdown complete")
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
