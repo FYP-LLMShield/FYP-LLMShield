@@ -4,6 +4,9 @@ from typing import Optional
 class GoogleSignInRequest(BaseModel):
     """Model for Google Sign-In request"""
     id_token: str
+    # "signup" = create user if not exists (Continue with Google on sign-up form)
+    # "signin" = only allow if user exists (Continue with Google on login form); otherwise return 403
+    mode: Optional[str] = None  # "signup" | "signin"; default "signup" for backward compatibility
     
 class GoogleUserInfo(BaseModel):
     """Model for Google user information"""

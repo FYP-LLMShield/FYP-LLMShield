@@ -30,6 +30,14 @@ class EmailConfig:
     SMTP_USERNAME = os.getenv("EMAIL_USERNAME", "")  # Your Gmail address
     SMTP_PASSWORD = os.getenv("EMAIL_PASSWORD", "")  # Your Gmail App Password (16 characters)
     DEFAULT_FROM_EMAIL = os.getenv("EMAIL_USERNAME", "")  # Your Gmail address
+    FROM_DISPLAY_NAME = os.getenv("EMAIL_FROM_NAME", "")  # e.g. "LLMShield Team" for inbox display
+
+    @classmethod
+    def get_from_header(cls) -> str:
+        """Return From header: 'Display Name <email>' or just email."""
+        if cls.FROM_DISPLAY_NAME and cls.DEFAULT_FROM_EMAIL:
+            return f"{cls.FROM_DISPLAY_NAME} <{cls.DEFAULT_FROM_EMAIL}>"
+        return cls.DEFAULT_FROM_EMAIL or ""
 
     @classmethod
     def is_configured(cls) -> bool:
@@ -75,6 +83,34 @@ class EmailService:
 
         except Exception as e:
             logger.error(f"Failed to send verification email to {email}: {e}")
+            return False
+
+    async def send_verification_link_email(self, email: str, name: str, verification_link: str) -> bool:
+        """Send verification email with link (for post-registration email verification)."""
+        try:
+            if not EmailConfig.is_configured():
+                logger.warning("Email configuration is missing - skipping verification email")
+                return False
+            subject = "Verify your email - LLMShield"
+            message = f"""
+Hello {name},
+
+Thanks for signing up for LLMShield.
+
+Please verify your email by clicking the link below:
+
+{verification_link}
+
+This link will verify your account so you can log in.
+
+If you didn't create this account, you can ignore this email.
+
+Best regards,
+LLMShield Team
+"""
+            return await self._send_email(to_email=email, subject=subject, message=message)
+        except Exception as e:
+            logger.error(f"Failed to send verification link email to {email}: {e}")
             return False
 
     async def send_welcome_email(self, email: str, name: str) -> bool:
@@ -210,7 +246,7 @@ For support, visit: https://llmshield.com/support
         try:
             # Create message
             msg = MIMEMultipart()
-            msg['From'] = EmailConfig.DEFAULT_FROM_EMAIL
+            msg['From'] = EmailConfig.get_from_header()
             msg['To'] = to_email
             msg['Subject'] = subject
 
@@ -243,7 +279,7 @@ For support, visit: https://llmshield.com/support
         try:
             # Create message
             msg = MIMEMultipart()
-            msg['From'] = EmailConfig.DEFAULT_FROM_EMAIL
+            msg['From'] = EmailConfig.get_from_header()
             msg['To'] = to_email
             msg['Subject'] = subject
 

@@ -1,12 +1,10 @@
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, List
-from passlib.context import CryptContext
 from app.models.user import UserInDB, UserRegistration
 from app.core.database import get_database
 from app.utils.mfa import mfa_utils
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.utils.password_hash import hash_password as _hash_password, verify_password as _verify_password
 
 class UserService:
     def __init__(self):
@@ -18,18 +16,12 @@ class UserService:
         return db[self.collection_name]
 
     def hash_password(self, password: str) -> str:
-        """Hash a password (bcrypt has 72-byte limit, so truncate if needed)"""
-        # Bcrypt has a 72-byte limit (not character limit!)
-        # Encode to bytes to check actual byte length, then truncate
-        password_bytes = password.encode('utf-8')
-        if len(password_bytes) > 72:
-            # Truncate to 72 bytes, then decode back to string
-            password = password_bytes[:72].decode('utf-8', errors='ignore')
-        return pwd_context.hash(password)
+        """Hash a password (bcrypt 72-byte safe)."""
+        return _hash_password(password)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
-        return pwd_context.verify(plain_password, hashed_password)
+        return _verify_password(plain_password, hashed_password)
 
     async def verify_password(self, email: str, password: str) -> bool:
         """Verify password for a specific user - FIXED"""
@@ -39,12 +31,8 @@ class UserService:
         return self.verify_password_plain(password, user.hashed_password)
 
     def verify_password_plain(self, plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash (bcrypt has 72-byte limit)"""
-        # Bcrypt has a 72-byte limit, truncate if needed
-        password_bytes = plain_password.encode('utf-8')
-        if len(password_bytes) > 72:
-            plain_password = password_bytes[:72].decode('utf-8', errors='ignore')
-        return pwd_context.verify(plain_password, hashed_password)
+        """Verify a password against its hash"""
+        return _verify_password(plain_password, hashed_password)
 
 
     async def create_user(self, user_data: UserRegistration) -> UserInDB:
@@ -277,25 +265,73 @@ class UserService:
         
         return None
     # MFA Methods
-    async def store_temp_mfa_secret(self, email: str, secret: str, recovery_codes: List[str]) -> bool:
-        """Store temporary MFA secret during setup"""
+    async def ensure_user_exists_for_mfa(self, email: str, name: str, username: str) -> bool:
+        """Ensure a user document exists in MongoDB (insert minimal doc if not). Used when user exists in Supabase only."""
         collection = await self.get_collection()
-        
-        # Hash recovery codes
+        existing = await collection.find_one({"email": email})
+        if existing:
+            return True
+        try:
+            user_dict = {
+                "email": email,
+                "hashed_password": self.hash_password(secrets.token_urlsafe(32)),
+                "username": username,
+                "name": name,
+                "is_verified": True,
+                "is_active": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "verification_token": None,
+                "reset_token": None,
+                "reset_token_expires": None,
+                "mfa_enabled": False,
+                "mfa_secret": None,
+                "recovery_codes": [],
+                "trusted_devices": [],
+                "mfa_setup_complete": False,
+            }
+            await collection.insert_one(user_dict)
+            return True
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"ensure_user_exists_for_mfa: {e}")
+            return False
+
+    async def store_temp_mfa_secret(self, email: str, secret: str, recovery_codes: List[str]) -> bool:
+        """Store temporary MFA secret during setup. Upserts so user row is created in MongoDB if missing."""
+        collection = await self.get_collection()
         hashed_recovery_codes = [mfa_utils.hash_recovery_code(code) for code in recovery_codes]
-        
+        now = datetime.utcnow()
+        # Unique username for upsert-created docs (avoid collision with existing users)
+        username_safe = email.replace("@", "_at_").replace(".", "_").replace("+", "_")[:50]
+        update_doc = {
+            "$set": {
+                "mfa_secret": secret,
+                "recovery_codes": hashed_recovery_codes,
+                "updated_at": now,
+            },
+            "$setOnInsert": {
+                "email": email,
+                "username": username_safe,
+                "name": email.split("@")[0] if "@" in email else "User",
+                "hashed_password": self.hash_password(secrets.token_urlsafe(32)),
+                "is_verified": True,
+                "is_active": True,
+                "created_at": now,
+                "verification_token": None,
+                "reset_token": None,
+                "reset_token_expires": None,
+                "mfa_enabled": False,
+                "mfa_setup_complete": False,
+                "trusted_devices": [],
+            },
+        }
         result = await collection.update_one(
             {"email": email},
-            {
-                "$set": {
-                    "mfa_secret": secret,
-                    "recovery_codes": hashed_recovery_codes,
-                    "updated_at": datetime.utcnow()
-                }
-            }
+            update_doc,
+            upsert=True,
         )
-        
-        return result.modified_count > 0
+        return result.modified_count > 0 or result.upserted_id is not None
 
     async def enable_mfa(self, email: str) -> bool:
         """Enable MFA for user"""

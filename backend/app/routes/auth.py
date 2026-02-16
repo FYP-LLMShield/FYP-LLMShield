@@ -40,6 +40,33 @@ async def register(user_data: UserRegistration):
                 detail="Failed to create user in database"
             )
         
+        # Send verification email (do not fail registration if email fails)
+        import logging
+        _log = logging.getLogger(__name__)
+        verification_token = getattr(user, "verification_token", None)
+        if verification_token and settings.FRONTEND_URL:
+            verification_link = f"{settings.FRONTEND_URL.rstrip('/')}/auth?verify=1&token={verification_token}"
+            try:
+                from app.core.database import get_database
+                from app.utils.email_service import EmailService, EmailConfig
+                db = await get_database()
+                if db:
+                    email_service = EmailService(db)
+                    if EmailConfig.is_configured():
+                        await email_service.send_verification_link_email(
+                            email=user.email,
+                            name=user.name,
+                            verification_link=verification_link,
+                        )
+                    else:
+                        _log.warning(
+                            "Email not configured (set EMAIL_USERNAME and EMAIL_PASSWORD in .env). "
+                            "Verify manually by opening: %s",
+                            verification_link,
+                        )
+            except Exception as e:
+                _log.warning("Could not send verification email: %s. Verify manually: %s", e, verification_link)
+        
         return {
             "message": "User registered successfully. Please check your email for verification.",
             "user_id": str(user.id),
@@ -79,6 +106,13 @@ async def login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Prevent login until email is verified (when required by config)
+        if settings.REQUIRE_EMAIL_VERIFICATION and not getattr(user, "is_verified", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Email not verified. Please check your email and click the verification link before logging in.",
             )
         
         # Check if MFA is enabled
@@ -437,14 +471,14 @@ async def logout(
 @router.post("/google", response_model=dict)  # Alias for frontend compatibility
 async def google_signin(request: GoogleSignInRequest, response: Response):
     """
-    Authenticate user with Google Sign-In
-    Supports both /google-signin and /google endpoints
+    Authenticate user with Google Sign-In.
+    - mode=signup (or omitted): create user if not exists, then sign in (Continue with Google on sign-up).
+    - mode=signin: only sign in if user already exists; if not, return 403 "Please sign up first" (Continue with Google on login).
     """
     try:
         db = await get_database()
         google_auth_service = GoogleAuthService(db)
         
-        # Verify Google ID token
         google_user = await google_auth_service.verify_google_token(request.id_token)
         if not google_user:
             raise HTTPException(
@@ -452,8 +486,20 @@ async def google_signin(request: GoogleSignInRequest, response: Response):
                 detail="Invalid Google ID token"
             )
         
-        # Get or create user
-        user, is_new_user = await google_auth_service.get_or_create_user(google_user)
+        is_signin_only = (request.mode or "").strip().lower() == "signin"
+        
+        if is_signin_only:
+            # Login form: only allow if user already exists; do not create
+            existing_user = await unified_user_service.get_user_by_email(google_user.email)
+            if not existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No account found with this Google email. Please sign up first.",
+                )
+            user, is_new_user = existing_user, False
+        else:
+            # Sign-up form or default: get or create user
+            user, is_new_user = await google_auth_service.get_or_create_user(google_user)
         
         # Create tokens
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

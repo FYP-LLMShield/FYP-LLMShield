@@ -2,12 +2,13 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.models.user import (
-    MFASetupRequest, MFAVerifyRequest, MFADisableRequest, 
+    UserInDB,
+    MFASetupRequest, MFAVerifyRequest, MFADisableRequest,
     MFASetupResponse, MFAStatusResponse, RecoveryCodeRequest
 )
 from app.utils.user_service import user_service as mongo_user_service
 from app.utils.unified_user_service import unified_user_service
-from app.utils.auth import verify_token, create_access_token, create_refresh_token
+from app.utils.auth import get_current_user, verify_token, create_access_token, create_refresh_token
 from app.utils.mfa import mfa_utils
 from app.core.config import settings
 
@@ -15,33 +16,28 @@ router = APIRouter()
 security = HTTPBearer()
 
 @router.get("/status", response_model=MFAStatusResponse)
-async def get_mfa_status(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_mfa_status(current_user: UserInDB = Depends(get_current_user)):
     """
-    Get current MFA status for the authenticated user
+    Get current MFA status for the authenticated user.
+    Accepts both Supabase Auth JWT and backend JWT.
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
-        
-        # Get user from database (tries Supabase first, falls back to MongoDB)
-        user = await unified_user_service.get_user_by_email(email)
+        user = await unified_user_service.get_user_by_email(current_user.email)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+            # Supabase Auth user with no row yet: return default (no MFA)
+            return MFAStatusResponse(
+                mfa_enabled=False,
+                setup_complete=False,
+                recovery_codes_remaining=0
             )
-        
-        # Count remaining recovery codes
         remaining_codes = len([code for code in user.recovery_codes if code])
-        
         return MFAStatusResponse(
             mfa_enabled=user.mfa_enabled,
             setup_complete=user.mfa_setup_complete,
             recovery_codes_remaining=remaining_codes
         )
-    
-    except HTTPException as e:
-        raise e
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -49,53 +45,51 @@ async def get_mfa_status(credentials: HTTPAuthorizationCredentials = Depends(sec
         )
 
 @router.post("/setup/initiate", response_model=MFASetupResponse)
-async def initiate_mfa_setup(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def initiate_mfa_setup(current_user: UserInDB = Depends(get_current_user)):
     """
-    Initiate MFA setup - generates secret and QR code
+    Initiate MFA setup - generates secret and QR code.
+    Accepts both Supabase Auth JWT and backend JWT. Ensures user exists in DB for Supabase Auth users.
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
-        
-        # Get user from database (tries Supabase first, falls back to MongoDB)
+        email = current_user.email
         user = await unified_user_service.get_user_by_email(email)
         if not user:
+            await unified_user_service.ensure_user_for_mfa(current_user)
+            user = await unified_user_service.get_user_by_email(email)
+        if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not create or find user for MFA setup."
             )
-        
         if user.mfa_enabled:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="MFA is already enabled for this account"
             )
-        
-        # Generate TOTP secret
         secret = mfa_utils.generate_secret()
-        
-        # Generate QR code
         qr_code = mfa_utils.generate_qr_code(email, secret)
-        
-        # Generate backup URL
         backup_url = mfa_utils.generate_backup_url(email, secret)
-        
-        # Generate recovery codes
         recovery_codes = mfa_utils.generate_recovery_codes()
-        
-        # Store temporary secret in user record (not activated yet)
-        # MFA operations use MongoDB for now (can be extended to Supabase later)
-        await mongo_user_service.store_temp_mfa_secret(email, secret, recovery_codes)
-        
+        stored = await unified_user_service.store_temp_mfa_secret(email, secret, recovery_codes)
+        if not stored:
+            # User may exist only in Supabase and Supabase update failed; ensure they exist in MongoDB and retry
+            username = getattr(current_user, "username", None) or (email.split("@")[0] if email else "user")
+            name = getattr(current_user, "name", None) or username
+            await unified_user_service.ensure_user_in_mongo_for_mfa(email, name, username)
+            stored = await unified_user_service.store_temp_mfa_secret(email, secret, recovery_codes)
+        if not stored:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not save MFA setup. Please try again."
+            )
         return MFASetupResponse(
             qr_code=qr_code,
             secret=secret,
             backup_url=backup_url,
             recovery_codes=recovery_codes
         )
-    
-    except HTTPException as e:
-        raise e
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -105,16 +99,13 @@ async def initiate_mfa_setup(credentials: HTTPAuthorizationCredentials = Depends
 @router.post("/setup/complete", response_model=dict)
 async def complete_mfa_setup(
     setup_request: MFASetupRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """
-    Complete MFA setup by verifying TOTP code
+    Complete MFA setup by verifying TOTP code. Accepts both Supabase Auth JWT and backend JWT.
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
-        
-        # Get user from database (tries Supabase first, falls back to MongoDB)
+        email = current_user.email
         user = await unified_user_service.get_user_by_email(email)
         if not user:
             raise HTTPException(
@@ -141,9 +132,8 @@ async def complete_mfa_setup(
                 detail="Invalid TOTP code"
             )
         
-        # Enable MFA
-        # MFA operations use MongoDB for now
-        success = await mongo_user_service.enable_mfa(email)
+        # Enable MFA in both Supabase and MongoDB
+        success = await unified_user_service.enable_mfa(email)
         
         if not success:
             raise HTTPException(
@@ -262,16 +252,13 @@ async def verify_mfa_code(
 @router.post("/disable", response_model=dict)
 async def disable_mfa(
     disable_request: MFADisableRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: UserInDB = Depends(get_current_user)
 ):
     """
-    Disable MFA (requires password + TOTP confirmation)
+    Disable MFA (requires password + TOTP confirmation). Accepts both Supabase Auth JWT and backend JWT.
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
-        
-        # Get user from database (tries Supabase first, falls back to MongoDB)
+        email = current_user.email
         user = await unified_user_service.get_user_by_email(email)
         if not user:
             raise HTTPException(
@@ -285,13 +272,18 @@ async def disable_mfa(
                 detail="MFA is not enabled for this account"
             )
         
-        # Verify password
-        # Password verification uses MongoDB for now
-        if not await mongo_user_service.verify_password(email, disable_request.current_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid password"
-            )
+        # Verify password only if user has a password (e.g. email sign-up). Skip for Google/social sign-in.
+        if user.hashed_password:
+            if not disable_request.current_password:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Password is required to disable MFA for this account"
+                )
+            if not await mongo_user_service.verify_password(email, disable_request.current_password):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid password"
+                )
         
         # Verify TOTP code
         if not mfa_utils.verify_totp_code(user.mfa_secret, disable_request.totp_code):
@@ -300,9 +292,8 @@ async def disable_mfa(
                 detail="Invalid TOTP code"
             )
         
-        # Disable MFA
-        # MFA operations use MongoDB for now
-        success = await mongo_user_service.disable_mfa(email)
+        # Disable MFA in both Supabase and MongoDB
+        success = await unified_user_service.disable_mfa(email)
         
         if not success:
             raise HTTPException(
@@ -345,15 +336,12 @@ async def use_recovery_code(recovery_request: RecoveryCodeRequest):
         )
 
 @router.post("/recovery/regenerate", response_model=dict)
-async def regenerate_recovery_codes(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def regenerate_recovery_codes(current_user: UserInDB = Depends(get_current_user)):
     """
-    Regenerate recovery codes (replaces existing ones)
+    Regenerate recovery codes (replaces existing ones). Accepts both Supabase Auth JWT and backend JWT.
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
-        
-        # Get user from database (tries Supabase first, falls back to MongoDB)
+        email = current_user.email
         user = await unified_user_service.get_user_by_email(email)
         if not user:
             raise HTTPException(
@@ -370,9 +358,8 @@ async def regenerate_recovery_codes(credentials: HTTPAuthorizationCredentials = 
         # Generate new recovery codes
         new_recovery_codes = mfa_utils.generate_recovery_codes()
         
-        # Update user's recovery codes
-        # MFA operations use MongoDB for now
-        success = await mongo_user_service.update_recovery_codes(email, new_recovery_codes)
+        # Update recovery codes in both Supabase and MongoDB
+        success = await unified_user_service.update_recovery_codes(email, new_recovery_codes)
         
         if not success:
             raise HTTPException(

@@ -22,19 +22,13 @@ class EmailVerificationToken(BaseModel):
     @classmethod
     def create_for_registration(cls, email: str, username: str, password: str) -> "EmailVerificationToken":
         """Create verification token for user registration"""
-        from app.utils.user_service import pwd_context
+        from app.utils.password_hash import hash_password
         
         # Generate 6-digit code
         code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
         
-        # Hash password (bcrypt has 72-byte limit, so truncate if needed)
-        # Bcrypt has a 72-byte limit (not character limit!)
-        # Encode to bytes to check actual byte length, then truncate
-        password_bytes = password.encode('utf-8')
-        if len(password_bytes) > 72:
-            # Truncate to 72 bytes, then decode back to string
-            password = password_bytes[:72].decode('utf-8', errors='ignore')
-        password_hash = pwd_context.hash(password)
+        # Hash password (72-byte safe)
+        password_hash = hash_password(password)
         
         return cls(
             email=email,

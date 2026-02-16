@@ -1,36 +1,25 @@
 # app/utils/auth.py - FIXED VERSION
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 from app.core.database import get_database
 from app.utils.user_service import user_service  # Use the global instance
+from app.utils.password_hash import hash_password as get_password_hash, verify_password as _verify_password
 from app.models.user import UserInDB
+from bson import ObjectId
+import hashlib
 import secrets
 import string
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Security scheme - auto_error=False to handle missing tokens gracefully
 security = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    """Generate password hash (bcrypt has 72-byte limit, so truncate if needed)"""
-    # Bcrypt has a 72-byte limit (not character limit!)
-    # Encode to bytes to check actual byte length, then truncate
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Truncate to 72 bytes, then decode back to string
-        password = password_bytes[:72].decode('utf-8', errors='ignore')
-    return pwd_context.hash(password)
+    """Verify a plain password against its hash (72-byte safe)."""
+    return _verify_password(plain_password, hashed_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
@@ -97,6 +86,46 @@ def verify_token(token: str, token_type: str = "access"):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
+def _verify_supabase_jwt(token: str) -> Optional[dict]:
+    """Verify Supabase-issued JWT. Returns payload if valid, None otherwise."""
+    if not settings.SUPABASE_JWT_SECRET:
+        return None
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated",
+        )
+        return payload
+    except JWTError:
+        return None
+
+
+def _user_from_supabase_payload(payload: dict) -> UserInDB:
+    """Build a minimal UserInDB from Supabase JWT payload (sub, email, user_metadata)."""
+    sub = payload.get("sub") or ""
+    email = payload.get("email") or (payload.get("phone") and f"{payload['phone']}@phone") or "unknown"
+    if isinstance(email, list):
+        email = email[0] if email else "unknown"
+    metadata = payload.get("user_metadata") or {}
+    name = metadata.get("full_name") or metadata.get("name") or email.split("@")[0]
+    username = metadata.get("username") or email.split("@")[0]
+    # Deterministic ObjectId from sub so we have a consistent id
+    oid = ObjectId(hashlib.md5(sub.encode()).hexdigest()[:24])
+    return UserInDB(
+        id=oid,
+        email=email,
+        username=username,
+        name=name,
+        hashed_password=None,
+        is_verified=True,  # Supabase Auth handles verification
+        is_active=True,
+        mfa_enabled=False,
+    )
+
+
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> UserInDB:
@@ -130,10 +159,14 @@ async def get_current_user(
         
         logger.debug(f"Verifying token: {token[:20]}...")
         
-        # Verify and decode the token
-        email = verify_token(token, "access")
+        # 1) Try Supabase Auth JWT first (when Supabase Auth is primary)
+        supabase_payload = _verify_supabase_jwt(token)
+        if supabase_payload:
+            logger.debug("Token validated as Supabase Auth JWT")
+            return _user_from_supabase_payload(supabase_payload)
         
-        # Get user from database (tries Supabase first, falls back to MongoDB)
+        # 2) Fallback: backend-issued JWT (when Supabase is down or user used fallback auth)
+        email = verify_token(token, "access")
         from app.utils.unified_user_service import unified_user_service
         user = await unified_user_service.get_user_by_email(email)
         
@@ -145,7 +178,7 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        logger.debug(f"User authenticated successfully: {email}")
+        logger.debug(f"User authenticated successfully (backend token): {email}")
         return user
         
     except HTTPException:
@@ -173,6 +206,9 @@ async def get_optional_user(
         return None
 
     try:
+        supabase_payload = _verify_supabase_jwt(token)
+        if supabase_payload:
+            return _user_from_supabase_payload(supabase_payload)
         email = verify_token(token, "access")
         from app.utils.unified_user_service import unified_user_service
         return await unified_user_service.get_user_by_email(email)

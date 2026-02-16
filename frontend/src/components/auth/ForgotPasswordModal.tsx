@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { authAPI } from '../../lib/api';
@@ -6,14 +6,46 @@ import { authAPI } from '../../lib/api';
 interface ForgotPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When set, use this email (e.g. from login form) and send reset link without asking user to type it */
+  prefillEmail?: string;
 }
 
-const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose }) => {
+const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose, prefillEmail = '' }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState<'email' | 'success'>('email');
+
+  // When modal opens with prefillEmail, use that email and send reset link immediately (no "enter email" form)
+  useEffect(() => {
+    if (!isOpen) return;
+    const toUse = (prefillEmail || '').trim();
+    if (toUse) {
+      setEmail(toUse);
+      setStep('success');
+      setSuccess(false);
+      setError('');
+      setIsLoading(true);
+      authAPI.forgotPassword({ email: toUse }).then((response) => {
+        setIsLoading(false);
+        if (response.success) {
+          setSuccess(true);
+        } else {
+          setError(response.error || 'Failed to send reset email. Please try again.');
+        }
+      }).catch((err) => {
+        console.error('Forgot password error:', err);
+        setIsLoading(false);
+        setError('An error occurred. Please try again.');
+      });
+    } else {
+      setEmail('');
+      setStep('email');
+      setSuccess(false);
+      setError('');
+    }
+  }, [isOpen, prefillEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,35 +167,63 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
                 </>
               ) : (
                 <>
-                  {/* Success state */}
+                  {/* Success state (or loading when using prefillEmail) */}
                   <div className="text-center">
-                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle className="w-8 h-8 text-green-400" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Check Your Email</h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                      We've sent a password reset link to <span className="text-white font-medium">{email}</span>
-                    </p>
-                    <p className="text-gray-500 text-xs mb-6">
-                      Didn't receive the email? Check your spam folder or try again.
-                    </p>
+                    {isLoading ? (
+                      <>
+                        <div className="w-16 h-16 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <div className="w-8 h-8 border-2 border-teal-400/30 border-t-teal-400 rounded-full animate-spin" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Sending reset link</h2>
+                        <p className="text-gray-400 text-sm">
+                          Sending password reset link to <span className="text-white font-medium">{email}</span>…
+                        </p>
+                      </>
+                    ) : error ? (
+                      <>
+                        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                          <p className="text-red-400 text-sm">{error}</p>
+                        </div>
+                        <button
+                          onClick={handleClose}
+                          className="w-full py-2.5 px-4 text-gray-400 hover:text-white font-medium transition-colors duration-200"
+                        >
+                          Back to Login
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CheckCircle className="w-8 h-8 text-green-400" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Check Your Email</h2>
+                        <p className="text-gray-400 text-sm mb-6">
+                          We've sent a password reset link to <span className="text-white font-medium">{email}</span>
+                        </p>
+                        <p className="text-gray-500 text-xs mb-6">
+                          Didn't receive the email? Check your spam folder or try again.
+                        </p>
 
-                    <div className="space-y-3">
-                      <button
-                        onClick={handleBackToEmail}
-                        className="w-full py-2.5 px-4 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center"
-                      >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Try Different Email
-                      </button>
-                      
-                      <button
-                        onClick={handleClose}
-                        className="w-full py-2.5 px-4 text-gray-400 hover:text-white font-medium transition-colors duration-200"
-                      >
-                        Back to Login
-                      </button>
-                    </div>
+                        <div className="space-y-3">
+                          {!prefillEmail && (
+                            <button
+                              onClick={handleBackToEmail}
+                              className="w-full py-2.5 px-4 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center"
+                            >
+                              <ArrowLeft className="w-4 h-4 mr-2" />
+                              Try Different Email
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={handleClose}
+                            className="w-full py-2.5 px-4 text-gray-400 hover:text-white font-medium transition-colors duration-200"
+                          >
+                            Back to Login
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               )}

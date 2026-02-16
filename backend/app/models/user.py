@@ -74,9 +74,9 @@ class MessageResponse(BaseModel):
     message: str
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    """Login accepts email or username in the email field for evaluation flexibility."""
+    email: str  # Email or username (backend authenticates by both)
     password: str
-    # Add MFA fields for future use
     totp_code: Optional[str] = None
     recovery_code: Optional[str] = None
     trust_device: bool = False
@@ -225,7 +225,7 @@ class MFAVerifyRequest(BaseModel):
     totp_code: str
 
 class MFADisableRequest(BaseModel):
-    current_password: str
+    current_password: Optional[str] = None  # Optional for Google/social sign-in users
     totp_code: str
 
 class MFASetupResponse(BaseModel):

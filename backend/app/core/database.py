@@ -22,13 +22,13 @@ async def get_database() -> AsyncIOMotorDatabase:
     """Get database instance"""
     return mongodb.database
 
+
 async def ping_mongo() -> bool:
-    """Ping MongoDB to check connection status"""
+    """Ping MongoDB to verify connectivity. Used for readiness probes."""
     try:
-        if mongodb.client is None or mongodb.database is None:
+        if mongodb.client is None:
             return False
         await mongodb.client.admin.command("ping")
         return True
-    except Exception as e:
-        print(f"MongoDB ping failed: {str(e)}")
+    except Exception:
         return False
