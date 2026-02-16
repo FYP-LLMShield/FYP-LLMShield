@@ -33,14 +33,16 @@ jobs:
           source antenv/bin/activate
           pip install -r requirements.txt
 
-      # Deploy the whole repo so wwwroot has backend/ folder; startup command must cd to backend
+      # Deploy ONLY the backend folder contents (not the whole repo)
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
           path: |
-            .
+            backend/
             !backend/antenv/
+            !backend/.venv/
+            !backend/venv/
 
       # 🚫 Opting Out of Oryx Build
       # If you prefer to disable the Oryx build process during deployment, follow these steps:
