@@ -27,6 +27,7 @@ from app.routes.profile import router as profile_router
 
 # Import the unified security scanner components
 from app.routes.scanner import router as scanner_router
+from app.routes.hybrid_scanner import router as hybrid_scanner_router
 from app.routes.scan_history import router as scan_history_router
 from app.routes.prompt_injection import router as prompt_injection_router
 from app.routes.data_poisoning import router as data_poisoning_router
@@ -45,7 +46,7 @@ async def lifespan(app: FastAPI):
     try:
         await connect_to_mongo()
         app.state.db_connected = True
-        print("🚀 Database connected successfully")
+        print("[OK] Database connected successfully")
     except Exception as e:
         print("STARTUP WARNING (MongoDB):", str(e))
         traceback.print_exc()
@@ -70,7 +71,7 @@ async def lifespan(app: FastAPI):
         for name, instance in mcp_instances.items():
             app.mount(f"/mcp/{name}", instance.get_app())
         app.state.mcp_initialized = True
-        print("🛡️  Security scanner modules loaded")
+        print("[OK] Security scanner modules loaded")
     except Exception as e:
         print("STARTUP WARNING (MCP):", str(e))
         traceback.print_exc()
@@ -82,7 +83,7 @@ async def lifespan(app: FastAPI):
         await mcp_registry.stop_all()
     if getattr(app.state, "db_connected", False):
         await close_mongo_connection()
-    print("📴 Shutdown complete")
+    print("[OK] Shutdown complete")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -116,11 +117,17 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/auth", 
     tags=["Email Verification"]
 )
-# Add the security scanner router
+# Add the security scanner router (regex-based - legacy)
 app.include_router(
-    scanner_router, 
-    prefix=f"{settings.API_V1_STR}/scan", 
+    scanner_router,
+    prefix=f"{settings.API_V1_STR}/scan",
     tags=["Security Scanner"]
+)
+# Add the hybrid scanner router (regex + LLM)
+app.include_router(
+    hybrid_scanner_router,
+    prefix=f"{settings.API_V1_STR}/hybrid-scan",
+    tags=["Hybrid Scanner (Regex + LLM)"]
 )
 # Add the scan history router
 app.include_router(

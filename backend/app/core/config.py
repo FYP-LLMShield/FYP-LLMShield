@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # xAI Grok - for LLM-based prompt injection evaluation
     XAI_API_KEY: Optional[str] = os.getenv("XAI_API_KEY")
 
+    # Google Gemini - for LLM-based prompt injection evaluation
+    GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
+
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
 
@@ -68,8 +71,8 @@ class Settings(BaseSettings):
         if not v:
             from cryptography.fernet import Fernet
             key = Fernet.generate_key().decode()
-            print(f"🔐 Generated encryption key: {key}")
-            print("📝 Add this to your .env: MODEL_ENCRYPTION_KEY=" + key)
+            print(f"[KEY] Generated encryption key: {key}")
+            print("[NOTE] Add this to your .env: MODEL_ENCRYPTION_KEY=" + key)
             return key
         return v
 
