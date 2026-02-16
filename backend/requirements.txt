@@ -50,7 +50,3 @@ postgrest>=0.13.0
 # Optional: Large package, install separately if needed
 # llama-cpp-python>=0.2.0
 
-# SAST Tools for Code Analysis
-semgrep>=1.45.0
-truffleHog>=2.2.0
-pyyaml>=6.0

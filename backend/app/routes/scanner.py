@@ -1,3 +1,5 @@
+
+
 """
 Security Scanner Router - FastAPI routes for vulnerability and secret detection
 =============================================================================
@@ -20,7 +22,6 @@ from functools import partial
 from datetime import datetime
 import hashlib
 import time
-import logging
 
 #pdf generation
 from reportlab.lib.pagesizes import letter, A4
@@ -38,6 +39,9 @@ from pydantic import BaseModel, Field
 from app.utils.auth import get_current_user
 from app.models.user import UserInDB
 from app.services.scan_history_service import save_scan_to_history
+from app.core.config import settings
+import asyncio
+import logging
 
 try:
     from git import Repo
@@ -45,9 +49,6 @@ try:
 except ImportError:
     _GIT_OK = False
     # Suppress warning - only show if GitHub scanning is actually attempted
-
-# Initialize logger
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -447,40 +448,17 @@ def jwt_is_valid(token: str) -> bool:
         return False
 
 # Secret detection patterns - ALL CRITICAL
-# ULTRA-AGGRESSIVE patterns - look for literal secret values anywhere in the code
 SECRET_PATTERNS = {
-    # AWS Access Key - Look for AKIA or ASIA followed by 15+ alphanumeric
-    "AWSAccessKeyID": re.compile(r"AKIA[0-9A-Z]{15,}|ASIA[0-9A-Z]{15,}"),
-
-    # AWS Secret - Look for the literal secret OR aws_secret variable
-    "AWSSecretAccessKey": re.compile(r"wJalrXUtnFEMI[A-Za-z0-9/+]{20,}|aws[_\-]?secret"),
-
-    # GitHub PAT - Look for ghp_ prefix (relaxed to 25+ chars to catch various token formats)
-    "GitHubPAT": re.compile(r"ghp_[A-Za-z0-9_]{25,}|gho_[A-Za-z0-9_]{25,}|ghu_[A-Za-z0-9_]{25,}|ghs_[A-Za-z0-9_]{25,}"),
-
-    # Google API Key - relaxed to 30+ chars
-    "GoogleAPIKey": re.compile(r"AIza[0-9A-Za-z_-]{30,}"),
-
-    # Slack Token
-    "SlackToken": re.compile(r"xox[baprs]\-[0-9A-Za-z\-]{20,}"),
-
-    # Stripe Key
-    "StripeKey": re.compile(r"sk_(?:live|test)_[0-9A-Za-z]{16,}"),
-
-    # OpenAI Key - allows underscores and hyphens in the key part
-    "OpenAIKey": re.compile(r"sk\-[A-Za-z0-9_\-]{30,}"),
-
-    # JWT
-    "JWT": re.compile(r"[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}"),
-
-    # SSH Private Key
-    "SSHPrivateKey": re.compile(r"-----BEGIN.*PRIVATE KEY-----"),
-
-    # Hardcoded passwords - ONLY match explicit hardcoded values with quotes
-    "HardcodedPassword": re.compile(r"(?:password|passwd|pwd)\s*[=:]\s*[\"'][^\"']*[\"']|admin123", re.IGNORECASE),
-
-    # Generic secrets - match assignments to quoted strings OR specific keywords in values
-    "HardcodedCredential": re.compile(r"(?:password|passwd|pwd|secret)\s*[=:]\s*[\"'][^\"']*[\"']|(?:db_pass|db_password)\s*[=:]\s*[\"']", re.IGNORECASE),
+    "AWSAccessKeyID": re.compile(r"\b(AKIA|ASIA)[0-9A-Z]{16}\b"),
+    "AWSSecretAccessKey": re.compile(r"(?i)(\baws(_|)?secret(_access)?(_|)?key\b|AWS_SECRET_KEY)\s*[=:]\s*[\"']?([A-Za-z0-9/+=]{40})[\"']?"),
+    "GoogleAPIKey": re.compile(r"\bAIza[0-9A-Za-z\-_]{35}\b"),
+    "GitHubPAT": re.compile(r"\b(?:ghp|gho|ghu|ghs)_[A-Za-z0-9]{36}\b|github_pat_[A-Za-z0-9_]{22,255}\b"),
+    "SlackToken": re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}-[0-9A-Za-z-]{10,}(?:-[0-9A-Za-z-]{10,})?\b"),
+    "StripeKey": re.compile(r"\bsk_(?:live|test)_[0-9A-Za-z]{16,}\b"),
+    "OpenAIKey": re.compile(r"\bsk-[A-Za-z0-9]{32,}\b"),
+    "JWT": re.compile(r"\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"),
+    "SSHPrivateKey": re.compile(r"-----BEGIN (?:RSA|OPENSSH|EC|DSA) PRIVATE KEY-----"),
+    "GenericAPIToken": re.compile(r"(?i)(\b[A-Za-z0-9_]*?(api|secret|token|key)[A-Za-z0-9_]*\b)\s*[=:]\s*[\"']([A-Za-z0-9_\-\/+=]{12,})[\"']"),
 }
 
 # C/C++ vulnerability patterns - Enhanced with specific remediation
@@ -634,18 +612,16 @@ def extract_function_context(line: str, func_name: str, column: int) -> str:
 def scan_secrets(text: str, filename: str) -> List[FindingModel]:
     """Scan for secrets and credentials - ALL MARKED AS CRITICAL."""
     findings = []
-    debug_matches = []  # DEBUG: Track what patterns match
-
+    
     try:
         for line_num, line in enumerate(text.splitlines(), 1):
             if IGNORE_MARKER in line:
                 continue
-
+                
             try:
                 for pattern_name, pattern in SECRET_PATTERNS.items():
                     for match in pattern.finditer(line):
                         try:
-                            debug_matches.append((line_num, pattern_name, match.group(0)[:50]))  # DEBUG
                             secret_value = match.group(0)
                             if match.groups():
                                 secret_value = match.group(-1)
@@ -718,15 +694,7 @@ def scan_secrets(text: str, filename: str) -> List[FindingModel]:
                 continue
     except Exception:
         return []
-
-    # DEBUG: Log secret detection results
-    if debug_matches:
-        logger.info(f"[SECRET_DEBUG] Found {len(debug_matches)} secret matches in {filename}:")
-        for line, pattern, snippet in debug_matches:
-            logger.info(f"  Line {line}: {pattern} - {snippet}")
-    else:
-        logger.debug(f"[SECRET_DEBUG] No secrets found in {filename}")
-
+    
     return findings
 
 def scan_cpp_vulns(text: str, filename: str) -> List[FindingModel]:
@@ -848,6 +816,148 @@ def scan_cpp_vulns(text: str, filename: str) -> List[FindingModel]:
     
     return findings
 
+def deep_analyze_with_gemini(content: str, filename: str) -> List[FindingModel]:
+    """Deep comprehensive analysis with Gemini 2.5 - finds EVERYTHING.
+
+    Analyzes code for:
+    - SECRETS: API keys, passwords, tokens, credentials, PII
+    - VULNERABILITIES: Logic flaws, memory errors, race conditions
+    - SECURITY ISSUES: Weak crypto, input validation, architectural flaws
+
+    Returns both types of findings in one comprehensive analysis.
+    """
+    if not settings.GEMINI_API_KEY:
+        return []
+
+    try:
+        import httpx
+        logger = logging.getLogger(__name__)
+
+        # Use full code for deep analysis (up to token limit)
+        code_snippet = content[:4000] if len(content) > 4000 else content
+
+        gemini_prompt = f"""You are an expert security code auditor. Do a DEEP COMPREHENSIVE analysis of this code.
+
+Find EVERYTHING that is a security risk:
+
+SECRETS & CREDENTIALS:
+- Hardcoded API keys, passwords, tokens
+- Database credentials
+- SSH/RSA private keys
+- OAuth tokens, JWT tokens
+- AWS/Azure/GCP secrets
+- PII (SSN, credit cards, emails)
+- Encryption keys
+- Config secrets
+
+CODE VULNERABILITIES:
+- Buffer overflow / stack overflow
+- Format string vulnerabilities
+- Memory errors (use-after-free, double-free, leaks)
+- Integer overflow/underflow
+- Race conditions / concurrency bugs
+- Logic flaws & data flow issues
+- SQL injection / Command injection
+- Unvalidated input handling
+- Weak randomness
+- Path traversal
+- Improper error handling
+- Weak cryptography
+- Architectural security flaws
+
+Code to analyze:
+```cpp
+{code_snippet}
+```
+
+Return ONLY valid JSON (no markdown, no code blocks):
+{{
+  "findings": [
+    {{
+      "type": "finding_type (e.g., 'Hardcoded API Key' or 'Buffer Overflow')",
+      "category": "secret|vulnerability",
+      "line": line_number,
+      "severity": "Critical|High|Medium|Low",
+      "message": "what was found and why it's bad",
+      "remediation": "how to fix it",
+      "cwe": ["CWE-ID"]
+    }}
+  ]
+}}"""
+
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+
+        payload = {
+            "contents": [{
+                "parts": [{"text": gemini_prompt}]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2000,  # More tokens for comprehensive analysis
+            }
+        }
+
+        gemini_findings = []
+
+        with httpx.Client(timeout=45.0) as client:  # Longer timeout for deep analysis
+            response = client.post(url, json=payload)
+
+            if response.status_code == 200:
+                data = response.json()
+                if "candidates" in data and data["candidates"]:
+                    text = data["candidates"][0]["content"]["parts"][0].get("text", "")
+                    logger.info(f"[GEMINI DEEP] Comprehensive analysis of {filename}...")
+
+                    try:
+                        # Remove markdown if present
+                        text = text.replace("```json", "").replace("```", "").strip()
+                        findings_data = json.loads(text)
+
+                        if "findings" in findings_data:
+                            for finding in findings_data["findings"]:
+                                severity = finding.get("severity", "Medium")
+                                category = finding.get("category", "vulnerability")
+                                severity_score = {"Critical": 5, "High": 4, "Medium": 3, "Low": 2, "Info": 1}.get(severity, 3)
+                                severity_emoji = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🔵", "Info": "⚪"}.get(severity, "⚪")
+
+                                # Determine category for display
+                                if category == "secret":
+                                    display_category = "hardcoded_secret"
+                                else:
+                                    display_category = "code_vulnerability"
+
+                                finding_obj = FindingModel(
+                                    type=finding.get("type", "Security Issue"),
+                                    category=display_category,
+                                    severity=severity,
+                                    severity_score=severity_score,
+                                    severity_emoji=severity_emoji,
+                                    cwe=finding.get("cwe", []),
+                                    message=finding.get("message", ""),
+                                    remediation=finding.get("remediation", ""),
+                                    confidence=0.85,  # LLM confidence
+                                    confidence_label="High",
+                                    file=filename,
+                                    line=finding.get("line", 1),
+                                    column=None,
+                                    snippet="(Gemini deep analysis)",
+                                    priority_rank=0 if severity == "Critical" else (1 if severity == "High" else 2),
+                                )
+                                gemini_findings.append(finding_obj)
+                                logger.info(f"[GEMINI DEEP] Found {category}: {finding.get('type')} at line {finding.get('line')}")
+
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"[GEMINI DEEP] JSON parse error: {e}")
+            else:
+                logger.warning(f"[GEMINI DEEP] API error: {response.status_code}")
+
+        return gemini_findings
+
+    except Exception as e:
+        logger.warning(f"[GEMINI DEEP] Analysis failed: {e}")
+        return []
+
+
 def scan_text_content(content: str, filename: str, scan_types: List[str]) -> List[FindingModel]:
     """Main scanning orchestrator."""
     all_findings = []
@@ -876,7 +986,28 @@ def scan_text_content(content: str, filename: str, scan_types: List[str]) -> Lis
         
         # Sort by priority rank (urgent first), then severity, then line
         unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.line))
-        
+
+        # DEEP COMPREHENSIVE GEMINI ANALYSIS - Always run for thorough security assessment
+        try:
+            gemini_findings = deep_analyze_with_gemini(content, filename)
+            if gemini_findings:
+                logger = logging.getLogger(__name__)
+                logger.info(f"[GEMINI DEEP] Found {len(gemini_findings)} issues (secrets + vulnerabilities)")
+
+                # Merge with regex findings, avoid duplicates
+                seen_keys = {(f.file, f.line, f.type) for f in unique_findings}
+                for gfinding in gemini_findings:
+                    key = (gfinding.file, gfinding.line, gfinding.type)
+                    if key not in seen_keys:
+                        unique_findings.append(gfinding)
+                        seen_keys.add(key)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"[GEMINI DEEP] Analysis optional - continuing with regex findings: {e}")
+
+        # Final sort
+        unique_findings.sort(key=lambda x: (x.priority_rank, -x.severity_score, x.line))
+
         return unique_findings
     except Exception as e:
         print(f"Unexpected error in scan_text_content: {str(e)}")
@@ -1462,19 +1593,14 @@ async def scan_text(
     """Scan pasted text content."""
     if not request.content.strip():
         raise HTTPException(status_code=400, detail="Content cannot be empty")
-
+    
     valid_types = {"secrets", "cpp_vulns"}
     if not all(t in valid_types for t in request.scan_types):
         raise HTTPException(status_code=400, detail=f"Invalid scan types. Must be subset of: {valid_types}")
-
+    
     try:
         start_time = datetime.now()
-        # Force secrets to always be scanned
-        scan_types = request.scan_types if request.scan_types else ["secrets", "cpp_vulns"]
-        if "secrets" not in scan_types:
-            scan_types = list(scan_types) + ["secrets"]
-        print(f"DEBUG /text: scan_types = {scan_types}, content_len = {len(request.content)}")
-        findings = scan_text_content(request.content, request.filename, scan_types)
+        findings = scan_text_content(request.content, request.filename, request.scan_types)
         
         stats = {
             "lines_scanned": len(request.content.splitlines()),
@@ -1570,12 +1696,7 @@ async def scan_upload(
             else:
                 if not is_binary_file(content):
                     text = content.decode('utf-8', errors='ignore')
-                    # Force secrets to always be scanned
-                    final_scan_types = scan_types_list if scan_types_list else ["secrets", "cpp_vulns"]
-                    if "secrets" not in final_scan_types:
-                        final_scan_types = list(final_scan_types) + ["secrets"]
-                    print(f"DEBUG: scan_types = {final_scan_types}, file = {file.filename}, content_len = {len(text)}")
-                    findings = scan_text_content(text, file.filename, final_scan_types)
+                    findings = scan_text_content(text, file.filename, scan_types_list)
                     stats["lines_scanned"] = len(text.splitlines())
                 else:
                     raise HTTPException(status_code=400, detail="Binary files not supported")
@@ -1712,12 +1833,7 @@ async def scan_upload_pdf(
             else:
                 if not is_binary_file(content):
                     text = content.decode('utf-8', errors='ignore')
-                    # Force secrets to always be scanned
-                    final_scan_types = scan_types_list if scan_types_list else ["secrets", "cpp_vulns"]
-                    if "secrets" not in final_scan_types:
-                        final_scan_types = list(final_scan_types) + ["secrets"]
-                    print(f"DEBUG: scan_types = {final_scan_types}, file = {file.filename}, content_len = {len(text)}")
-                    findings = scan_text_content(text, file.filename, final_scan_types)
+                    findings = scan_text_content(text, file.filename, scan_types_list)
                     stats["lines_scanned"] = len(text.splitlines())
                 else:
                     raise HTTPException(status_code=400, detail="Binary files not supported")

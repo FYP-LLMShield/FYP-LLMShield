@@ -51,7 +51,7 @@ interface ConnectedModel {
 interface ProbeResult {
   id: string;
   name: string;
-  category: 'prompt_injection' | 'jailbreak' | 'system_prompt_leak' | 'data_leakage';
+  category: 'prompt_injection' | 'jailbreak';
   status: 'pass' | 'fail';
   model_response: string;
   confidence: number; // 0-100
@@ -200,7 +200,7 @@ export function PromptInjectionPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [filterBy, setFilterBy] = useState<{
     status: 'all' | 'pass' | 'fail';
-    category: 'all' | 'prompt_injection' | 'jailbreak' | 'system_prompt_leak' | 'data_leakage';
+    category: 'all' | 'prompt_injection' | 'jailbreak';
     severity: 'all' | 'low' | 'medium' | 'high' | 'critical';
   }>({
     status: 'all',
@@ -263,12 +263,12 @@ export function PromptInjectionPage() {
     standard: {
       name: "Standard Scan",
       description: "Recommended tests (balanced)",
-      categories: ["prompt_injection", "jailbreak", "system_prompt_leak", "data_leakage"]
+      categories: ["prompt_injection", "jailbreak"]
     },
     comprehensive: {
       name: "Comprehensive Scan",
       description: "All test categories (thorough)",
-      categories: ["prompt_injection", "prompt_injection_easy", "jailbreak", "system_prompt_leak", "data_leakage", "toxicity", "multimodal"]
+      categories: ["prompt_injection", "jailbreak"]
     }
   }
 
@@ -311,12 +311,7 @@ export function PromptInjectionPage() {
   // Available probe categories (matching backend ProbeCategory enum)
   const probeCategories = [
     { id: "prompt_injection", name: "Prompt Injection", description: "Tests for basic prompt injection vulnerabilities" },
-    { id: "prompt_injection_easy", name: "Prompt Injection (Easy)", description: "Tests for simple prompt injection vulnerabilities" },
-    { id: "jailbreak", name: "Jailbreak", description: "Tests for jailbreak attempts" },
-    { id: "system_prompt_leak", name: "System Prompt Leak", description: "Tests for system prompt leakage vulnerabilities" },
-    { id: "data_leakage", name: "Data Leakage", description: "Tests for potential data leakage" },
-    { id: "toxicity", name: "Toxicity", description: "Tests for toxic content generation" },
-    { id: "multimodal", name: "Multimodal", description: "Tests for multimodal vulnerabilities" }
+    { id: "jailbreak", name: "Jailbreak", description: "Tests for jailbreak attempts" }
   ]
 
   // Mock data for existing models
@@ -978,12 +973,7 @@ export function PromptInjectionPage() {
                 // For passing tests: Calculate baseline risk based on category and response analysis
                 const categoryRiskBase = {
                   'prompt_injection': 15,
-                  'prompt_injection_easy': 10,
-                  'jailbreak': 20,
-                  'system_prompt_leak': 25,
-                  'data_leakage': 30,
-                  'toxicity': 12,
-                  'multimodal': 18
+                  'jailbreak': 20
                 }
 
                 const baseRisk = categoryRiskBase[result.category as keyof typeof categoryRiskBase] || 15
@@ -1272,9 +1262,7 @@ export function PromptInjectionPage() {
   const getCategoryDisplayName = (category: string) => {
     const names = {
       'prompt_injection': 'Prompt Injection',
-      'jailbreak': 'Jailbreak',
-      'system_prompt_leak': 'System Prompt Leak',
-      'data_leakage': 'Data Leakage'
+      'jailbreak': 'Jailbreak'
     }
     return names[category as keyof typeof names] || category
   }
@@ -1323,16 +1311,14 @@ export function PromptInjectionPage() {
 
   // Mock data generator for testing enhanced report (remove when backend is updated)
   const generateMockProbeResults = (): ProbeResult[] => {
-    const categories: Array<'prompt_injection' | 'jailbreak' | 'system_prompt_leak' | 'data_leakage'> =
-      ['prompt_injection', 'jailbreak', 'system_prompt_leak', 'data_leakage']
+    const categories: Array<'prompt_injection' | 'jailbreak'> =
+      ['prompt_injection', 'jailbreak']
     const severities: Array<'low' | 'medium' | 'high' | 'critical'> = ['low', 'medium', 'high', 'critical']
     const statuses: Array<'pass' | 'fail'> = ['pass', 'fail']
 
     const probeNames = {
       prompt_injection: ['Character Injection', 'Policy Override', 'Unicode Obfuscation', 'Encoding Attack'],
-      jailbreak: ['DAN Variant', 'Roleplay Jailbreak', 'Authority Impersonation', 'Technical Bypass'],
-      system_prompt_leak: ['Direct Request', 'Indirect Extraction', 'Configuration Request'],
-      data_leakage: ['API Key Fishing', 'Infrastructure Probing', 'Social Engineering']
+      jailbreak: ['DAN Variant', 'Roleplay Jailbreak', 'Authority Impersonation', 'Technical Bypass']
     }
 
     const mockProbes: ProbeResult[] = []
@@ -1368,8 +1354,8 @@ export function PromptInjectionPage() {
     const passed = probes.filter(p => p.status === 'pass').length
     const failed = probes.filter(p => p.status === 'fail').length
 
-    const categories: Array<'prompt_injection' | 'jailbreak' | 'system_prompt_leak' | 'data_leakage'> =
-      ['prompt_injection', 'jailbreak', 'system_prompt_leak', 'data_leakage']
+    const categories: Array<'prompt_injection' | 'jailbreak'> =
+      ['prompt_injection', 'jailbreak']
 
     const by_category = categories.reduce((acc: Record<string, { passed: number; failed: number }>, cat: string) => {
       const categoryProbes = probes.filter(p => p.category === cat)
@@ -2546,8 +2532,6 @@ export function PromptInjectionPage() {
                     <option value="all">All</option>
                     <option value="prompt_injection">Prompt Injection</option>
                     <option value="jailbreak">Jailbreak</option>
-                    <option value="system_prompt_leak">System Prompt Leak</option>
-                    <option value="data_leakage">Data Leakage</option>
                   </select>
                 </div>
 
