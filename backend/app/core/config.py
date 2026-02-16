@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
@@ -40,8 +40,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = os.getenv("API_V1_STR", "/api/v1")
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "LLMShield Backend")
     
-    # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001","http://localhost:5173"]
+    # CORS (Internal validator handles both JSON lists and comma-separated strings)
+    BACKEND_CORS_ORIGINS: Any = []
     
     # Optional: System API Keys for Model Validation (NOT REQUIRED)
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
@@ -73,17 +73,32 @@ class Settings(BaseSettings):
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):
-        # Handle environment variable input
+        # 1. Check direct environment variable first (highest priority)
         env_val = os.getenv("BACKEND_CORS_ORIGINS")
-        if env_val:
-            # If comma-separated string from env
-            return [i.strip() for i in env_val.split(",") if i.strip()]
-        # If already a list or None from Pydantic default
-        if isinstance(v, str) and v:
-            return [i.strip() for i in v.split(",") if i.strip()]
-        if isinstance(v, list):
-            return v
-        # Fallback to default
+        
+        # 2. If it's already a list (from default or internal Pydantic set), use it
+        if not env_val and isinstance(v, list):
+            return v if v else ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+            
+        # 3. If we have an environment value (could be "", "url1,url2", or '["url1","url2"]')
+        raw_val = env_val if env_val is not None else v
+        
+        if isinstance(raw_val, str):
+            raw_val = raw_val.strip()
+            if not raw_val:
+                return ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+            
+            # Try parsing as JSON first (if it looks like a list)
+            if raw_val.startswith("[") and raw_val.endswith("]"):
+                try:
+                    import json
+                    return json.loads(raw_val)
+                except ValueError:
+                    pass
+            
+            # Fallback to comma-separated
+            return [i.strip() for i in raw_val.split(",") if i.strip()]
+            
         return ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
     
     @field_validator("MODEL_ENCRYPTION_KEY", mode="before")
