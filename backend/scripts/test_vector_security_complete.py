@@ -299,7 +299,7 @@ class VectorSecurityTester:
                     else:
                         self.print_info("No ranking manipulations detected")
                     
-                    # Check query summaries (API returns query_summaries)
+                    # Check query summaries (vector security: alisha - API returns query_summaries)
                     query_summaries = result.get('query_summaries', result.get('query_results', []))
                     successful = [qr for qr in query_summaries if qr.get('status') == 'success']
                     failed = [qr for qr in query_summaries if qr.get('status') == 'error']

@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
@@ -40,8 +40,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = os.getenv("API_V1_STR", "/api/v1")
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "LLMShield Backend")
     
-    # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001","http://localhost:5173"]
+    # CORS (Internal validator handles both JSON lists and comma-separated strings)
+    BACKEND_CORS_ORIGINS: Any = []
     
     # Optional: System API Keys for Model Validation (NOT REQUIRED)
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
@@ -49,7 +49,16 @@ class Settings(BaseSettings):
     HUGGINGFACE_API_KEY: Optional[str] = os.getenv("HUGGINGFACE_API_KEY")
     GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
     GROQ_MODEL: Optional[str] = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    
+
+    # Qdrant Vector Database Configuration
+    QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
+    QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_API_KEY: Optional[str] = os.getenv("QDRANT_API_KEY")
+    QDRANT_USE_HTTPS: bool = os.getenv("QDRANT_USE_HTTPS", "false").lower() in ("true", "1", "yes")
+
+    # GEMINI for C/C++ deep analysis (scanner)
+    GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
+
     # xAI Grok - for LLM-based prompt injection evaluation
     XAI_API_KEY: Optional[str] = os.getenv("XAI_API_KEY")
     
@@ -73,9 +82,33 @@ class Settings(BaseSettings):
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",")]
-        return v
+        # 1. Check direct environment variable first (highest priority)
+        env_val = os.getenv("BACKEND_CORS_ORIGINS")
+
+        # 2. If it's already a list (from default or internal Pydantic set), use it
+        if not env_val and isinstance(v, list):
+            return v if v else ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+
+        # 3. If we have an environment value (could be "", "url1,url2", or '["url1","url2"]')
+        raw_val = env_val if env_val is not None else v
+
+        if isinstance(raw_val, str):
+            raw_val = raw_val.strip()
+            if not raw_val:
+                return ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+
+            # Try parsing as JSON first (if it looks like a list)
+            if raw_val.startswith("[") and raw_val.endswith("]"):
+                try:
+                    import json
+                    return json.loads(raw_val)
+                except ValueError:
+                    pass
+
+            # Fallback to comma-separated
+            return [i.strip() for i in raw_val.split(",") if i.strip()]
+
+        return ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
     
     @field_validator("MODEL_ENCRYPTION_KEY", mode="before")
     @classmethod

@@ -11,11 +11,18 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 
 from app.services.poisoning_simulator_service import PoisoningSimulatorService
+from app.models.user import UserInDB
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 simulator = PoisoningSimulatorService()
+
+
+def _optional_user() -> Optional[UserInDB]:
+    """Optional auth for poisoning scan (Abeeha)."""
+    return None
+
 
 class LLMConfig(BaseModel):
     provider: str = Field(..., example="openai")
@@ -39,7 +46,7 @@ class SimulationResponse(BaseModel):
     error: Optional[str] = None
 
 @router.post("/scan", response_model=SimulationResponse)
-async def run_poisoning_scan(request: SimulationRequest):
+async def run_poisoning_scan(request: SimulationRequest, current_user: Optional[UserInDB] = Depends(_optional_user)):
     """
     Runs a 3-step poisoning simulation on a custom model:
     1. Baseline Query
@@ -53,15 +60,14 @@ async def run_poisoning_scan(request: SimulationRequest):
             custom_prompt=request.custom_prompt
         )
 
-        
         if not result.get("success"):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=result.get("error", "Simulation failed")
             )
-            
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Scan endpoint error: {str(e)}")
         raise HTTPException(

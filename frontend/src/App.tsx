@@ -32,7 +32,8 @@ const VectorSecurityPage = React.lazy(() => import('./components/pages/vector-se
 const CodeScannerPage = React.lazy(() => import('./components/pages/code-scanning-page').then(module => ({ default: module.CodeScanningPage })));
 const SettingsPage = React.lazy(() => import('./components/pages/settings-page').then(module => ({ default: module.SettingsPage })));
 const HistoryPage = React.lazy(() => import('./components/pages/history-page').then(module => ({ default: module.HistoryPage })));
-const DataPoisoningPage = React.lazy(() => import('./components/pages/data-poisoning-page').then(module => ({ default: module.DataPoisoningPage })));
+const DataPoisoningPage = React.lazy(() => import('./components/pages/data-poisoning-page').then(module => ({ default: module.DataPoisoningPage || module.default })));
+const ChatbotPage = React.lazy(() => import('./components/pages/chatbot-page').then(module => ({ default: module.ChatbotPage })));
 const UserProfilePage = React.lazy(() => import('./pages/dashboard/UserProfilePage'));
 const MFASettingsPage = React.lazy(() => import('./pages/dashboard/MFASettingsPage'));
 
@@ -160,6 +161,16 @@ function App() {
                 <ProtectedRoute>
                   <DashboardLayout>
                     <DataPoisoningPage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/chatbot"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ChatbotPage />
                   </DashboardLayout>
                 </ProtectedRoute>
               }

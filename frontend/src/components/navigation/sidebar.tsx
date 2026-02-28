@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { Button } from "../ui/button"
-import { Home, User, Shield, Database, Code, History, Settings, ChevronLeft, ChevronRight } from "lucide-react"
+import { Home, User, Shield, Database, Code, History, Settings, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react"
 
 interface SidebarProps {
   collapsed: boolean
@@ -15,6 +15,7 @@ const menuItems = [
   { label: "Data Poisoning", href: "/dashboard/data-poisoning", icon: Database, color: "#EF4444" },
   { label: "Vector Security", href: "/dashboard/vector-security", icon: Shield, color: "#22C55E" },
   { label: "C or C++ Code Scanning", href: "/dashboard/code-scanning", icon: Code, color: "#EAB308" },
+  { label: "Chatbot", href: "/dashboard/chatbot", icon: MessageCircle, color: "#A78BFA" },
   { label: "History", href: "/dashboard/history", icon: History, color: "#6B7280" },
   { label: "Settings", href: "/dashboard/settings", icon: Settings, color: "#22C55E" },
 ]

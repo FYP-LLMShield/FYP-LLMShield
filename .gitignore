@@ -4,6 +4,16 @@
 .env.*.local
 *.env
 
+# Large model artifacts
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# Ignore local model folder
+llm_shield_model/bert_local/
+
 # Python
 __pycache__/
 *.py[cod]
