@@ -47,7 +47,7 @@ class UnifiedUserService:
             raise
         except Exception as e:
             logger.error(f"Failed to create user in Supabase: {e}")
-        
+
         # Always try MongoDB (fallback/redundancy)
         try:
             mongo_user = await self.mongo_service.create_user(user_data)
@@ -150,24 +150,46 @@ class UnifiedUserService:
         return None
     
     async def verify_user_email(self, token: str) -> bool:
-        """Verify user email - try both databases"""
+        """Verify user email - verify in BOTH databases to keep them in sync (from Abeeha: email verification)"""
         supabase_success = False
         mongo_success = False
-        
-        # Try Supabase
+
+        # Try MongoDB first (more reliable)
+        try:
+            mongo_success = await self.mongo_service.verify_user_email(token)
+            if mongo_success:
+                logger.info(f"Email verified in MongoDB with token")
+        except Exception as e:
+            logger.error(f"MongoDB email verification failed: {e}")
+
+        # Try Supabase (if available)
         try:
             if self.supabase_service.is_available():
                 supabase_success = await self.supabase_service.verify_user_email(token)
+                if supabase_success:
+                    logger.info(f"Email verified in Supabase with token")
         except Exception as e:
             logger.warning(f"Supabase email verification failed: {e}")
-        
-        # Try MongoDB
-        try:
-            mongo_success = await self.mongo_service.verify_user_email(token)
-        except Exception as e:
-            logger.error(f"MongoDB email verification failed: {e}")
-        
-        # Return True if either succeeded
+
+        # If verified in MongoDB, sync to Supabase by updating the user there too
+        if mongo_success and not supabase_success and self.supabase_service.is_available():
+            try:
+                # Get user from MongoDB by token to find their email
+                from app.core.database import get_database
+                db = await get_database()
+                if db:
+                    collection = db.email_verification_tokens
+                    token_doc = await collection.find_one({"verification_token": token})
+                    if token_doc:
+                        email = token_doc.get("email")
+                        if email:
+                            # Update Supabase with verified status
+                            await self.supabase_service.update_profile(email, {"is_verified": True})
+                            logger.info(f"Synced verification to Supabase for {email}")
+            except Exception as e:
+                logger.debug(f"Could not sync to Supabase: {e}")
+
+        # Return True if at least one database was verified successfully
         return supabase_success or mongo_success
     
     async def update_user_last_login(self, email: str) -> bool:
