@@ -1,33 +1,33 @@
 # FYP-LLMShield
 
-A Unified Threat Detection Framework for Mitigating Prompt Injection, Model Poisoning, and RAG Embedding Risks.
+A unified threat detection platform for mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems.
 
 <div align="center">
   <img src="frontend/public/images/logo.svg" alt="LLMShield Logo" width="200"/>
 
-  **A Comprehensive AI Security Testing Platform**
+  **AI Security Testing Platform — Production Ready**
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)](https://fastapi.tiangolo.com/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
-  [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+  [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 
 </div>
 
 ## Overview
 
-LLMShield is a security testing platform for Large Language Models (LLMs) and AI systems. It helps detect prompt injection attacks, model poisoning, vector embedding vulnerabilities, and code security issues.
+LLMShield helps security teams and developers test and harden AI applications. It detects prompt injection and jailbreaks, analyzes vector stores and document embeddings for poisoning, scans code for secrets and C/C++ vulnerabilities, and supports dataset/model poisoning evaluation—all from a single dashboard with optional MFA and email verification.
 
 ### Key Features
 
-- **Prompt Injection Testing** — Detection of prompt injection, jailbreaks, and system prompt leaks
-- **Model Poisoning Detection** — Safe vs poisoned model comparison (Llama, Qwen, TinyLlama)
-- **Vector Store Analysis** — Anomaly detection, similarity collisions, trigger patterns
-- **Document Embedding Inspection** — Pre-embedding poisoning pattern detection
-- **Code Security Scanning** — C/C++ vulnerabilities, secret detection, CWE mapping
-- **Authentication** — JWT, MFA, Google OAuth, email verification
-- **Dashboard** — Security metrics, scan history, threat timeline
+- **Prompt Injection Testing** — Multi-provider (OpenAI, Anthropic, Google, Ollama); probe categories, document upload, PDF reports
+- **Model Poisoning** — Safe vs poisoned model comparison (GGUF: Llama, Qwen, TinyLlama)
+- **Vector Security** — Document embedding inspection, vector store anomaly detection, retrieval attack simulation (single dashboard with three tabs)
+- **Code Security Scanning** — 200+ secret patterns, C/C++ vulnerability checks, file upload and GitHub repo scanning, CWE mapping
+- **Dataset Poisoning** — Analyze text/file datasets and Hugging Face JSONL for poisoning indicators
+- **Authentication** — JWT, MFA (TOTP), recovery codes, Google OAuth, email verification, password reset
+- **Dashboard** — Security metrics, scan history, RAG chatbot, profile and settings
 
 ## Prerequisites
 
@@ -128,13 +128,15 @@ After login, the dashboard shows security metrics, quick actions, and recent sca
 
 ### Security Scanners
 
-| Scanner               | Path                                 | Description                                                                          |
-| --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
-| Prompt Injection      | `/dashboard/prompt-injection`      | Test prompts and documents for injection, jailbreak, system leak                     |
-| Model Poisoning       | `/dashboard/data-poisoning`        | Compare safe vs poisoned model outputs (requires GGUF models in `CompleteModels/`) |
-| Vector Store Analysis | `/dashboard/vector-store-analysis` | Upload vector snapshot JSON; detect anomalies and collisions                         |
-| Embedding Inspection  | `/dashboard/embedding-inspection`  | Inspect documents before embedding for poisoning patterns                            |
-| Code Scanner          | `/dashboard/code-scanning`         | Scan C/C++ code and detect secrets                                                   |
+| Scanner            | Path                                 | Description                                                                 |
+| ------------------ | ------------------------------------ | --------------------------------------------------------------------------- |
+| Prompt Injection   | `/dashboard/prompt-injection`       | Test prompts and documents for injection, jailbreak, system leak            |
+| Model Poisoning    | `/dashboard/model-poisoning`        | Compare safe vs poisoned GGUF models (place models in `CompleteModels/`)    |
+| Vector Security    | `/dashboard/vector-security`        | Three tabs: Document Inspection, Anomaly Detection, Attack Simulation       |
+| Code Scanning      | `/dashboard/code-scanning`         | Scan C/C++ and other code for secrets and vulnerabilities                  |
+| Data Poisoning     | `/dashboard/data-poisoning`        | Dataset and Hugging Face model poisoning analysis                           |
+| Chatbot            | `/dashboard/chatbot`                | RAG chatbot with optional vector store (e.g. Qdrant)                        |
+| History & Settings | `/dashboard/history`, `/dashboard/settings` | Scan history, MFA, profile                                                |
 
 ### API Documentation
 
@@ -147,13 +149,12 @@ After login, the dashboard shows security metrics, quick actions, and recent sca
 FYP-LLMShield/
 ├── backend/           # FastAPI backend
 │   ├── app/
-│   │   ├── core/      # Config
-│   │   ├── models/    # DB models
+│   │   ├── core/      # Config, database
+│   │   ├── models/    # Pydantic/DB models
 │   │   ├── routes/    # API endpoints
 │   │   ├── services/  # Business logic
-│   │   └── langgraph/ # Workflows
-│   ├── accuracy_evaluation/
-│   ├── scripts/       # Setup, tests
+│   │   └── utils/     # Auth, email, MFA, etc.
+│   ├── scripts/       # Setup and utilities (Supabase, vector DB, etc.)
 │   ├── requirements.txt
 │   └── run.py
 ├── frontend/          # React + TypeScript
@@ -162,45 +163,36 @@ FYP-LLMShield/
 │   │   ├── pages/
 │   │   └── contexts/
 │   └── package.json
-├── CompleteModels/    # GGUF models (Llama, Qwen, TinyLlama)
-├── samples/           # Sample data for testing
-├── scripts/           # Project scripts
-├── README.md          # This file
-└── PROJECT_MANUAL.md  # Implementation details for developers
+├── CompleteModels/    # Optional: GGUF models for model poisoning
+├── samples/           # Optional: sample files for demos
+├── README.md          # This file (user-facing)
+└── docs/PROJECT_MANUAL.md  # Developer reference (implementation details)
 ```
 
-## Testing
+## Verifying the Setup
 
 ```bash
-# Backend health
+# Backend health (includes database check)
 curl http://localhost:8000/health
 
-# Run backend tests
+# Optional: run backend test suite if present
 cd backend && pytest
 
-# Run frontend tests
+# Optional: run frontend tests
 cd frontend && npm test
 ```
 
-## Optional: Supabase (Email)
+## Optional: Supabase (Email & Auth)
 
-For email verification and password reset, configure Supabase. Add to `.env`:
-
-```env
-SUPABASE_DB_URL=postgresql://...
-SUPABASE_PROJECT_URL=https://...
-SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_KEY=...
-```
-
-Create `emails` and `email_verifications` tables in Supabase. See `PROJECT_MANUAL.md` for schema details. If Supabase is not configured, the app falls back to SMTP or skips email features.
+For email verification and password reset, set Supabase env vars in `.env` (`SUPABASE_PROJECT_URL`, `SUPABASE_SERVICE_KEY`, etc.) and create the required tables. Full schema and setup steps are in **docs/PROJECT_MANUAL.md**. Without Supabase, the app can use SMTP or skip email-dependent features.
 
 ## Troubleshooting
 
 - **Python 3.14 errors** — Use Python 3.12 or 3.13
 - **MongoDB connection failed** — Ensure MongoDB is running and `MONGODB_URL` is correct
 - **Port in use** — Change `PORT` in backend or use a different frontend port
-- **Model poisoning not loading** — Ensure `CompleteModels/` contains the GGUF model files
+- **Model poisoning not loading** — Place GGUF safe/poison model pairs in `CompleteModels/` (see docs/PROJECT_MANUAL.md)
+- **Vector / embedding features** — Use the **Vector Security** dashboard at `/dashboard/vector-security` (Document Inspection, Anomaly Detection, Attack Simulation)
 
 ## License
 
@@ -209,7 +201,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/FYP-LLMShield/issues)
-- **Project details**: See [PROJECT_MANUAL.md](PROJECT_MANUAL.md) for implementation status and developer reference
+- **Developers**: See [docs/PROJECT_MANUAL.md](docs/PROJECT_MANUAL.md) for architecture, module implementation details, code references, and configuration.
 
 ---
 
