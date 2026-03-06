@@ -19,14 +19,36 @@ class SupabaseService:
         """Initialize Supabase client"""
         try:
             if not settings.SUPABASE_PROJECT_URL or not settings.SUPABASE_SERVICE_KEY:
-                logger.warning("Supabase credentials not configured. Supabase features will be disabled.")
+                logger.info("Supabase not configured (optional); app will use MongoDB and other backends.")
                 return
-            
-            self.client = create_client(
-                settings.SUPABASE_PROJECT_URL,
-                settings.SUPABASE_SERVICE_KEY
-            )
-            logger.info("Supabase client initialized successfully")
+
+            # Some supabase/postgrest versions pass 'proxy' internally; newer Client may not accept it.
+            try:
+                self.client = create_client(
+                    settings.SUPABASE_PROJECT_URL,
+                    settings.SUPABASE_SERVICE_KEY,
+                )
+            except TypeError as te:
+                if "proxy" in str(te).lower():
+                    # Retry without proxy env vars (Azure/some hosts set HTTP_PROXY and lib passes it)
+                    import os
+                    saved = {k: os.environ.pop(k, None) for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")}
+                    try:
+                        self.client = create_client(
+                            settings.SUPABASE_PROJECT_URL,
+                            settings.SUPABASE_SERVICE_KEY,
+                        )
+                    except Exception:
+                        self.client = None
+                        raise
+                    finally:
+                        for k, v in saved.items():
+                            if v is not None:
+                                os.environ[k] = v
+                else:
+                    raise
+            if self.client is not None:
+                logger.info("Supabase client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
             self.client = None
