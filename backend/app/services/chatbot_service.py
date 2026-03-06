@@ -6,7 +6,6 @@ Retrieves context from Qdrant and generates responses using Groq API
 import logging
 from typing import List, Dict, Any, Optional
 from qdrant_client import QdrantClient
-from groq import Groq
 from app.core.config import settings
 from app.services.user_memory_service import UserMemoryService
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -59,8 +58,9 @@ class ChatbotService:
                 )
             logger.info(f"✅ Connected to Qdrant")
 
-            # Initialize Groq client
+            # Initialize Groq client (lazy import so app starts even if groq not installed)
             logger.info(f"🔄 Initializing Groq client with model: {self.groq_model}")
+            from groq import Groq
             self.groq_client = Groq(api_key=settings.GROQ_API_KEY)
             logger.info(f"✅ Groq client initialized")
 
