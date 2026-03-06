@@ -22,18 +22,42 @@ class SupabaseService:
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize Supabase client. Import create_client only after clearing proxy env so the lib doesn't pass proxy."""
+        """Initialize Supabase client. Monkey-patch Postgrest Client to ignore proxy (Azure env breaks supabase-py)."""
         saved = {}
         try:
             if not settings.SUPABASE_PROJECT_URL or not settings.SUPABASE_SERVICE_KEY:
                 logger.info("Supabase not configured (optional); app will use MongoDB and other backends.")
                 return
 
-            # Clear proxy env vars *before* importing supabase, so create_client never sees them.
+            # Clear proxy env so they're not passed; also patch Postgrest Client to drop proxy if still passed
             proxy_keys = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
             saved = {k: os.environ.pop(k, None) for k in proxy_keys}
 
-            # Import only after clearing proxy; then create_client won't receive proxy argument.
+            # Monkey-patch: supabase-py passes proxy to Client (supabase or postgrest) which may not accept it
+            try:
+                import postgrest
+                _orig_postgrest_init = postgrest.Client.__init__
+
+                def _patched_postgrest_init(self, *args, **kwargs):
+                    kwargs.pop("proxy", None)
+                    _orig_postgrest_init(self, *args, **kwargs)
+
+                postgrest.Client.__init__ = _patched_postgrest_init
+            except Exception as patch_err:
+                logger.debug("Could not patch postgrest Client: %s", patch_err)
+
+            try:
+                from supabase import Client as SupabaseClient
+                _orig_sb_init = SupabaseClient.__init__
+
+                def _patched_supabase_init(self, *args, **kwargs):
+                    kwargs.pop("proxy", None)
+                    _orig_sb_init(self, *args, **kwargs)
+
+                SupabaseClient.__init__ = _patched_supabase_init
+            except Exception as patch_err:
+                logger.debug("Could not patch supabase Client: %s", patch_err)
+
             from supabase import create_client
 
             try:
