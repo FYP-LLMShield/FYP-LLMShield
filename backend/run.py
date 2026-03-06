@@ -1,4 +1,9 @@
 import os
+
+# Clear proxy env vars before any app imports (Azure sets these and Supabase/httpx break with "proxy" argument)
+for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+    os.environ.pop(_k, None)
+
 import uvicorn
 from app.main import app
 
