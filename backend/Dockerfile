@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements first for better layer caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install CPU-only PyTorch first (~200MB vs ~915MB CUDA wheel) so rest of deps reuse it
+RUN pip install --no-cache-dir --default-timeout=600 torch --index-url https://download.pytorch.org/whl/cpu
+# Then install everything else (sentence-transformers etc. will use the torch already installed)
+RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
 
 # Copy application code
 COPY . /app

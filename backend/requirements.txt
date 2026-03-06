@@ -2,6 +2,9 @@
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 
+# Environment
+python-dotenv>=1.0.0
+
 # Database
 motor>=3.3.2
 pymongo>=4.6.0
@@ -11,7 +14,7 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.0
 python-multipart>=0.0.7
-email-validator==2.1.0
+email-validator>=2.2.0
 pyotp==2.9.0
 qrcode[pil]==7.4.2
 cryptography>=41.0.0
@@ -45,6 +48,11 @@ weaviate-client>=4.4.0
 # AI/LLM Integration
 openai>=1.0.0
 sentence-transformers>=2.2.0
+# torch & transformers are installed via sentence-transformers (used by llm_shield_scanner_service, local_model_loader)
+
+# LangGraph (model configuration workflow)
+langgraph>=0.2.0
+langgraph-checkpoint-mongodb>=0.3.0
 
 # Supabase (optional)
 supabase>=2.0.0
@@ -52,3 +60,4 @@ postgrest>=0.13.0
 
 # Optional: Large package, install separately if needed
 # llama-cpp-python>=0.2.0
+# accelerate  # optional, for local_model_loader GPU/optimized loading

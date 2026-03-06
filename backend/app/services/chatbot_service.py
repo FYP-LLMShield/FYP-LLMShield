@@ -5,7 +5,6 @@ Retrieves context from Qdrant and generates responses using Groq API
 
 import logging
 from typing import List, Dict, Any, Optional
-from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from groq import Groq
 from app.core.config import settings
@@ -36,8 +35,9 @@ class ChatbotService:
             return
 
         try:
-            # Initialize embedding model
+            # Initialize embedding model (lazy import: heavy dependency)
             logger.info(f"🔄 Loading embedding model: {self.model_name}")
+            from sentence_transformers import SentenceTransformer
             self.embedding_model = SentenceTransformer(self.model_name)
             logger.info(f"✅ Embedding model loaded: {self.model_name} ({self.vector_size}D)")
 

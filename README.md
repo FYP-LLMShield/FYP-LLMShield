@@ -182,6 +182,28 @@ cd backend && pytest
 cd frontend && npm test
 ```
 
+## Run with Docker (local pre-deploy check)
+
+To verify the app runs without "Application error" before deploying, run the full stack in Docker:
+
+**Full stack (backend + frontend + MongoDB):**
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
+
+- **Frontend:** http://localhost  
+- **Backend API:** http://localhost:8000  
+- **Health:** `curl http://localhost:8000/health` and `curl http://localhost:8000/health/ready`
+
+**Backend + frontend only** (MongoDB on host): ensure `backend/.env` has `MONGODB_URL` (e.g. `mongodb://host.docker.internal:27017` on Docker Desktop), then:
+
+```bash
+docker compose up --build
+```
+
+For a **pre-deploy checklist** and troubleshooting, see **[docs/DEPLOY_CHECK.md](docs/DEPLOY_CHECK.md)**.
+
 ## Optional: Supabase (Email & Auth)
 
 For email verification and password reset, set Supabase env vars in `.env` (`SUPABASE_PROJECT_URL`, `SUPABASE_SERVICE_KEY`, etc.) and create the required tables. Full schema and setup steps are in **docs/PROJECT_MANUAL.md**. Without Supabase, the app can use SMTP or skip email-dependent features.

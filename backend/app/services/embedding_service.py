@@ -4,7 +4,6 @@ Embedding Service - Converts text to vectors using HuggingFace model
 
 import logging
 from typing import List
-from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +25,11 @@ class EmbeddingService:
         self.dimension = 1024
 
     def load_model(self):
-        """Load the embedding model (called once on startup)"""
+        """Load the embedding model (called once on first use)"""
         if self.model is None:
             logger.info(f"🔄 Loading embedding model: {self.model_name}")
             try:
+                from sentence_transformers import SentenceTransformer
                 self.model = SentenceTransformer(self.model_name)
                 logger.info(f"✅ Embedding model loaded: {self.model_name} ({self.dimension}D)")
             except Exception as e:
