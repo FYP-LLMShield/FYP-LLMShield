@@ -201,7 +201,26 @@ For **MODEL_ENCRYPTION_KEY** and **Supabase** (and other Azure env vars), see **
 
 ---
 
-## 6. Deploy backend again without waiting for a full push
+## 5b. Oryx "panic: extract tarball" / startup.sh not found
+
+If logs show:
+
+```text
+panic: An error occurred when trying to extract tarball '/home/site/wwwroot/output.tar.zst'.
+chmod: cannot access '/opt/startup/startup.sh': No such file or directory
+```
+
+then Oryx (Azure’s build) failed while extracting the built app, so the container never gets a valid startup script. The app may have been running earlier (e.g. you see `GET /health/supabase 200 OK`) before a restart hit this.
+
+**Do this first:**
+
+1. **Redeploy once or twice** – Often this is transient (disk/timeout). Push again or run the deploy workflow again.
+2. **Give startup more time** – In **Configuration → Application settings** set **WEBSITES_CONTAINER_START_TIME_LIMIT** = **600**. Save and Restart. Then redeploy.
+3. **Avoid redeploying during heavy load** – Deploy when traffic is low so the container isn’t under memory/disk pressure during extraction.
+
+**If it keeps happening:** The build artifact (e.g. with `sentence-transformers`/PyTorch) can be very large and trigger extraction failures. Options: (a) Use a **Docker**-based deploy (build the image in CI and deploy the image to App Service) so Oryx isn’t used, or (b) In CI, run `pip install -t ./backend/packages -r backend/requirements.txt`, zip the backend (including `packages`), deploy that zip, and in Azure set **SCM_DO_BUILD_DURING_DEPLOYMENT** = **false** so Azure doesn’t run Oryx and uses your pre-built dependencies. That requires changing the workflow to produce and deploy the zip with `packages` included.
+
+---
 
 If pushing to GitHub (or the whole GitHub Actions pipeline) takes too long, you can deploy your **local** backend code directly to Azure and skip the push.
 

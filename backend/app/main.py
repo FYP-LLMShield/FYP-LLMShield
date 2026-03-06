@@ -277,6 +277,16 @@ async def health_supabase():
             init_err = supabase_service.get_init_error()
             if init_err:
                 out["error_detail"] = init_err
+            else:
+                # Fallback: try init once to capture the error (e.g. if app was deployed before we stored it)
+                try:
+                    from supabase import create_client
+                    create_client(
+                        settings.SUPABASE_PROJECT_URL,
+                        settings.SUPABASE_SERVICE_KEY,
+                    )
+                except Exception as e:
+                    out["error_detail"] = str(e)
             return out
         result = supabase_service.get_client().table("users").select("id").limit(1).execute()
         out["supabase_reachable"] = True

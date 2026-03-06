@@ -1,12 +1,17 @@
 """
 Supabase client for database and email operations
 """
+from __future__ import annotations
 import logging
-from typing import Optional, Dict, Any
-from supabase import create_client, Client
+import os
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from supabase import Client
+
 
 class SupabaseService:
     """Service for interacting with Supabase"""
@@ -17,18 +22,19 @@ class SupabaseService:
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize Supabase client"""
+        """Initialize Supabase client. Import create_client only after clearing proxy env so the lib doesn't pass proxy."""
         saved = {}
         try:
             if not settings.SUPABASE_PROJECT_URL or not settings.SUPABASE_SERVICE_KEY:
                 logger.info("Supabase not configured (optional); app will use MongoDB and other backends.")
                 return
 
-            import os
-            # On Azure/cloud, proxy env vars often break the Supabase client (TypeError or connection issues).
-            # Clear them for the duration of init so create_client doesn't receive proxy args.
+            # Clear proxy env vars *before* importing supabase, so create_client never sees them.
             proxy_keys = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
             saved = {k: os.environ.pop(k, None) for k in proxy_keys}
+
+            # Import only after clearing proxy; then create_client won't receive proxy argument.
+            from supabase import create_client
 
             try:
                 self.client = create_client(
@@ -37,7 +43,6 @@ class SupabaseService:
                 )
             except TypeError as te:
                 if "proxy" in str(te).lower():
-                    # Already cleared above; retry once in case lib cached something
                     try:
                         self.client = create_client(
                             settings.SUPABASE_PROJECT_URL,
@@ -215,7 +220,7 @@ class SupabaseService:
             logger.error(f"Error creating verification token in Supabase: {e}")
             return False
     
-    def get_client(self) -> Optional[Client]:
+    def get_client(self) -> Optional["Client"]:
         """Get Supabase client instance"""
         return self.client
 
