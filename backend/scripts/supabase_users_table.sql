@@ -49,22 +49,27 @@ CREATE INDEX IF NOT EXISTS idx_users_is_verified ON users(is_verified);
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for service role access (allows backend to access)
-CREATE POLICY IF NOT EXISTS "Service role can insert users"
+-- DROP first so the script can be run multiple times without errors
+DROP POLICY IF EXISTS "Service role can insert users" ON users;
+CREATE POLICY "Service role can insert users"
   ON users FOR INSERT
   TO service_role
   WITH CHECK (true);
 
-CREATE POLICY IF NOT EXISTS "Service role can select users"
+DROP POLICY IF EXISTS "Service role can select users" ON users;
+CREATE POLICY "Service role can select users"
   ON users FOR SELECT
   TO service_role
   USING (true);
 
-CREATE POLICY IF NOT EXISTS "Service role can update users"
+DROP POLICY IF EXISTS "Service role can update users" ON users;
+CREATE POLICY "Service role can update users"
   ON users FOR UPDATE
   TO service_role
   USING (true);
 
-CREATE POLICY IF NOT EXISTS "Service role can delete users"
+DROP POLICY IF EXISTS "Service role can delete users" ON users;
+CREATE POLICY "Service role can delete users"
   ON users FOR DELETE
   TO service_role
   USING (true);

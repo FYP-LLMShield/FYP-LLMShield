@@ -114,9 +114,12 @@ class Settings(BaseSettings):
     @classmethod
     def validate_encryption_key(cls, v):
         if not v:
+            import logging
             from cryptography.fernet import Fernet
             key = Fernet.generate_key().decode()
-            print("🔐 Generated encryption key (add to .env): MODEL_ENCRYPTION_KEY=...")
+            logging.getLogger("app.core.config").info(
+                "MODEL_ENCRYPTION_KEY not set; using generated key (add to .env for persistence)."
+            )
             return key
         return v
 

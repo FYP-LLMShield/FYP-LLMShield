@@ -13,16 +13,23 @@ class SupabaseService:
     
     def __init__(self):
         self.client: Optional[Client] = None
+        self._init_error: Optional[str] = None  # Last error when init failed (for health/debug)
         self._initialize_client()
     
     def _initialize_client(self):
         """Initialize Supabase client"""
+        saved = {}
         try:
             if not settings.SUPABASE_PROJECT_URL or not settings.SUPABASE_SERVICE_KEY:
                 logger.info("Supabase not configured (optional); app will use MongoDB and other backends.")
                 return
 
-            # Some supabase/postgrest versions pass 'proxy' internally; newer Client may not accept it.
+            import os
+            # On Azure/cloud, proxy env vars often break the Supabase client (TypeError or connection issues).
+            # Clear them for the duration of init so create_client doesn't receive proxy args.
+            proxy_keys = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+            saved = {k: os.environ.pop(k, None) for k in proxy_keys}
+
             try:
                 self.client = create_client(
                     settings.SUPABASE_PROJECT_URL,
@@ -30,28 +37,34 @@ class SupabaseService:
                 )
             except TypeError as te:
                 if "proxy" in str(te).lower():
-                    # Retry without proxy env vars (Azure/some hosts set HTTP_PROXY and lib passes it)
-                    import os
-                    saved = {k: os.environ.pop(k, None) for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")}
+                    # Already cleared above; retry once in case lib cached something
                     try:
                         self.client = create_client(
                             settings.SUPABASE_PROJECT_URL,
                             settings.SUPABASE_SERVICE_KEY,
                         )
-                    except Exception:
+                    except Exception as e2:
                         self.client = None
+                        self._init_error = str(e2)
                         raise
-                    finally:
-                        for k, v in saved.items():
-                            if v is not None:
-                                os.environ[k] = v
                 else:
+                    self._init_error = str(te)
                     raise
             if self.client is not None:
                 logger.info("Supabase client initialized successfully")
         except Exception as e:
+            if self._init_error is None:
+                self._init_error = str(e)
             logger.error(f"Failed to initialize Supabase client: {e}")
             self.client = None
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+    
+    def get_init_error(self) -> Optional[str]:
+        """Return the last initialization error message, if any."""
+        return self._init_error
     
     def is_available(self) -> bool:
         """Check if Supabase is available"""

@@ -1,0 +1,10 @@
+--- Debug Log ---
+
+[DEBUG] Starting lookup for: alishashahidkhan77@gmail.com
+
+[DEBUG] Sub-test: Direct Supabase Service Lookup
+[DEBUG] Supabase is available.
+[SUCCESS] Found in Supabase: ID=08e3899aaecb30de4ee4a95d, Email=alishashahidkhan77@gmail.com
+
+[DEBUG] Sub-test: Unified User Service Lookup
+[SUCCESS] Unified Service returned user: ID=08e3899aaecb30de4ee4a95d, Source=MongoDB

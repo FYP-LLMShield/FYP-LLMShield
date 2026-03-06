@@ -1,0 +1,493 @@
+INFO:app.utils.supabase_client:Supabase client initialized successfully
+DEBUG:passlib.utils.compat:loaded lazy attr 'SafeConfigParser': <class 'configparser.ConfigParser'>
+DEBUG:passlib.utils.compat:loaded lazy attr 'NativeStringIO': <class '_io.StringIO'>
+DEBUG:passlib.utils.compat:loaded lazy attr 'BytesIO': <class '_io.BytesIO'>
+DEBUG:passlib.registry:registered 'bcrypt' handler: <class 'passlib.handlers.bcrypt.bcrypt'>
+DEBUG:asyncio:Using proactor: IocpProactor
+DEBUG:httpcore.connection:connect_tcp.started host='aipfbkjjfasrvkdyywjc.supabase.co' port=443 local_address=None timeout=120 socket_options=None
+DEBUG:httpcore.connection:connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000026E283228D0>
+DEBUG:httpcore.connection:start_tls.started ssl_context=<ssl.SSLContext object at 0x0000026E2818CCB0> server_hostname='aipfbkjjfasrvkdyywjc.supabase.co' timeout=120
+DEBUG:httpcore.connection:start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000026E280BF9D0>
+DEBUG:httpcore.http2:send_connection_init.started request=<Request [b'GET']>
+DEBUG:httpcore.http2:send_connection_init.complete
+DEBUG:httpcore.http2:send_request_headers.started request=<Request [b'GET']> stream_id=1
+DEBUG:hpack.hpack:Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 2 with 7 bits
+DEBUG:hpack.hpack:Adding (b':authority', b'aipfbkjjfasrvkdyywjc.supabase.co') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 1 with 6 bits
+DEBUG:hpack.hpack:Encoding 24 with 7 bits
+DEBUG:hpack.hpack:Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 7 with 7 bits
+DEBUG:hpack.hpack:Adding (b':path', b'/rest/v1/users?select=%2A&email=eq.debug_user_1771250468%40example.com') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 4 with 6 bits
+DEBUG:hpack.hpack:Encoding 50 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 19 with 6 bits
+DEBUG:hpack.hpack:Encoding 3 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 16 with 7 bits
+DEBUG:hpack.hpack:Adding (b'user-agent', b'python-httpx/0.27.2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 58 with 6 bits
+DEBUG:hpack.hpack:Encoding 14 with 7 bits
+DEBUG:hpack.hpack:Adding (b'x-client-info', b'supabase-py/2.8.1') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 10 with 7 bits
+DEBUG:hpack.hpack:Encoding 12 with 7 bits
+DEBUG:hpack.hpack:Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 5 with 7 bits
+DEBUG:hpack.hpack:Encoding 176 with 7 bits
+DEBUG:hpack.hpack:Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:True, huffman:True
+DEBUG:hpack.hpack:Encoding 23 with 4 bits
+DEBUG:hpack.hpack:Encoding 181 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 10 with 7 bits
+DEBUG:hpack.hpack:Encoding 5 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 11 with 7 bits
+DEBUG:hpack.hpack:Encoding 5 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-length', b'2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 28 with 6 bits
+DEBUG:hpack.hpack:Encoding 1 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-type', b'application/json') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 31 with 6 bits
+DEBUG:hpack.hpack:Encoding 11 with 7 bits
+DEBUG:hpack.hpack:Encoded header block to b'\x82A\x98\x19\xab\x96>\xbd:J4Y\xdf\xac\x9e\xbdx\xe8E\xd1mc\x8ch*\xe4?\x87D\xb2b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xb4\x8c\xd4@^\xcb\xc8X\xed\x9a+P["\x0b\xae\x84M\x81\xa7\x1eU\xa0\x17\xc8\xe9\xae\x82\xaeC\xd3S\x83\xf9c\xe7\x90z\x8e\xaf\xd2g=KN\x94\xd7\xe5\x80.\'W\x17@\x8a\xf2\xb1(1jJ\xc6\xaaS\xff\x8cE\xb5\x8e1\xa0\xabW\xe9\x81.\xf2\xe1@\x85\x1df\xea__\xff1/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)\xc3Y1~\x98b\xaf\xb7\xed8}\x92\xaf\xdb?q\xd0\xdc\x82\xaf\xa6Cx1)}\x1f\xbb\xb29\x92\xad4\x12\xaf\xda\xf9\x8b\x8c\xa4\xa5\xf4~\xee\xc8\x8c\x94\xd1<\x97\xb29\xa3y\x05\xab~\x06\xb4_\xeb\xe3V\xef\x06\xfd\xfc\x9f\xc6N\x87\xf5\xa2\xfc\xc0\xd3\xef\x80\xb5o\x85\xb9v/E\x17w\xde\xe7\xac\xfe\x9d[\xce\x1a\x81\xb6\xefg\x19\xf5\x1d\x1ds\xe5\xa9\x9dw\xfb\xad\xe7\xf2\x8d{\xf7y\xb4\\\xe1\x1f\x08\xff6\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)\xc3Y1~\x98b\xaf\xb7\xed8}\x92\xaf\xdb?q\xd0\xdc\x82\xaf\xa6Cx1)}\x1f\xbb\xb29\x92\xad4\x12\xaf\xda\xf9\x8b\x8c\xa4\xa5\xf4~\xee\xc8\x8c\x94\xd1<\x97\xb29\xa3y\x05\xab~\x06\xb4_\xeb\xe3V\xef\x06\xfd\xfc\x9f\xc6N\x87\xf5\xa2\xfc\xc0\xd3\xef\x80\xb5o\x85\xb9v/E\x17w\xde\xe7\xac\xfe\x9d[\xce\x1a\x81\xb6\xefg\x19\xf5\x1d\x1ds\xe5\xa9\x9dw\xfb\xad\xe7\xf2\x8d{\xf7y\xb4\\\xe1@\x8a\x19\x08Z\xd2\xb5v\x1eSP_\x85\xae\xd8\xe81?@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?\\\x81\x17_\x8b\x1du\xd0b\r&=LtA\xea'
+DEBUG:httpcore.http2:send_request_headers.complete
+DEBUG:httpcore.http2:send_request_body.started request=<Request [b'GET']> stream_id=1
+DEBUG:httpcore.http2:send_request_body.complete
+DEBUG:httpcore.http2:receive_response_headers.started request=<Request [b'GET']> stream_id=1
+DEBUG:httpcore.http2:receive_remote_settings.started
+DEBUG:httpcore.http2:receive_remote_settings.complete return_value=<RemoteSettingsChanged changed_settings:{ChangedSetting(setting=3, original_value=None, new_value=100), ChangedSetting(setting=4, original_value=65535, new_value=65536), ChangedSetting(setting=5, original_value=16384, new_value=16777215)}>
+DEBUG:hpack.hpack:Decoding b'?\xe1\x1f\x88a\x96\xd0z\xbe\x94\x0b\x8aa,j\x08\x02q@\xbfp\x01\xb8\x10)\x8bF\xff_\x96\x1du\xd0b\r&=LtA\xea\xfbP\x93\x8e\xc4\x150Z\x99V{\\\x012v\x87%\x07\xb6Ih\x1d\x85^\x03*/*@\x85$\xabX?_\x8f|\x85\x95\xa1\xc6R\xc8\x07\x1e+#[6<\x9f@\x8a$\xab\x10d\x9c\xab!#M\xa8\x86\xbf\xcfL:2^]\xadb\xd4\x16\xc4\x7f\x85\xa4f\xa2\x02\xf6^B\xc7l\xd1Z\x82\xd9\x10]t"l\r8\xf2\xad\x00\xbeGMt\x15r\x1e\x9f\x84\x16\x82\x910*(\x7fx\xa0\xa4~V\x1c\xc5\x81\x90\xb6\xcb\x80\x00>\xd45D\xa2\xd9\x0b\xba\xd8\xef\x9e\x91\x9a\xa4}\xa9]\x85\xa0\xe3\x93@\x90\xf2\xb1\x0fRKRVO\xaa\xca\xb1\xebI\x8fR?\x85\xa8\xe8\xa8\xd2\xcb@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?@\x8dDkL4\x97\xc0\xfd-\xdc\xb6 \xc7\xab\x011@\x8aDkWa\xfa\x14\x89Z\xc2\xcb\x90\x19\xab\x96>\xbd:J4Y\xdf\xac\x9e\xbdx\xe8O@\x8aDkX^\xd6\x95\tX\xd2\x7f\x9a\x00_#\x8e\xc8\xca\xd2\xb2\xdb\xcb:H\xc4\xb0\xdb\x0bk<\xc8[\x04n\x00\x12;\x1f@\x8f\xf2\xb1j\xee\x7fK\r)-5\xa5b\x1e\xda\x93\x011@\x95\xf2\xb1j\xee\x7fK[Z\x13aGJ\xc8-\x9d\xccB\xac\x93R_\x82\x0b\x80w\xffX\x8a"K\x14t\xc1\xdfn\x9e\x9dp\x8ce\xeb\xb5\xe3\xec\xd9v\xd9-\x8a?\xd9\xb5\xcd\x94\xff\x94gkG\xbd\x9f\xbf\x9d\xe2\xf5A\xbf&X.\xba\x118\xf3N\x81`\xae\x05\xc2\xb8V.\xbfQa\x97}8Y_+\xaf\xcf\x89\x971\xbc\'o\xf3\xd5\x85\xc7\xf5\x86\xeb\xb4OE\x9b\xf0\xfe\x9b\xf6\x1a\xd9\x8fg\\x\xf0{o\xf4y:n\xc4\xf0\xa5\x8a\xed\xdf\xdf:\'\xafNK[\xd5\x9a\x96okg\rU\xd7W}\xedg\x08\xf5\xd0\xe2\xf2\xfb\xcbc\xd58\x84x\xe1\xe3\xedJ\xc6\x99\xe0c\xedB\xf9\xac\xd6\x15\x10h=_J\x05\xc5\xb0\x965\x84\xe2\x81~\xe3!\xb8\x10)\x8bF\xff\xb5$=#5P.\x8bk\x1ccAW!\xfe\xd4\xc6\x94\xd7\xaa\xaa=}\xa9\xb8\xa4\xb6\xc2\xfd\xa9\xb8t\x97q\x92X4\x9e\xa2\xff{\x8b\x84\x84-i[\x05D<\x86\xaao@\x85\x1d\tY\x1d\xc9\x90\x9d\x98?\x9b\x8d4\xcf\xf3\xf6\xa5#\x81\xe7\x1a\x00?'
+DEBUG:hpack.hpack:Decoded 4096, consumed 3 bytes
+DEBUG:hpack.table:Resizing header table to 4096 from 4096
+DEBUG:hpack.hpack:Decoded 8, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b':status', b'200'), consumed 1
+DEBUG:hpack.hpack:Decoded 33, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 22, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'date', b'Mon, 16 Feb 2026 19:01:10 GMT'), total consumed 24 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 31, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 22, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-type', b'application/json; charset=utf-8'), total consumed 24 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 28, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 1, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-length', <memory at 0x0000026E28191A80>), total consumed 3 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 54, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 7, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'server', b'cloudflare'), total consumed 9 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 30, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 3, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-range', <memory at 0x0000026E28191900>), total consumed 5 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 5, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-ray', b'9cef4abeed068e3a-KHI'), total consumed 23 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 10, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 6, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-cache-status', b'DYNAMIC'), total consumed 19 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 29, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 45, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-location', b'/users?email=eq.debug_user_1771250468%40example.com&select=%2A'), total consumed 47 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 56, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 32, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), total consumed 34 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 16, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 5, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-content-type-options', b'nosniff'), total consumed 24 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 11, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 5, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-profile', b'public'), total consumed 19 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 13, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 1, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-gateway-version', <memory at 0x0000026E281919C0>), total consumed 17 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 10, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 16, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), total consumed 29 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 10, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 26, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-request-id', b'019c67d3-f358-7cb2-a515-83150b600d7b'), total consumed 39 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 1, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-attempt-count', <memory at 0x0000026E28191B40>), total consumed 19 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 21, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 2, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-upstream-service-time', b'160'), total consumed 26 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 55, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 215, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded (b'set-cookie', b'__cf_bm=vRNjkFaaekR8oQQBudu_bZgPgJoXlL4MzQZXv_yliXg-1771268470-1.0.1.1-ePy_FfTmF3.J79hG36H827DYOF69P1B7lhlrTFZiZAp3bQkHHEz5ZaIjSG82f_BBZxMhpNIu5OKm3CP3FnppnvT4L1aPl6.fzJr8n6sswUw; path=/; expires=Mon, 16-Feb-26 19:31:10 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None'), total consumed 218 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 59, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 11, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'vary', b'Accept-Encoding'), total consumed 13 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 5, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 16, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'alt-svc', b'h3=":443"; ma=86400'), total consumed 24 bytes, indexed True
+DEBUG:httpcore.http2:receive_response_headers.complete return_value=(200, [(b'date', b'Mon, 16 Feb 2026 19:01:10 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'content-length', b'2'), (b'server', b'cloudflare'), (b'content-range', b'*/*'), (b'cf-ray', b'9cef4abeed068e3a-KHI'), (b'cf-cache-status', b'DYNAMIC'), (b'content-location', b'/users?email=eq.debug_user_1771250468%40example.com&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), (b'sb-request-id', b'019c67d3-f358-7cb2-a515-83150b600d7b'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'160'), (b'set-cookie', b'__cf_bm=vRNjkFaaekR8oQQBudu_bZgPgJoXlL4MzQZXv_yliXg-1771268470-1.0.1.1-ePy_FfTmF3.J79hG36H827DYOF69P1B7lhlrTFZiZAp3bQkHHEz5ZaIjSG82f_BBZxMhpNIu5OKm3CP3FnppnvT4L1aPl6.fzJr8n6sswUw; path=/; expires=Mon, 16-Feb-26 19:31:10 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None'), (b'vary', b'Accept-Encoding'), (b'alt-svc', b'h3=":443"; ma=86400')])
+DEBUG:httpcore.http2:receive_response_body.started request=<Request [b'GET']> stream_id=1
+DEBUG:httpcore.http2:receive_response_body.complete
+DEBUG:httpcore.http2:response_closed.started stream_id=1
+DEBUG:httpcore.http2:response_closed.complete
+DEBUG:httpcore.http2:send_request_headers.started request=<Request [b'GET']> stream_id=3
+DEBUG:hpack.hpack:Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 2 with 7 bits
+DEBUG:hpack.hpack:Adding (b':authority', b'aipfbkjjfasrvkdyywjc.supabase.co') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 71 with 7 bits
+DEBUG:hpack.hpack:Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 7 with 7 bits
+DEBUG:hpack.hpack:Adding (b':path', b'/rest/v1/users?select=%2A&username=eq.debug_user_1771250468') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 4 with 6 bits
+DEBUG:hpack.hpack:Encoding 43 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 70 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 16 with 7 bits
+DEBUG:hpack.hpack:Adding (b'user-agent', b'python-httpx/0.27.2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 69 with 7 bits
+DEBUG:hpack.hpack:Adding (b'x-client-info', b'supabase-py/2.8.1') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 68 with 7 bits
+DEBUG:hpack.hpack:Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 67 with 7 bits
+DEBUG:hpack.hpack:Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:True, huffman:True
+DEBUG:hpack.hpack:Encoding 23 with 4 bits
+DEBUG:hpack.hpack:Encoding 181 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 66 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 65 with 7 bits
+DEBUG:hpack.hpack:Adding (b'cookie', b'__cf_bm=vRNjkFaaekR8oQQBudu_bZgPgJoXlL4MzQZXv_yliXg-1771268470-1.0.1.1-ePy_FfTmF3.J79hG36H827DYOF69P1B7lhlrTFZiZAp3bQkHHEz5ZaIjSG82f_BBZxMhpNIu5OKm3CP3FnppnvT4L1aPl6.fzJr8n6sswUw') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 32 with 6 bits
+DEBUG:hpack.hpack:Encoding 141 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-length', b'2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 65 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-type', b'application/json') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 64 with 7 bits
+DEBUG:hpack.hpack:Encoded header block to b'\x82\xc7\x87D\xabb\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe2\xd4\x16\xca\x87I`/e\xe4,v\xcd\x15\xa8-\x91\x05\xd7B&\xc0\xd3\x8f\x7f\xc6\x90\xc5\xc4\xc3\x1f\x08\xff6\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)\xc3Y1~\x98b\xaf\xb7\xed8}\x92\xaf\xdb?q\xd0\xdc\x82\xaf\xa6Cx1)}\x1f\xbb\xb29\x92\xad4\x12\xaf\xda\xf9\x8b\x8c\xa4\xa5\xf4~\xee\xc8\x8c\x94\xd1<\x97\xb29\xa3y\x05\xab~\x06\xb4_\xeb\xe3V\xef\x06\xfd\xfc\x9f\xc6N\x87\xf5\xa2\xfc\xc0\xd3\xef\x80\xb5o\x85\xb9v/E\x17w\xde\xe7\xac\xfe\x9d[\xce\x1a\x81\xb6\xefg\x19\xf5\x1d\x1ds\xe5\xa9\x9dw\xfb\xad\xe7\xf2\x8d{\xf7y\xb4\\\xe1\xc2\xc1`\xff\x0e\x8a"K\x14t\xc1\xdfn\x9e\x9dp\x8ce\xeb\xb5\xe3\xec\xd9v\xd9-\x8a?\xd9\xb5\xcd\x94\xff\x94gkG\xbd\x9f\xbf\x9d\xe2\xf5A\xbf&X.\xba\x118\xf3N\x81`\xae\x05\xc2\xb8V.\xbfQa\x97}8Y_+\xaf\xcf\x89\x971\xbc\'o\xf3\xd5\x85\xc7\xf5\x86\xeb\xb4OE\x9b\xf0\xfe\x9b\xf6\x1a\xd9\x8fg\\x\xf0{o\xf4y:n\xc4\xf0\xa5\x8a\xed\xdf\xdf:\'\xafNK[\xd5\x9a\x96okg\rU\xd7W}\xedg\x08\xf5\xd0\xe2\xf2\xfb\xcbc\xd58\x84x\xe1\xe3\xc1\xc0'
+DEBUG:httpcore.http2:send_request_headers.complete
+DEBUG:httpcore.http2:send_request_body.started request=<Request [b'GET']> stream_id=3
+DEBUG:httpcore.http2:send_request_body.complete
+DEBUG:httpcore.http2:receive_response_headers.started request=<Request [b'GET']> stream_id=3
+DEBUG:hpack.hpack:Decoding b'\x88\xd0\xcf\xce\xcd\xcc\x7f\x0c\x8f|\x85\x95\xa1\x91\xa7e\x0b\x8f\x15\x91\xad\x9b\x1eO\xcb]\xa5b\xd4\x16\xc4\x7f\x88-\x05"`TP\xfcZ\x82\xd9P\xe9,\x05\xec\xbc\x85\x8e\xd9\xa2\xb5\x05\xb2 \xba\xe8D\xd8\x1aq\xef\xca\xc9\xc8\xc7\xc6\x7f\x06\x9a\x00_#\x8e\xc8\xca\xd2\xb9 \x96vV\x82\xb0\xdaq\xf5\x9d\x90,\xca\x07\xd9jI\x05\xc5\x7f\x05\x0212\xc3\xc2'
+DEBUG:hpack.hpack:Decoded 8, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b':status', b'200'), consumed 1
+DEBUG:hpack.hpack:Decoded 80, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'date', b'Mon, 16 Feb 2026 19:01:10 GMT'), consumed 1
+DEBUG:hpack.hpack:Decoded 79, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-type', b'application/json; charset=utf-8'), consumed 1
+DEBUG:hpack.hpack:Decoded 78, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-length', <memory at 0x0000026E28191A80>), consumed 1
+DEBUG:hpack.hpack:Decoded 77, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'server', b'cloudflare'), consumed 1
+DEBUG:hpack.hpack:Decoded 76, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-range', <memory at 0x0000026E28191900>), consumed 1
+DEBUG:hpack.hpack:Decoded 75, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-ray', b'9cef4ac47f168e3a-KHI'), total consumed 18 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 75, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-cache-status', b'DYNAMIC'), consumed 1
+DEBUG:hpack.hpack:Decoded 29, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 37, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-location', b'/users?select=%2A&username=eq.debug_user_1771250468'), total consumed 39 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 74, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), consumed 1
+DEBUG:hpack.hpack:Decoded 73, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-content-type-options', b'nosniff'), consumed 1
+DEBUG:hpack.hpack:Decoded 72, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-profile', b'public'), consumed 1
+DEBUG:hpack.hpack:Decoded 71, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-gateway-version', <memory at 0x0000026E281919C0>), consumed 1
+DEBUG:hpack.hpack:Decoded 70, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), consumed 1
+DEBUG:hpack.hpack:Decoded 69, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 26, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-request-id', b'019c67d3-f6d2-7f41-a469-7d13f0934dd2'), total consumed 29 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 69, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-attempt-count', <memory at 0x0000026E28191B40>), consumed 1
+DEBUG:hpack.hpack:Decoded 68, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 2, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000026E28191F00>), total consumed 5 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 67, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'vary', b'Accept-Encoding'), consumed 1
+DEBUG:hpack.hpack:Decoded 66, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'alt-svc', b'h3=":443"; ma=86400'), consumed 1
+DEBUG:httpcore.http2:receive_response_headers.complete return_value=(200, [(b'date', b'Mon, 16 Feb 2026 19:01:10 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'content-length', b'2'), (b'server', b'cloudflare'), (b'content-range', b'*/*'), (b'cf-ray', b'9cef4ac47f168e3a-KHI'), (b'cf-cache-status', b'DYNAMIC'), (b'content-location', b'/users?select=%2A&username=eq.debug_user_1771250468'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), (b'sb-request-id', b'019c67d3-f6d2-7f41-a469-7d13f0934dd2'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'12'), (b'vary', b'Accept-Encoding'), (b'alt-svc', b'h3=":443"; ma=86400')])
+DEBUG:httpcore.http2:receive_response_body.started request=<Request [b'GET']> stream_id=3
+DEBUG:httpcore.http2:receive_response_body.complete
+DEBUG:httpcore.http2:response_closed.started stream_id=3
+DEBUG:httpcore.http2:response_closed.complete
+DEBUG:httpcore.http2:send_request_headers.started request=<Request [b'POST']> stream_id=5
+DEBUG:hpack.hpack:Adding (b':method', b'POST') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 3 with 7 bits
+DEBUG:hpack.hpack:Adding (b':authority', b'aipfbkjjfasrvkdyywjc.supabase.co') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 73 with 7 bits
+DEBUG:hpack.hpack:Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 7 with 7 bits
+DEBUG:hpack.hpack:Adding (b':path', b'/rest/v1/users') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 4 with 6 bits
+DEBUG:hpack.hpack:Encoding 10 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 72 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 16 with 7 bits
+DEBUG:hpack.hpack:Adding (b'user-agent', b'python-httpx/0.27.2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 71 with 7 bits
+DEBUG:hpack.hpack:Adding (b'x-client-info', b'supabase-py/2.8.1') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 70 with 7 bits
+DEBUG:hpack.hpack:Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 69 with 7 bits
+DEBUG:hpack.hpack:Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:True, huffman:True
+DEBUG:hpack.hpack:Encoding 23 with 4 bits
+DEBUG:hpack.hpack:Encoding 181 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 68 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 67 with 7 bits
+DEBUG:hpack.hpack:Adding (b'prefer', b'return=representation') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 5 with 7 bits
+DEBUG:hpack.hpack:Encoding 15 with 7 bits
+DEBUG:hpack.hpack:Adding (b'cookie', b'__cf_bm=vRNjkFaaekR8oQQBudu_bZgPgJoXlL4MzQZXv_yliXg-1771268470-1.0.1.1-ePy_FfTmF3.J79hG36H827DYOF69P1B7lhlrTFZiZAp3bQkHHEz5ZaIjSG82f_BBZxMhpNIu5OKm3CP3FnppnvT4L1aPl6.fzJr8n6sswUw') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 64 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-length', b'442') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 28 with 6 bits
+DEBUG:hpack.hpack:Encoding 3 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-type', b'application/json') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 67 with 7 bits
+DEBUG:hpack.hpack:Encoded header block to b'\x83\xc9\x87D\x8ab\xc2\xa1,w\x0b\x16\xa0\xb6#\xc8\x90\xc7\xc6\xc5\x1f\x08\xff6\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)\xc3Y1~\x98b\xaf\xb7\xed8}\x92\xaf\xdb?q\xd0\xdc\x82\xaf\xa6Cx1)}\x1f\xbb\xb29\x92\xad4\x12\xaf\xda\xf9\x8b\x8c\xa4\xa5\xf4~\xee\xc8\x8c\x94\xd1<\x97\xb29\xa3y\x05\xab~\x06\xb4_\xeb\xe3V\xef\x06\xfd\xfc\x9f\xc6N\x87\xf5\xa2\xfc\xc0\xd3\xef\x80\xb5o\x85\xb9v/E\x17w\xde\xe7\xac\xfe\x9d[\xce\x1a\x81\xb6\xefg\x19\xf5\x1d\x1ds\xe5\xa9\x9dw\xfb\xad\xe7\xf2\x8d{\xf7y\xb4\\\xe1\xc4\xc3@\x85\xae\xc2\xca[?\x8f\xb0\xa9\xb6\xca\xa0\xb0\xb5\xd8T\x16\xa4\x8d&=_\xc0\\\x83i\xa1\x7f\xc3'
+DEBUG:httpcore.http2:send_request_headers.complete
+DEBUG:httpcore.http2:send_request_body.started request=<Request [b'POST']> stream_id=5
+DEBUG:httpcore.http2:send_request_body.complete
+DEBUG:httpcore.http2:receive_response_headers.started request=<Request [b'POST']> stream_id=5
+DEBUG:hpack.hpack:Decoding b"N\x82\x10\x03a\x96\xd0z\xbe\x94\x0b\x8aa,j\x08\x02q@\xbfp\x01\xb8\x10\xa9\x8bF\xff\xd5\xd3\xd2\x7f\x12\x8f|\x85\x95\xa1\x91\xd7\x9f\x8d\xb7\x8a\xc8\xd6\xcd\x8f'\xd1Z\x83\x9b\xd9\xab\xd0\xc7\xcf\xce@\x8d\xae\xc2\xca[\x0bQ\n\xb0\xeb\xae\x83\x16O\x8f\xb0\xa9\xb6\xca\xa0\xb0\xb5\xd8T\x16\xa4\x8d&=_\xce\xcd\x7f\r\x9a\x00_#\x8e\xc8\xca\xd2\xbd\x1c\xab:\xc8[Y\xe2\r\xd5\x9fq\x97\x1ajY\x08\xf8\x9b\xcc\x7f\x0c\x0295\xc9"
+DEBUG:hpack.hpack:Decoded 14, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 2, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b':status', b'201'), total consumed 4 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 33, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 22, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'date', b'Mon, 16 Feb 2026 19:01:11 GMT'), total consumed 24 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 85, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-type', b'application/json; charset=utf-8'), consumed 1
+DEBUG:hpack.hpack:Decoded 83, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'server', b'cloudflare'), consumed 1
+DEBUG:hpack.hpack:Decoded 82, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-range', <memory at 0x0000026E28191900>), consumed 1
+DEBUG:hpack.hpack:Decoded 81, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-ray', b'9cef4ac789b58e3a-KHI'), total consumed 18 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 81, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-cache-status', b'DYNAMIC'), consumed 1
+DEBUG:hpack.hpack:Decoded 26, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 3, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-encoding', b'gzip'), total consumed 5 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 80, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), consumed 1
+DEBUG:hpack.hpack:Decoded 71, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'vary', b'Accept-Encoding'), consumed 1
+DEBUG:hpack.hpack:Decoded 79, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-content-type-options', b'nosniff'), consumed 1
+DEBUG:hpack.hpack:Decoded 78, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-profile', b'public'), consumed 1
+DEBUG:hpack.hpack:Decoded 13, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'preference-applied', b'return=representation'), total consumed 31 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 78, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-gateway-version', <memory at 0x0000026E281919C0>), consumed 1
+DEBUG:hpack.hpack:Decoded 77, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), consumed 1
+DEBUG:hpack.hpack:Decoded 76, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 26, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-request-id', b'019c67d3-f8bf-7315-8ca7-963644fdc925'), total consumed 29 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 76, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-attempt-count', <memory at 0x0000026E28191B40>), consumed 1
+DEBUG:hpack.hpack:Decoded 75, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 2, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000026E28192080>), total consumed 5 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 73, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'alt-svc', b'h3=":443"; ma=86400'), consumed 1
+DEBUG:httpcore.http2:receive_response_headers.complete return_value=(201, [(b'date', b'Mon, 16 Feb 2026 19:01:11 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'*/*'), (b'cf-ray', b'9cef4ac789b58e3a-KHI'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'preference-applied', b'return=representation'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), (b'sb-request-id', b'019c67d3-f8bf-7315-8ca7-963644fdc925'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'95'), (b'alt-svc', b'h3=":443"; ma=86400')])
+DEBUG:httpcore.http2:receive_response_body.started request=<Request [b'POST']> stream_id=5
+DEBUG:httpcore.http2:receive_response_body.complete
+DEBUG:httpcore.http2:response_closed.started stream_id=5
+DEBUG:httpcore.http2:response_closed.complete
+INFO:app.utils.supabase_user_service:User created in Supabase: debug_user_1771250468@example.com
+INFO:app.utils.unified_user_service:User created in Supabase: debug_user_1771250468@example.com
+ERROR:app.utils.unified_user_service:Failed to create user in MongoDB: 'NoneType' object is not subscriptable
+DEBUG:httpcore.http2:send_request_headers.started request=<Request [b'GET']> stream_id=7
+DEBUG:hpack.hpack:Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 2 with 7 bits
+DEBUG:hpack.hpack:Adding (b':authority', b'aipfbkjjfasrvkdyywjc.supabase.co') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 76 with 7 bits
+DEBUG:hpack.hpack:Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 7 with 7 bits
+DEBUG:hpack.hpack:Adding (b':path', b'/rest/v1/users?select=%2A&email=eq.debug_google_1771250468%40gmail.com') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 4 with 6 bits
+DEBUG:hpack.hpack:Encoding 50 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 75 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 16 with 7 bits
+DEBUG:hpack.hpack:Adding (b'user-agent', b'python-httpx/0.27.2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 74 with 7 bits
+DEBUG:hpack.hpack:Adding (b'x-client-info', b'supabase-py/2.8.1') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 73 with 7 bits
+DEBUG:hpack.hpack:Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 72 with 7 bits
+DEBUG:hpack.hpack:Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:True, huffman:True
+DEBUG:hpack.hpack:Encoding 23 with 4 bits
+DEBUG:hpack.hpack:Encoding 181 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 71 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 70 with 7 bits
+DEBUG:hpack.hpack:Adding (b'cookie', b'__cf_bm=vRNjkFaaekR8oQQBudu_bZgPgJoXlL4MzQZXv_yliXg-1771268470-1.0.1.1-ePy_FfTmF3.J79hG36H827DYOF69P1B7lhlrTFZiZAp3bQkHHEz5ZaIjSG82f_BBZxMhpNIu5OKm3CP3FnppnvT4L1aPl6.fzJr8n6sswUw') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 66 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-length', b'2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 69 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-type', b'application/json') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 68 with 7 bits
+DEBUG:hpack.hpack:Encoded header block to b'\x82\xcc\x87D\xb2b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xb4\x8c\xd4@^\xcb\xc8X\xed\x9a)\x8ey\xa8,Au\xd0\x89\xb04\xe3\xca\xb4\t\xa9\x19\xa8\\\x87\xa7\xcb\x90\xca\xc9\xc8\x1f\x08\xff6\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)\xc3Y1~\x98b\xaf\xb7\xed8}\x92\xaf\xdb?q\xd0\xdc\x82\xaf\xa6Cx1)}\x1f\xbb\xb29\x92\xad4\x12\xaf\xda\xf9\x8b\x8c\xa4\xa5\xf4~\xee\xc8\x8c\x94\xd1<\x97\xb29\xa3y\x05\xab~\x06\xb4_\xeb\xe3V\xef\x06\xfd\xfc\x9f\xc6N\x87\xf5\xa2\xfc\xc0\xd3\xef\x80\xb5o\x85\xb9v/E\x17w\xde\xe7\xac\xfe\x9d[\xce\x1a\x81\xb6\xefg\x19\xf5\x1d\x1ds\xe5\xa9\x9dw\xfb\xad\xe7\xf2\x8d{\xf7y\xb4\\\xe1\xc7\xc6\xc2\xc5\xc4'
+DEBUG:httpcore.http2:send_request_headers.complete
+DEBUG:httpcore.http2:send_request_body.started request=<Request [b'GET']> stream_id=7
+DEBUG:httpcore.http2:send_request_body.complete
+DEBUG:httpcore.http2:receive_response_headers.started request=<Request [b'GET']> stream_id=7
+DEBUG:hpack.hpack:Decoding b'\x88\xc3\xda\xd9\xd8\xd7\x7f\x17\x8f|\x85\x95\xa1\x91\xf1J\x12\xbcVF\xb6ly?\xd6]\xadb\xd4\x16\xc4\x7f\x85\xa4f\xa2\x02\xf6^B\xc7l\xd1Ls\xcdAb\x0b\xae\x84M\x81\xa7\x1eU\xa0MH\xcdB\xe4=?\x08-\x05"`TP\xff\xd5\xd4\xd3\xd2\xd1\x7f\x11\x9a\x00_#\x8e\xc8\xca\xd2\xbeFVvW\x82\xb0\xc4F\xd6#!i\xe07#\x85x\x9f\xd0\x7f\x10\x0213\xce\xcd'
+DEBUG:hpack.hpack:Decoded 8, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b':status', b'200'), consumed 1
+DEBUG:hpack.hpack:Decoded 67, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'date', b'Mon, 16 Feb 2026 19:01:11 GMT'), consumed 1
+DEBUG:hpack.hpack:Decoded 90, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-type', b'application/json; charset=utf-8'), consumed 1
+DEBUG:hpack.hpack:Decoded 89, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-length', <memory at 0x0000026E28191A80>), consumed 1
+DEBUG:hpack.hpack:Decoded 88, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'server', b'cloudflare'), consumed 1
+DEBUG:hpack.hpack:Decoded 87, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-range', <memory at 0x0000026E28191900>), consumed 1
+DEBUG:hpack.hpack:Decoded 86, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-ray', b'9cef4ac92f1e8e3a-KHI'), total consumed 18 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 86, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-cache-status', b'DYNAMIC'), consumed 1
+DEBUG:hpack.hpack:Decoded 29, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded 45, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-location', b'/users?email=eq.debug_google_1771250468%40gmail.com&select=%2A'), total consumed 47 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 85, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), consumed 1
+DEBUG:hpack.hpack:Decoded 84, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-content-type-options', b'nosniff'), consumed 1
+DEBUG:hpack.hpack:Decoded 83, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-profile', b'public'), consumed 1
+DEBUG:hpack.hpack:Decoded 82, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-gateway-version', <memory at 0x0000026E281919C0>), consumed 1
+DEBUG:hpack.hpack:Decoded 81, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), consumed 1
+DEBUG:hpack.hpack:Decoded 80, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 26, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-request-id', b'019c67d3-f9c3-7f81-a2c5-c314805d6e8c'), total consumed 29 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 80, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-attempt-count', <memory at 0x0000026E28191B40>), consumed 1
+DEBUG:hpack.hpack:Decoded 79, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 2, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000026E28191FC0>), total consumed 5 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 78, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'vary', b'Accept-Encoding'), consumed 1
+DEBUG:hpack.hpack:Decoded 77, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'alt-svc', b'h3=":443"; ma=86400'), consumed 1
+DEBUG:httpcore.http2:receive_response_headers.complete return_value=(200, [(b'date', b'Mon, 16 Feb 2026 19:01:11 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'content-length', b'2'), (b'server', b'cloudflare'), (b'content-range', b'*/*'), (b'cf-ray', b'9cef4ac92f1e8e3a-KHI'), (b'cf-cache-status', b'DYNAMIC'), (b'content-location', b'/users?email=eq.debug_google_1771250468%40gmail.com&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), (b'sb-request-id', b'019c67d3-f9c3-7f81-a2c5-c314805d6e8c'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'13'), (b'vary', b'Accept-Encoding'), (b'alt-svc', b'h3=":443"; ma=86400')])
+DEBUG:httpcore.http2:receive_response_body.started request=<Request [b'GET']> stream_id=7
+DEBUG:httpcore.http2:receive_response_body.complete
+DEBUG:httpcore.http2:response_closed.started stream_id=7
+DEBUG:httpcore.http2:response_closed.complete
+DEBUG:httpcore.http2:send_request_headers.started request=<Request [b'POST']> stream_id=9
+DEBUG:hpack.hpack:Adding (b':method', b'POST') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 3 with 7 bits
+DEBUG:hpack.hpack:Adding (b':authority', b'aipfbkjjfasrvkdyywjc.supabase.co') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 77 with 7 bits
+DEBUG:hpack.hpack:Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 7 with 7 bits
+DEBUG:hpack.hpack:Adding (b':path', b'/rest/v1/users') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 65 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 75 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 16 with 7 bits
+DEBUG:hpack.hpack:Adding (b'user-agent', b'python-httpx/0.27.2') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 74 with 7 bits
+DEBUG:hpack.hpack:Adding (b'x-client-info', b'supabase-py/2.8.1') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 73 with 7 bits
+DEBUG:hpack.hpack:Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 72 with 7 bits
+DEBUG:hpack.hpack:Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpcGZia2pqZmFzcnZrZHl5d2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTE4MDkwOSwiZXhwIjoyMDg0NzU2OTA5fQ.llBTCYPoy7-xFn0RBq63yblkLJn3PDv-xXlPTSxu2YA') to the header table, sensitive:True, huffman:True
+DEBUG:hpack.hpack:Encoding 23 with 4 bits
+DEBUG:hpack.hpack:Encoding 181 with 7 bits
+DEBUG:hpack.hpack:Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 71 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 70 with 7 bits
+DEBUG:hpack.hpack:Adding (b'prefer', b'return=representation') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 64 with 7 bits
+DEBUG:hpack.hpack:Adding (b'cookie', b'__cf_bm=vRNjkFaaekR8oQQBudu_bZgPgJoXlL4MzQZXv_yliXg-1771268470-1.0.1.1-ePy_FfTmF3.J79hG36H827DYOF69P1B7lhlrTFZiZAp3bQkHHEz5ZaIjSG82f_BBZxMhpNIu5OKm3CP3FnppnvT4L1aPl6.fzJr8n6sswUw') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 66 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-length', b'574') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 28 with 6 bits
+DEBUG:hpack.hpack:Encoding 3 with 7 bits
+DEBUG:hpack.hpack:Adding (b'content-type', b'application/json') to the header table, sensitive:False, huffman:True
+DEBUG:hpack.hpack:Encoding 69 with 7 bits
+DEBUG:hpack.hpack:Encoded header block to b'\x83\xcd\x87\xc1\xcb\x90\xca\xc9\xc8\x1f\x08\xff6\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)\xc3Y1~\x98b\xaf\xb7\xed8}\x92\xaf\xdb?q\xd0\xdc\x82\xaf\xa6Cx1)}\x1f\xbb\xb29\x92\xad4\x12\xaf\xda\xf9\x8b\x8c\xa4\xa5\xf4~\xee\xc8\x8c\x94\xd1<\x97\xb29\xa3y\x05\xab~\x06\xb4_\xeb\xe3V\xef\x06\xfd\xfc\x9f\xc6N\x87\xf5\xa2\xfc\xc0\xd3\xef\x80\xb5o\x85\xb9v/E\x17w\xde\xe7\xac\xfe\x9d[\xce\x1a\x81\xb6\xefg\x19\xf5\x1d\x1ds\xe5\xa9\x9dw\xfb\xad\xe7\xf2\x8d{\xf7y\xb4\\\xe1\xc7\xc6\xc0\xc2\\\x83m\xd6\xbf\xc5'
+DEBUG:httpcore.http2:send_request_headers.complete
+DEBUG:httpcore.http2:send_request_body.started request=<Request [b'POST']> stream_id=9
+DEBUG:httpcore.http2:send_request_body.complete
+DEBUG:httpcore.http2:receive_response_headers.started request=<Request [b'POST']> stream_id=9
+DEBUG:hpack.hpack:Decoding b'\xc8\xc7\xde\xdc\xdb\x7f\x1b\x8f|\x85\x95\xa1\x90l\x8d\xb1\xbcVF\xb6ly?\xda\xc6\xd8\xcf\xd7\xd6\xc5\xd5\xd4\x7f\x14\x99\x00_#\x8e\xc8\xca\xd2\x8d\xd0\xac\xeba\x02\xcf\x00\x12\xac1\x8d\xb2\xb8 \xbcW\xde\xd3\x7f\x13\x0229\xd0'
+DEBUG:hpack.hpack:Decoded 72, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b':status', b'201'), consumed 1
+DEBUG:hpack.hpack:Decoded 71, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'date', b'Mon, 16 Feb 2026 19:01:11 GMT'), consumed 1
+DEBUG:hpack.hpack:Decoded 94, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-type', b'application/json; charset=utf-8'), consumed 1
+DEBUG:hpack.hpack:Decoded 92, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'server', b'cloudflare'), consumed 1
+DEBUG:hpack.hpack:Decoded 91, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-range', <memory at 0x0000026E28191900>), consumed 1
+DEBUG:hpack.hpack:Decoded 90, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 15, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-ray', b'9cef4aca3a5a8e3a-KHI'), total consumed 18 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 90, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'cf-cache-status', b'DYNAMIC'), consumed 1
+DEBUG:hpack.hpack:Decoded 70, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-encoding', b'gzip'), consumed 1
+DEBUG:hpack.hpack:Decoded 88, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), consumed 1
+DEBUG:hpack.hpack:Decoded 79, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'vary', b'Accept-Encoding'), consumed 1
+DEBUG:hpack.hpack:Decoded 87, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-content-type-options', b'nosniff'), consumed 1
+DEBUG:hpack.hpack:Decoded 86, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'content-profile', b'public'), consumed 1
+DEBUG:hpack.hpack:Decoded 69, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'preference-applied', b'return=representation'), consumed 1
+DEBUG:hpack.hpack:Decoded 85, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-gateway-version', <memory at 0x0000026E281919C0>), consumed 1
+DEBUG:hpack.hpack:Decoded 84, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), consumed 1
+DEBUG:hpack.hpack:Decoded 83, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 25, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'sb-request-id', b'019c67d3-fa71-7510-800f-aaa5e6218e98'), total consumed 28 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 83, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-attempt-count', <memory at 0x0000026E28191B40>), consumed 1
+DEBUG:hpack.hpack:Decoded 82, consumed 2 bytes
+DEBUG:hpack.hpack:Decoded 2, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000026E28192440>), total consumed 5 bytes, indexed True
+DEBUG:hpack.hpack:Decoded 80, consumed 1 bytes
+DEBUG:hpack.hpack:Decoded (b'alt-svc', b'h3=":443"; ma=86400'), consumed 1
+DEBUG:httpcore.http2:receive_response_headers.complete return_value=(201, [(b'date', b'Mon, 16 Feb 2026 19:01:11 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'*/*'), (b'cf-ray', b'9cef4aca3a5a8e3a-KHI'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'preference-applied', b'return=representation'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'aipfbkjjfasrvkdyywjc'), (b'sb-request-id', b'019c67d3-fa71-7510-800f-aaa5e6218e98'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'29'), (b'alt-svc', b'h3=":443"; ma=86400')])
+DEBUG:httpcore.http2:receive_response_body.started request=<Request [b'POST']> stream_id=9
+DEBUG:httpcore.http2:receive_response_body.complete
+DEBUG:httpcore.http2:response_closed.started stream_id=9
+DEBUG:httpcore.http2:response_closed.complete
+INFO:app.utils.supabase_user_service:Google user created in Supabase: debug_google_1771250468@gmail.com
+INFO:app.utils.unified_user_service:Google user created in Supabase: debug_google_1771250468@gmail.com
+ERROR:app.utils.unified_user_service:Failed to create Google user in MongoDB: 'NoneType' object is not subscriptable
+Traceback (most recent call last):
+  File "C:\Alisha\Projects\university\fyp\FYP-LLMShield\backend\app\utils\unified_user_service.py", line 294, in create_google_user
+    collection = await self.mongo_service.get_collection()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Alisha\Projects\university\fyp\FYP-LLMShield\backend\app\utils\user_service.py", line 16, in get_collection
+    return db[self.collection_name]
+           ~~^^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable

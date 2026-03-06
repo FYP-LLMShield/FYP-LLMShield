@@ -178,3 +178,62 @@ Check health as above. If you see 503 or "database_unavailable", the backend can
 | Stop containers | `docker compose -f docker-compose.yml -f docker-compose.local.yml down` |
 
 Running the full Docker stack and passing the health checks above is a strong signal that the project is ready to deploy and should not show "Application error" due to backend or database misconfiguration.
+
+---
+
+## 5. Azure App Service: 504 / Container did not start within 230s
+
+If the backend on Azure shows **504 Gateway Timeout** and platform logs say **Container did not start within expected time limit of 230s**:
+
+- Azure gives the container **230 seconds** by default to respond to the startup (warmup) probe. The backend needs time to extract the build, run `python3 run.py`, and load all imports (FastAPI, DB, etc.), which can exceed 230s.
+
+**Fix:** Increase the container startup timeout in Azure:
+
+1. **Azure Portal** → your App Service (**llmshield-backend-py**) → **Configuration** → **Application settings**.
+2. **+ New application setting**:
+   - **Name:** `WEBSITES_CONTAINER_START_TIME_LIMIT`
+   - **Value:** `600` (seconds; 10 minutes; max allowed is 1800).
+3. **Save** and **Restart** the app.
+
+Redeploy if needed; the new setting applies to the next container start. Also ensure all required dependencies (e.g. `groq`) are in `backend/requirements.txt` so the app does not crash on import before listening.
+
+For **MODEL_ENCRYPTION_KEY** and **Supabase** (and other Azure env vars), see **[docs/AZURE_ENV_SETUP.md](AZURE_ENV_SETUP.md)**.
+
+---
+
+## 6. Deploy backend again without waiting for a full push
+
+If pushing to GitHub (or the whole GitHub Actions pipeline) takes too long, you can deploy your **local** backend code directly to Azure and skip the push.
+
+### Option A: Deploy from your machine with Azure CLI (no push)
+
+1. **Install Azure CLI** (if needed): [https://learn.microsoft.com/en-us/cli/azure/install-azure-cli](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)  
+   Then log in: `az login`
+
+2. **Create a zip of the backend** (from project root, exclude venv and cache):
+   ```powershell
+   cd backend
+   Compress-Archive -Path * -DestinationPath ..\backend.zip -Force
+   cd ..
+   ```
+   Or with 7-Zip / any zip tool: zip the contents of `backend` (so `run.py`, `requirements.txt`, `app/`, etc. are at the **root** of the zip), and do **not** include `venv`, `__pycache__`, or `.env`.
+
+3. **Deploy the zip** (replace resource group and app name if yours differ):
+   ```powershell
+   az webapp deploy --resource-group <YOUR_RESOURCE_GROUP> --name llmshield-backend-py --src-path backend.zip --type zip
+   ```
+   After the upload, Azure may still run a build (pip install) on the server; the first time can take a few minutes, but you didn’t wait for GitHub.
+
+### Option B: Run the same workflow without new code (redeploy last commit)
+
+To redeploy the **current** code on `main` (e.g. after changing only env vars in Azure):
+
+1. Open **GitHub** → your repo → **Actions**.
+2. Select **"Deploy Backend to Azure Web App"**.
+3. Click **Run workflow** → **Run workflow**.
+
+No push needed; the workflow uses the latest `main`. Build time is unchanged.
+
+### Option C: Faster runs when you do push
+
+The workflow now uses **pip cache** for `backend/requirements.txt`. After the first run, "Install dependencies" should be quicker on the next push.

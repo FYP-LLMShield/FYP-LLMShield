@@ -274,6 +274,9 @@ async def health_supabase():
         from app.utils.supabase_client import supabase_service
         if not supabase_service.is_available():
             out["message"] = "Supabase client failed to initialize (check URL and key)."
+            init_err = supabase_service.get_init_error()
+            if init_err:
+                out["error_detail"] = init_err
             return out
         result = supabase_service.get_client().table("users").select("id").limit(1).execute()
         out["supabase_reachable"] = True

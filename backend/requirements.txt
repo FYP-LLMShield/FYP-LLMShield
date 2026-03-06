@@ -47,6 +47,7 @@ weaviate-client>=4.4.0
 
 # AI/LLM Integration
 openai>=1.0.0
+groq>=0.4.0
 sentence-transformers>=2.2.0
 # torch & transformers are installed via sentence-transformers (used by llm_shield_scanner_service, local_model_loader)
 
