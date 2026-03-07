@@ -185,14 +185,14 @@ Running the full Docker stack and passing the health checks above is a strong si
 
 If the backend on Azure shows **504 Gateway Timeout** and platform logs say **Container did not start within expected time limit of 230s**:
 
-- Azure gives the container **230 seconds** by default to respond to the startup (warmup) probe. The backend needs time to extract the build, run `python3 run.py`, and load all imports (FastAPI, DB, etc.), which can exceed 230s.
+- Azure gives the container **230 seconds** by default to respond to the startup (warmup) probe. The backend needs time to extract the Oryx build tarball (`output.tar.zst`), run `python3 run.py`, and load all imports (FastAPI, DB, sentence-transformers, etc.), which can exceed 230s—and extraction alone can take **several minutes** for a large stack.
 
 **Fix:** Increase the container startup timeout in Azure:
 
 1. **Azure Portal** → your App Service (**llmshield-backend-py**) → **Configuration** → **Application settings**.
-2. **+ New application setting**:
+2. **+ New application setting** (or edit if it exists):
    - **Name:** `WEBSITES_CONTAINER_START_TIME_LIMIT`
-   - **Value:** `600` (seconds; 10 minutes; max allowed is 1800).
+   - **Value:** `1800` (30 minutes; max allowed). Use `600` (10 min) if 30 is too long; if you still get 504, raise to `1800`.
 3. **Save** and **Restart** the app.
 
 Redeploy if needed; the new setting applies to the next container start. Also ensure all required dependencies (e.g. `groq`) are in `backend/requirements.txt` so the app does not crash on import before listening.

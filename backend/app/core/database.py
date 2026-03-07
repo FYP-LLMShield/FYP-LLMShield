@@ -8,8 +8,16 @@ class MongoDB:
 mongodb = MongoDB()
 
 async def connect_to_mongo():
-    """Create database connection"""
-    mongodb.client = AsyncIOMotorClient(settings.MONGODB_URL)
+    """Create database connection. Use certifi CA bundle to fix SSL handshake with MongoDB Atlas on Azure."""
+    try:
+        import certifi
+        # Explicit CA bundle fixes TLSV1_ALERT_INTERNAL_ERROR from Azure App Service to Atlas
+        mongodb.client = AsyncIOMotorClient(
+            settings.MONGODB_URL,
+            tlsCAFile=certifi.where(),
+        )
+    except ImportError:
+        mongodb.client = AsyncIOMotorClient(settings.MONGODB_URL)
     mongodb.database = mongodb.client[settings.DATABASE_NAME]
     print(f"Connected to MongoDB at {settings.MONGODB_URL}")
 

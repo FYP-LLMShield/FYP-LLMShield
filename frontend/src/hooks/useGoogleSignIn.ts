@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { authAPI } from '../lib/api';
+import { supabase, isSupabaseAuthAvailable } from '../lib/supabase';
 
 // Extend the Window interface to include Google Sign-In
 declare global {
@@ -47,6 +48,28 @@ interface UseGoogleSignInProps {
   clientId?: string;
   /** true = sign up (create user if needed), false = sign in (only if user exists) */
   isSignUp?: boolean;
+}
+
+/** Use Supabase Auth for Google (redirect flow). When available, prefer this over One Tap. */
+export async function signInWithGoogleViaSupabase(): Promise<boolean> {
+  if (!isSupabaseAuthAvailable() || !supabase) return false;
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth`,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
+    });
+    if (error) {
+      console.error('Supabase Google OAuth error:', error);
+      return false;
+    }
+    return true; // redirect will happen
+  } catch (e) {
+    console.error('Supabase Google OAuth:', e);
+    return false;
+  }
 }
 
 export const useGoogleSignIn = ({ 
@@ -140,6 +163,8 @@ export const useGoogleSignIn = ({
   return {
     renderGoogleButton,
     signInWithGoogle,
-    initializeGoogleSignIn
+    initializeGoogleSignIn,
+    signInWithGoogleViaSupabase,
+    isSupabaseAuthAvailable: isSupabaseAuthAvailable(),
   };
 };

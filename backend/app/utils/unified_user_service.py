@@ -1,345 +1,129 @@
 """
-Unified User Service with Polyglot Persistence
-Primary: Supabase, Fallback: MongoDB
+Unified User Service - Supabase only (no MongoDB fallback)
 """
 import logging
 import secrets
 from typing import Optional, Tuple
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from app.models.user import UserInDB, UserRegistration
 from app.utils.supabase_user_service import SupabaseUserService
-from app.utils.user_service import UserService as MongoUserService
 
 logger = logging.getLogger(__name__)
 
 
 class UnifiedUserService:
     """
-    Unified user service with polyglot persistence
-    - Primary: Supabase
-    - Fallback: MongoDB
-    - Dual-write: Write to both for redundancy
+    User service using only Supabase for user storage.
+    No MongoDB fallback.
     """
-    
+
     def __init__(self):
         self.supabase_service = SupabaseUserService()
-        self.mongo_service = MongoUserService()
-    
+
     async def create_user(self, user_data: UserRegistration) -> Tuple[Optional[UserInDB], bool]:
-        """
-        Create user in both databases (dual-write)
-        Returns: (user, is_from_supabase)
-        """
-        supabase_user = None
-        mongo_user = None
-        supabase_success = False
-        mongo_success = False
-        
-        # Try Supabase first (primary)
+        """Create user in Supabase only."""
+        if not self.supabase_service.is_available():
+            logger.error("Supabase not available; cannot create user")
+            return None, False
         try:
-            if self.supabase_service.is_available():
-                supabase_user = await self.supabase_service.create_user(user_data)
-                if supabase_user:
-                    supabase_success = True
-                    logger.info(f"User created in Supabase: {user_data.email}")
+            user = await self.supabase_service.create_user(user_data)
+            if user:
+                logger.info(f"User created in Supabase: {user_data.email}")
+                return user, True
         except HTTPException:
-            # Propagate 400 (duplicate email/username) to client
             raise
         except Exception as e:
             logger.error(f"Failed to create user in Supabase: {e}")
+        return None, False
 
-        # Always try MongoDB (fallback/redundancy)
-        try:
-            mongo_user = await self.mongo_service.create_user(user_data)
-            if mongo_user:
-                mongo_success = True
-                logger.info(f"User created in MongoDB: {user_data.email}")
-        except HTTPException:
-            # Propagate 400 (duplicate email/username) to client
-            raise
-        except Exception as e:
-            logger.error(f"Failed to create user in MongoDB: {e}")
-        
-        # Return primary (Supabase) if available, otherwise MongoDB
-        if supabase_user:
-            return supabase_user, True
-        elif mongo_user:
-            logger.warning(f"User created only in MongoDB (Supabase unavailable): {user_data.email}")
-            return mongo_user, False
-        else:
-            logger.error(f"Failed to create user in both databases: {user_data.email}")
-            return None, False
-    
     async def get_user_by_email(self, email: str) -> Optional[UserInDB]:
-        """Get user by email - try Supabase first, fallback to MongoDB"""
-        # Try Supabase first (primary)
+        """Get user by email from Supabase only."""
+        if not self.supabase_service.is_available():
+            return None
         try:
-            if self.supabase_service.is_available():
-                user = await self.supabase_service.get_user_by_email(email)
-                if user:
-                    logger.debug(f"User found in Supabase: {email}")
-                    return user
+            return await self.supabase_service.get_user_by_email(email)
         except Exception as e:
-            logger.warning(f"Supabase unavailable, falling back to MongoDB: {e}")
-        
-        # Fallback to MongoDB
-        try:
-            user = await self.mongo_service.get_user_by_email(email)
-            if user:
-                logger.info(f"User found in MongoDB (fallback): {email}")
-                # Optionally sync back to Supabase if it comes back online
-                if self.supabase_service.is_available():
-                    try:
-                        # Check if user exists in Supabase
-                        existing = await self.supabase_service.get_user_by_email(email)
-                        if not existing:
-                            # Sync user to Supabase
-                            logger.info(f"Syncing user to Supabase: {email}")
-                            # This would require a sync method - for now just log
-                    except Exception as sync_error:
-                        logger.warning(f"Failed to sync user to Supabase: {sync_error}")
-                return user
-        except Exception as e:
-            logger.error(f"Error getting user from MongoDB: {e}")
-        
-        return None
-    
+            logger.error(f"Error getting user from Supabase: {e}")
+            return None
+
     async def get_user_by_username(self, username: str) -> Optional[UserInDB]:
-        """Get user by username - try Supabase first, fallback to MongoDB"""
-        # Try Supabase first
+        """Get user by username from Supabase only."""
+        if not self.supabase_service.is_available():
+            return None
         try:
-            if self.supabase_service.is_available():
-                user = await self.supabase_service.get_user_by_username(username)
-                if user:
-                    return user
+            return await self.supabase_service.get_user_by_username(username)
         except Exception as e:
-            logger.warning(f"Supabase unavailable, falling back to MongoDB: {e}")
-        
-        # Fallback to MongoDB
-        try:
-            user = await self.mongo_service.get_user_by_username(username)
-            if user:
-                logger.info(f"User found in MongoDB (fallback): {username}")
-                return user
-        except Exception as e:
-            logger.error(f"Error getting user from MongoDB: {e}")
-        
-        return None
-    
+            logger.error(f"Error getting user from Supabase: {e}")
+            return None
+
     async def authenticate_user(self, username_or_email: str, password: str) -> Optional[UserInDB]:
-        """Authenticate user - try Supabase first, fallback to MongoDB"""
-        # Try Supabase first
+        """Authenticate user via Supabase only."""
+        if not self.supabase_service.is_available():
+            return None
         try:
-            if self.supabase_service.is_available():
-                user = await self.supabase_service.authenticate_user(username_or_email, password)
-                if user:
-                    logger.debug(f"User authenticated via Supabase: {username_or_email}")
-                    return user
+            return await self.supabase_service.authenticate_user(username_or_email, password)
         except Exception as e:
-            logger.warning(f"Supabase authentication failed, trying MongoDB: {e}")
-        
-        # Fallback to MongoDB
-        try:
-            user = await self.mongo_service.authenticate_user(username_or_email, password)
-            if user:
-                logger.info(f"User authenticated via MongoDB (fallback): {username_or_email}")
-                return user
-        except Exception as e:
-            logger.error(f"Error authenticating user in MongoDB: {e}")
-        
-        return None
-    
+            logger.error(f"Error authenticating in Supabase: {e}")
+            return None
+
     async def verify_user_email(self, token: str) -> bool:
-        """Verify user email - verify in BOTH databases to keep them in sync (from Abeeha: email verification)"""
-        supabase_success = False
-        mongo_success = False
-
-        # Try MongoDB first (more reliable)
+        """Verify user email in Supabase only."""
+        if not self.supabase_service.is_available():
+            return False
         try:
-            mongo_success = await self.mongo_service.verify_user_email(token)
-            if mongo_success:
-                logger.info(f"Email verified in MongoDB with token")
+            return await self.supabase_service.verify_user_email(token)
         except Exception as e:
-            logger.error(f"MongoDB email verification failed: {e}")
+            logger.error(f"Supabase email verification failed: {e}")
+            return False
 
-        # Try Supabase (if available)
-        try:
-            if self.supabase_service.is_available():
-                supabase_success = await self.supabase_service.verify_user_email(token)
-                if supabase_success:
-                    logger.info(f"Email verified in Supabase with token")
-        except Exception as e:
-            logger.warning(f"Supabase email verification failed: {e}")
-
-        # If verified in MongoDB, sync to Supabase by updating the user there too
-        if mongo_success and not supabase_success and self.supabase_service.is_available():
-            try:
-                # Get user from MongoDB by token to find their email
-                from app.core.database import get_database
-                db = await get_database()
-                if db:
-                    collection = db.email_verification_tokens
-                    token_doc = await collection.find_one({"verification_token": token})
-                    if token_doc:
-                        email = token_doc.get("email")
-                        if email:
-                            # Update Supabase with verified status
-                            await self.supabase_service.update_profile(email, {"is_verified": True})
-                            logger.info(f"Synced verification to Supabase for {email}")
-            except Exception as e:
-                logger.debug(f"Could not sync to Supabase: {e}")
-
-        # Return True if at least one database was verified successfully
-        return supabase_success or mongo_success
-    
     async def update_user_last_login(self, email: str) -> bool:
-        """Update last login in both databases"""
-        supabase_success = False
-        mongo_success = False
-        
-        # Update Supabase
+        """Update last login in Supabase only."""
+        if not self.supabase_service.is_available():
+            return False
         try:
-            if self.supabase_service.is_available():
-                supabase_success = await self.supabase_service.update_user_last_login(email)
+            return await self.supabase_service.update_user_last_login(email)
         except Exception as e:
-            logger.warning(f"Failed to update last login in Supabase: {e}")
-        
-        # Update MongoDB
-        try:
-            mongo_success = await self.mongo_service.update_user_last_login(email)
-        except Exception as e:
-            logger.error(f"Failed to update last login in MongoDB: {e}")
-        
-        return supabase_success or mongo_success
-    
+            logger.error(f"Failed to update last login in Supabase: {e}")
+            return False
+
     async def update_profile(self, email: str, update_data: dict) -> Optional[UserInDB]:
-        """Update profile in both databases; return updated user (primary from Supabase, else MongoDB)"""
-        updated_user: Optional[UserInDB] = None
-        
-        # Update Supabase (primary)
+        """Update profile in Supabase only."""
+        if not self.supabase_service.is_available():
+            return None
         try:
-            if self.supabase_service.is_available():
-                updated_user = await self.supabase_service.update_profile(email, update_data)
+            return await self.supabase_service.update_profile(email, update_data)
         except Exception as e:
-            logger.warning(f"Failed to update profile in Supabase: {e}")
-        
-        # Update MongoDB (fallback / dual-write)
-        try:
-            mongo_user = await self.mongo_service.update_profile(email, update_data)
-            if mongo_user:
-                updated_user = updated_user or mongo_user
-        except Exception as e:
-            logger.error(f"Failed to update profile in MongoDB: {e}")
-        
-        return updated_user
-    
+            logger.error(f"Failed to update profile in Supabase: {e}")
+            return None
+
     async def create_google_user(self, user_data: dict) -> Tuple[Optional[UserInDB], bool]:
-        """Create Google user in both databases"""
-        supabase_user = None
-        mongo_user = None
-        
-        # Try Supabase first
-        try:
-            if self.supabase_service.is_available():
-                supabase_user = await self.supabase_service.create_google_user(user_data)
-                if supabase_user:
-                    logger.info(f"Google user created in Supabase: {user_data.get('email')}")
-                else:
-                    logger.warning(f"Supabase create_google_user returned None for {user_data.get('email')}")
-        except Exception as e:
-            logger.warning(f"Failed to create Google user in Supabase: {e}", exc_info=True)
-        
-        # Try MongoDB (convert dict to proper format)
-        try:
-            # Create user directly in MongoDB using the user service
-            # Convert dict format to UserRegistration-like format
-            from app.models.user import UserRegistration
-            from datetime import datetime
-            
-            # MongoDB expects datetime objects, not ISO strings
-            def parse_dt(value):
-                if isinstance(value, str):
-                    try:
-                        return datetime.fromisoformat(value.replace('Z', '+00:00'))
-                    except:
-                        return datetime.utcnow()
-                return value if value else datetime.utcnow()
-            
-            mongo_user_data = {
-                "email": user_data["email"],
-                "username": user_data["username"],
-                "name": user_data["name"],
-                "hashed_password": user_data.get("hashed_password"),
-                "is_verified": user_data.get("is_verified", True),
-                "is_active": user_data.get("is_active", True),
-                "google_id": user_data.get("google_id"),
-                "profile_picture": user_data.get("profile_picture"),
-                "display_name": user_data.get("display_name", ""),
-                "created_at": parse_dt(user_data.get("created_at")),
-                "updated_at": parse_dt(user_data.get("updated_at")),
-                "last_login": parse_dt(user_data.get("last_login")),
-                "mfa_enabled": user_data.get("mfa_enabled", False),
-                "mfa_secret": user_data.get("mfa_secret"),
-                "recovery_codes": user_data.get("recovery_codes", []),
-                "trusted_devices": user_data.get("trusted_devices", []),
-                "mfa_setup_complete": user_data.get("mfa_setup_complete", False),
-                "verification_token": user_data.get("verification_token"),
-                "reset_token": user_data.get("reset_token"),
-                "reset_token_expires": parse_dt(user_data.get("reset_token_expires")) if user_data.get("reset_token_expires") else None,
-                "subscription_id": user_data.get("subscription_id"),
-                "current_subscription_tier": user_data.get("current_subscription_tier", "premium"),
-                "subscription_status": user_data.get("subscription_status", "active")
-            }
-            
-            # Use MongoDB collection directly to insert
-            collection = await self.mongo_service.get_collection()
-            result = await collection.insert_one(mongo_user_data)
-            mongo_user_data["_id"] = result.inserted_id
-            
-            # Convert to UserInDB
-            mongo_user = UserInDB(**mongo_user_data)
-            
-        except Exception as e:
-            logger.error(f"Failed to create Google user in MongoDB: {e}")
-            mongo_user = None
-        
-        # Return primary if available
-        if supabase_user:
-            return supabase_user, True
-        elif mongo_user:
-            return mongo_user, False
-        else:
+        """Create Google user in Supabase only."""
+        if not self.supabase_service.is_available():
             return None, False
-    
+        try:
+            user = await self.supabase_service.create_google_user(user_data)
+            if user:
+                logger.info(f"Google user created in Supabase: {user_data.get('email')}")
+                return user, True
+        except Exception as e:
+            logger.error(f"Failed to create Google user in Supabase: {e}", exc_info=True)
+        return None, False
+
     async def update_google_user(self, email: str, update_data: dict) -> bool:
-        """Update Google user in both databases"""
-        supabase_success = False
-        mongo_success = False
-        
-        # Update Supabase
+        """Update Google user in Supabase only."""
+        if not self.supabase_service.is_available():
+            return False
         try:
-            if self.supabase_service.is_available():
-                supabase_success = await self.supabase_service.update_google_user(email, update_data)
+            return await self.supabase_service.update_google_user(email, update_data)
         except Exception as e:
-            logger.warning(f"Failed to update Google user in Supabase: {e}")
-        
-        # Update MongoDB
-        try:
-            mongo_success = await self.mongo_service.update_profile(email, update_data)
-        except Exception as e:
-            logger.error(f"Failed to update Google user in MongoDB: {e}")
-        
-        return supabase_success or mongo_success
+            logger.error(f"Failed to update Google user in Supabase: {e}")
+            return False
 
     async def ensure_user_for_mfa(self, user: UserInDB) -> None:
-        """
-        Ensure a user row exists in at least one DB so MFA can be stored.
-        Used when the current user is from Supabase Auth JWT but has no row in public.users/MongoDB yet.
-        """
+        """Ensure a user row exists in Supabase for MFA."""
         existing = await self.get_user_by_email(user.email)
         if existing:
             return
-        # Create minimal user with a random password (never used; Supabase Auth users sign in via Supabase)
         try:
             reg = UserRegistration(
                 email=user.email,
@@ -351,78 +135,51 @@ class UnifiedUserService:
             logger.info(f"Created user row for MFA setup: {user.email}")
         except HTTPException as e:
             if e.status_code == 400 and ("already" in (e.detail or "").lower() or "taken" in (e.detail or "").lower()):
-                return  # User already exists in one DB
+                return
             raise
         except Exception as e:
             logger.warning(f"ensure_user_for_mfa: {e}")
 
     async def ensure_user_in_mongo_for_mfa(self, email: str, name: str, username: str) -> bool:
-        """Ensure user exists in MongoDB so MFA can be stored (e.g. when user exists only in Supabase)."""
-        try:
-            return await self.mongo_service.ensure_user_exists_for_mfa(email, name, username)
-        except Exception as e:
-            logger.warning(f"ensure_user_in_mongo_for_mfa: {e}")
-            return False
+        """No-op when using Supabase only."""
+        return False
 
     async def store_temp_mfa_secret(self, email: str, secret: str, recovery_codes: list) -> bool:
-        """Store temporary MFA secret. Tries MongoDB first (upsert so it always succeeds), then Supabase."""
-        mongo_ok = False
-        supabase_ok = False
+        if not self.supabase_service.is_available():
+            return False
         try:
-            mongo_ok = await self.mongo_service.store_temp_mfa_secret(email, secret, recovery_codes)
+            return await self.supabase_service.store_temp_mfa_secret(email, secret, recovery_codes)
         except Exception as e:
-            logger.warning(f"MongoDB store_temp_mfa_secret: {e}")
-        try:
-            if self.supabase_service.is_available():
-                supabase_ok = await self.supabase_service.store_temp_mfa_secret(email, secret, recovery_codes)
-        except Exception as e:
-            logger.warning(f"Supabase store_temp_mfa_secret: {e}")
-        return mongo_ok or supabase_ok
+            logger.error(f"Supabase store_temp_mfa_secret: {e}")
+            return False
 
     async def enable_mfa(self, email: str) -> bool:
-        """Enable MFA in both DBs."""
-        supabase_ok = False
-        mongo_ok = False
+        if not self.supabase_service.is_available():
+            return False
         try:
-            if self.supabase_service.is_available():
-                supabase_ok = await self.supabase_service.enable_mfa(email)
+            return await self.supabase_service.enable_mfa(email)
         except Exception as e:
-            logger.warning(f"Supabase enable_mfa: {e}")
-        try:
-            mongo_ok = await self.mongo_service.enable_mfa(email)
-        except Exception as e:
-            logger.warning(f"MongoDB enable_mfa: {e}")
-        return supabase_ok or mongo_ok
+            logger.error(f"Supabase enable_mfa: {e}")
+            return False
 
     async def disable_mfa(self, email: str) -> bool:
-        """Disable MFA in both DBs (Supabase + MongoDB)."""
-        supabase_ok = False
-        mongo_ok = False
+        if not self.supabase_service.is_available():
+            return False
         try:
-            if self.supabase_service.is_available():
-                supabase_ok = await self.supabase_service.disable_mfa(email)
+            return await self.supabase_service.disable_mfa(email)
         except Exception as e:
-            logger.warning(f"Supabase disable_mfa: {e}")
-        try:
-            mongo_ok = await self.mongo_service.disable_mfa(email)
-        except Exception as e:
-            logger.warning(f"MongoDB disable_mfa: {e}")
-        return supabase_ok or mongo_ok
+            logger.error(f"Supabase disable_mfa: {e}")
+            return False
 
     async def update_recovery_codes(self, email: str, new_recovery_codes: list) -> bool:
-        """Update recovery codes in both DBs."""
-        supabase_ok = False
-        mongo_ok = False
+        if not self.supabase_service.is_available():
+            return False
         try:
-            if self.supabase_service.is_available():
-                supabase_ok = await self.supabase_service.update_recovery_codes(email, new_recovery_codes)
+            return await self.supabase_service.update_recovery_codes(email, new_recovery_codes)
         except Exception as e:
-            logger.warning(f"Supabase update_recovery_codes: {e}")
-        try:
-            mongo_ok = await self.mongo_service.update_recovery_codes(email, new_recovery_codes)
-        except Exception as e:
-            logger.warning(f"MongoDB update_recovery_codes: {e}")
-        return supabase_ok or mongo_ok
+            logger.error(f"Supabase update_recovery_codes: {e}")
+            return False
+
 
 # Global instance
 unified_user_service = UnifiedUserService()

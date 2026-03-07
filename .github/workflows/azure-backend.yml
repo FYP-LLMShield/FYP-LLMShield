@@ -33,9 +33,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt --quiet
 
+      # Package contents of backend (not the folder itself) so run.py is at wwwroot root
+      - name: Prepare package for Azure
+        run: |
+          mkdir -p deploy
+          rsync -a --exclude='__pycache__' --exclude='*.pyc' backend/ deploy/
+          ls -la deploy/
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./backend
+          package: ./deploy
