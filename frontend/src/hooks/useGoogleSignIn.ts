@@ -54,10 +54,13 @@ interface UseGoogleSignInProps {
 export async function signInWithGoogleViaSupabase(): Promise<boolean> {
   if (!isSupabaseAuthAvailable() || !supabase) return false;
   try {
+    // Use REACT_APP_APP_URL for redirect so production domain is used when set (avoids adding every preview URL in Supabase redirect list)
+    const redirectOrigin = process.env.REACT_APP_APP_URL || window.location.origin;
+    const redirectTo = redirectOrigin.replace(/\/$/, '') + '/auth';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo,
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     });

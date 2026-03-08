@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const AboutPage: React.FC = () => {
   return (
-    <div className="relative min-h-screen bg-light-primary dark:bg-dark-primary transition-colors duration-300 overflow-hidden pt-28 pb-16">
+    <div className="relative min-h-screen bg-gradient-to-b from-[#0a0a0a] via-gray-900 to-[#0a0a0a] transition-colors duration-300 overflow-hidden pt-28 pb-16">
       {/* Animated Background - Scattered Glow Lights */}
       <div className="absolute inset-0 overflow-hidden z-10">
         {/* Desktop: 120 lights total, Mobile: 30 lights */}
@@ -103,7 +103,7 @@ const AboutPage: React.FC = () => {
           >
             <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900 dark:text-white">About LLMShield</h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Pioneering AI security to build a safer future for language models
+              A unified threat detection platform for mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems
             </p>
           </motion.div>
           
@@ -140,7 +140,7 @@ const AboutPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                At LLMShield, we're on a mission to secure the future of AI by providing comprehensive protection against emerging threats to language models and AI systems. We believe that as AI becomes more integrated into critical infrastructure, robust security measures are essential for responsible innovation.
+                LLMShield helps security teams and developers test and harden AI applications. It detects prompt injection and jailbreaks, analyzes vector stores and document embeddings for poisoning, scans code for secrets and C/C++ vulnerabilities, and supports dataset/model poisoning evaluation—all from a single dashboard with optional MFA and email verification.
               </motion.p>
               <motion.p 
                 className="text-gray-700 dark:text-gray-200 text-lg leading-relaxed"
@@ -148,7 +148,7 @@ const AboutPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
-                Our team of security researchers, AI specialists, and software engineers work tirelessly to stay ahead of evolving threats, developing cutting-edge solutions that enable organizations to deploy AI with confidence.
+                Built with FastAPI, React, TypeScript, and MongoDB, LLMShield provides a production-ready platform for AI security testing. Optional integrations include Supabase for email/auth, Qdrant for vector stores, and Docker for deployment.
               </motion.p>
             </div>
           </motion.div>
@@ -283,10 +283,10 @@ const AboutPage: React.FC = () => {
                   transition={{ duration: 0.6, delay: 0.6 }}
                 >
                   <p className="text-gray-700 dark:text-gray-200 mb-6 text-lg leading-relaxed">
-                    LLMShield employs a modular, layered security approach that integrates seamlessly with your existing AI infrastructure. Our platform uses advanced detection algorithms, pattern recognition, and continuous monitoring to identify and mitigate threats in real-time.
+                    LLMShield uses a modular backend (FastAPI) with dedicated routes for auth, MFA, prompt injection, model/dataset poisoning, vector security, code scanning, and chatbot. The React frontend provides a unified dashboard with protected routes, model configuration, and scan history.
                   </p>
                   <p className="text-gray-700 dark:text-gray-200 text-lg leading-relaxed">
-                    With both cloud-based and on-premises deployment options, LLMShield provides flexible, scalable protection that grows with your AI capabilities.
+                    MongoDB stores data; optional Supabase handles email verification and password reset. Qdrant can be used for RAG chatbot vector storage. Docker Compose supports full-stack deployment.
                   </p>
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 px-2 md:px-0">
                     <motion.div 
@@ -411,15 +411,15 @@ const AboutPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Trusted By Industry Leaders</h2>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Built With</h2>
               </motion.div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8 px-2 md:px-0">
                 {[
-                  { name: "TechCorp", icon: "🏢", color: "from-teal-400 to-cyan-400" },
-                  { name: "AI Systems", icon: "🤖", color: "from-purple-400 to-violet-400" },
-                  { name: "DataShield", icon: "🛡️", color: "from-purple-400 to-pink-400" },
-                  { name: "SecureAI", icon: "🔒", color: "from-emerald-400 to-teal-400" }
+                  { name: "FastAPI", icon: "⚡", color: "from-teal-400 to-cyan-400" },
+                  { name: "React", icon: "⚛️", color: "from-purple-400 to-violet-400" },
+                  { name: "MongoDB", icon: "🍃", color: "from-purple-400 to-pink-400" },
+                  { name: "TypeScript", icon: "📘", color: "from-emerald-400 to-teal-400" }
                 ].map((company, index) => (
                   <motion.div
                     key={company.name}
@@ -474,18 +474,18 @@ const AboutPage: React.FC = () => {
                 <div className="flex flex-wrap justify-center items-center gap-6 text-lg">
                   <div className="flex items-center space-x-2">
                     <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-                    <span className="text-emerald-600 dark:text-emerald-300 font-semibold">99.9%</span>
-                    <span className="text-gray-600 dark:text-gray-300">uptime</span>
+                    <span className="text-emerald-600 dark:text-emerald-300 font-semibold">MIT</span>
+                    <span className="text-gray-600 dark:text-gray-300">License</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-3 h-3 bg-teal-400 rounded-full animate-pulse"></div>
-                    <span className="text-teal-600 dark:text-teal-300 font-semibold">SOC 2</span>
-                    <span className="text-gray-600 dark:text-gray-300">compliant</span>
+                    <span className="text-teal-600 dark:text-teal-300 font-semibold">API</span>
+                    <span className="text-gray-600 dark:text-gray-300">Docs at /docs</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse"></div>
-                    <span className="text-cyan-600 dark:text-cyan-300 font-semibold">GDPR</span>
-                    <span className="text-gray-600 dark:text-gray-300">ready</span>
+                    <span className="text-cyan-600 dark:text-cyan-300 font-semibold">Docker</span>
+                    <span className="text-gray-600 dark:text-gray-300">Ready</span>
                   </div>
                 </div>
               </motion.div>

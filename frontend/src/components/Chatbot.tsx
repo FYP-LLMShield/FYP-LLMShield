@@ -57,9 +57,16 @@ const faqs: FAQ[] = [
   {
     id: '6',
     question: 'Do you provide support?',
-    answer: 'Yes! Free plan includes email support, Regular plan has priority email support, and Premium plan includes dedicated support with faster response times.',
+    answer: 'Yes! Free plan includes email support, Pro plan has priority email support, and Premium plan includes dedicated support with faster response times. Reach us at team.llmshield@gmail.com.',
     category: 'support',
     relatedQuestions: ['What are your pricing plans?', 'How do I contact you?']
+  },
+  {
+    id: '6b',
+    question: 'How do I contact you?',
+    answer: 'You can reach us by email at team.llmshield@gmail.com. Visit our Contact page for more details or to send a message.',
+    category: 'support',
+    relatedQuestions: ['Do you provide support?', 'What are your pricing plans?']
   },
   {
     id: '7',
@@ -204,7 +211,7 @@ const faqs: FAQ[] = [
   {
     id: '21',
     question: 'What is your response time for support?',
-    answer: 'Free users get community support within 48 hours. Regular plan users receive email support within 24 hours, and Premium users get priority support within 4 hours.',
+    answer: 'Free users get community support within 48 hours. Pro plan users receive email support within 24 hours, and Premium users get priority support within 4 hours. Email us at team.llmshield@gmail.com.',
     category: 'support',
     relatedQuestions: ['Do you provide support?', 'What are your pricing plans?']
   }

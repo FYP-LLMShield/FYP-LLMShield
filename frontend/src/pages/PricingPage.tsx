@@ -10,62 +10,63 @@ const PricingPage: React.FC = () => {
     {
       name: 'Free',
       price: '0',
-      description: 'Basic protection for individuals and small projects',
+      description: 'Get started with core security scanners for individuals and small projects',
       features: [
-        { name: 'Prompt Injection Scanner', included: true, limit: '5/month' },
-        { name: 'C/C++ Scanner', included: true, limit: '3/month' },
-        { name: 'Basic Reports', included: true },
+        { name: 'Prompt Injection Testing', included: true, limit: '5/month' },
+        { name: 'Code Security Scanner', included: true, limit: '3/month' },
+        { name: 'Basic PDF Reports', included: true },
         { name: 'Email Support', included: true },
-        { name: 'Model Poisoning Detection', included: false },
-        { name: 'Vector Embedding Security', included: false },
-        { name: 'Live Model Connection', included: false },
-        { name: 'Advanced Reports', included: false },
+        { name: 'Model & Dataset Poisoning', included: false },
+        { name: 'Vector Security (3 tabs)', included: false },
+        { name: 'RAG Chatbot', included: false },
         { name: 'API Access', included: false },
+        { name: 'GitHub Repo Scanning', included: false },
       ],
       cta: 'Get Started',
       mostPopular: false,
     },
     {
-      name: 'Regular',
-      price: '29',
-      description: 'Enhanced protection for teams and growing projects',
+      name: 'Pro',
+      price: '10',
+      description: 'Enhanced access for teams with model poisoning and vector security',
       features: [
-        { name: 'Prompt Injection Scanner', included: true, limit: 'Included in 100 scans' },
-        { name: 'C/C++ Scanner', included: true, limit: 'Included in 100 scans' },
-        { name: 'Model Poisoning Detection', included: true },
-        { name: 'Vector Embedding Security (Upload Only)', included: true },
-        { name: '100 Scans per Month', included: true },
-        { name: 'Basic Reports', included: true },
+        { name: 'Prompt Injection Testing', included: true, limit: '50/month' },
+        { name: 'Code Security Scanner', included: true, limit: '50/month' },
+        { name: 'Model & Dataset Poisoning', included: true },
+        { name: 'Vector Security (Document Inspection)', included: true },
+        { name: '50 Scans per Month', included: true },
+        { name: 'PDF Reports & CWE Mapping', included: true },
         { name: 'Priority Email Support', included: true },
-        { name: 'Live Model Connection', included: false },
-        { name: 'Advanced Reports', included: false },
+        { name: 'RAG Chatbot', included: false },
         { name: 'API Access', included: false },
+        { name: 'GitHub Repo Scanning', included: true },
       ],
       cta: 'Start Free Trial',
       mostPopular: true,
     },
     {
       name: 'Premium',
-      price: '99',
-      description: 'Complete protection for enterprises and critical applications',
+      price: '15',
+      description: 'Full platform access for enterprises and critical AI applications',
       features: [
-        { name: 'Prompt Injection Scanner', included: true, limit: 'Unlimited' },
-        { name: 'C/C++ Scanner', included: true, limit: 'Unlimited' },
-        { name: 'Model Poisoning Detection', included: true },
-        { name: 'Vector Embedding Security', included: true },
-        { name: 'Live Model Connection', included: true },
+        { name: 'Prompt Injection Testing', included: true, limit: 'Unlimited' },
+        { name: 'Code Security Scanner', included: true, limit: 'Unlimited' },
+        { name: 'Model & Dataset Poisoning', included: true },
+        { name: 'Vector Security (all 3 tabs)', included: true },
+        { name: 'RAG Chatbot', included: true },
         { name: 'Unlimited Scans', included: true },
-        { name: 'Advanced Reports', included: true },
+        { name: 'Advanced Reports & Export', included: true },
         { name: 'API Access', included: true },
+        { name: 'GitHub Repo Scanning', included: true },
         { name: 'Dedicated Support', included: true },
       ],
-      cta: 'Contact Sales',
+      cta: 'Get Premium',
       mostPopular: false,
     },
   ];
 
   return (
-    <div className="bg-light-primary dark:bg-dark-primary pt-36 pb-16 transition-colors duration-300 page-transition relative overflow-hidden">
+    <div className="bg-gradient-to-b from-[#0a0a0a] via-gray-900 to-[#0a0a0a] pt-36 pb-16 transition-colors duration-300 page-transition relative overflow-hidden min-h-screen">
       {/* Animated Background - Floating Glow Lights */}
       <div className="absolute inset-0 overflow-hidden z-10">
         <style>{`
@@ -200,7 +201,7 @@ const PricingPage: React.FC = () => {
       <div className="mx-auto max-w-7xl px-6 lg:px-8 relative z-20">
         <div className="mx-auto max-w-4xl text-center">
           <motion.h1 
-            className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-5xl"
+            className="text-4xl font-bold tracking-tight text-white sm:text-5xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -208,12 +209,12 @@ const PricingPage: React.FC = () => {
             Plans
           </motion.h1>
           <motion.p 
-            className="mt-6 text-xl text-gray-600 dark:text-gray-300"
+            className="mt-6 text-xl text-gray-300"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            Choose the plan that's right for your security needs
+            Choose the plan that fits your AI security testing needs
           </motion.p>
         </div>
 
@@ -291,7 +292,7 @@ const PricingPage: React.FC = () => {
               </div>
               
               <Link
-                to={tier.name === 'Free' ? '/auth?signup=true' : tier.name === 'Regular' ? '/auth?signup=true&plan=regular' : '/contact'}
+                to={tier.name === 'Free' ? '/auth?signup=true' : tier.name === 'Pro' ? '/auth?signup=true&plan=pro' : tier.name === 'Premium' ? '/auth?signup=true&plan=premium' : '/contact'}
                 className={`mt-8 block rounded-md px-3.5 py-2 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${tier.mostPopular ? 'bg-accent-teal text-white hover:bg-accent-darkTeal focus-visible:outline-accent-teal' : 'bg-gray-800 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600'} transition-colors duration-300`}
               >
                 {tier.cta}
@@ -308,11 +309,11 @@ const PricingPage: React.FC = () => {
           transition={{ duration: 0.6, delay: 0.8 }}
         >
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Advanced Security Features
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Platform Capabilities
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
-              Comprehensive protection for your AI applications
+            <p className="text-lg text-gray-300">
+              Prompt injection, model poisoning, vector security, code scanning—all from one dashboard
             </p>
           </div>
           
@@ -324,8 +325,8 @@ const PricingPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 ),
-                title: "Real-time Threat Detection",
-                description: "Advanced AI algorithms continuously monitor and detect potential security threats in real-time, ensuring your applications stay protected."
+                title: "Prompt Injection Detection",
+                description: "Robust detection with Unicode normalization, leetspeak, and pattern matching. Multi-provider support for OpenAI, Anthropic, Google, and Ollama."
               },
               {
                 icon: (
@@ -334,8 +335,8 @@ const PricingPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 ),
-                title: "Automated Security Scanning",
-                description: "Comprehensive automated scans for prompt injections, model poisoning, and vector embedding vulnerabilities with detailed reports."
+                title: "Multi-Scanner Platform",
+                description: "Prompt injection, model/dataset poisoning, vector security (Document Inspection, Anomaly Detection, Attack Simulation), and code scanning with PDF reports."
               },
               {
                 icon: (
@@ -343,8 +344,8 @@ const PricingPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 ),
-                title: "Lightning Fast Analysis",
-                description: "Get security analysis results in seconds, not hours. Our optimized algorithms provide instant feedback for rapid development cycles."
+                title: "Scan History & Export",
+                description: "Track all scans with filters, export PDF reports, CWE mapping for code vulnerabilities, and optional Qdrant integration for RAG chatbot."
               }
             ].map((feature, index) => (
               <motion.div
@@ -381,8 +382,8 @@ const PricingPage: React.FC = () => {
           transition={{ duration: 0.6, delay: 1.6 }}
         >
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Feature Comparison</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">Compare all features across our plans</p>
+            <h2 className="text-3xl font-bold text-white mb-4">Feature Comparison</h2>
+            <p className="text-lg text-gray-300">Compare all features across our plans</p>
           </div>
           
           <div className="overflow-x-auto">
@@ -391,20 +392,20 @@ const PricingPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">Features</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">Free</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white bg-accent-teal/10">Regular</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white bg-accent-teal/10">Pro</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">Premium</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {[
-                  { feature: 'Monthly Scans', free: '8 total', regular: '100 total', premium: 'Unlimited' },
-                  { feature: 'Prompt Injection Scanner', free: '✓', regular: '✓', premium: '✓' },
-                  { feature: 'C/C++ Code Scanner', free: '✓', regular: '✓', premium: '✓' },
-                  { feature: 'Model Poisoning Detection', free: '✗', regular: '✓', premium: '✓' },
-                  { feature: 'Vector Embedding Security', free: '✗', regular: 'Upload Only', premium: 'Full Access' },
-                  { feature: 'Live Model Connection', free: '✗', regular: '✗', premium: '✓' },
+                  { feature: 'Monthly Scans', free: '8 total', regular: '50 total', premium: 'Unlimited' },
+                  { feature: 'Prompt Injection Testing', free: '✓', regular: '✓', premium: '✓' },
+                  { feature: 'Code Security Scanner', free: '✓', regular: '✓', premium: '✓' },
+                  { feature: 'Model & Dataset Poisoning', free: '✗', regular: '✓', premium: '✓' },
+                  { feature: 'Vector Security', free: '✗', regular: 'Document Inspection', premium: 'All 3 tabs' },
+                  { feature: 'RAG Chatbot', free: '✗', regular: '✗', premium: '✓' },
                   { feature: 'API Access', free: '✗', regular: '✗', premium: '✓' },
-                  { feature: 'Advanced Reports', free: '✗', regular: '✗', premium: '✓' },
+                  { feature: 'GitHub Repo Scanning', free: '✗', regular: '✓', premium: '✓' },
                   { feature: 'Support Level', free: 'Email', regular: 'Priority Email', premium: 'Dedicated' }
                 ].map((row, index) => (
                   <motion.tr 
@@ -431,8 +432,8 @@ const PricingPage: React.FC = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 1.6 }}
         >
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Need a custom plan?</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-300">Contact our sales team for enterprise solutions tailored to your organization's needs.</p>
+          <h2 className="text-xl font-semibold text-white">Need a custom plan?</h2>
+          <p className="mt-2 text-gray-300">Contact us for enterprise deployment, custom integrations, or self-hosted options.</p>
           <Link
             to="/contact"
             className="mt-6 inline-block rounded-md bg-accent-teal px-6 py-3 text-center text-sm font-semibold text-white hover:bg-accent-darkTeal transition-colors duration-300"

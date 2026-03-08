@@ -6,10 +6,10 @@ const Stats: React.FC = () => {
   const isInView = useInView(ref, { once: true, amount: 0.3 });
 
   const stats = [
-    { value: '99.8%', label: 'Threat Detection Rate' },
-    { value: '10,000+', label: 'Scans Performed Daily' },
-    { value: '500+', label: 'Enterprise Clients' },
-    { value: '24/7', label: 'Security Monitoring' },
+    { value: '200+', label: 'Detection Patterns' },
+    { value: '5+', label: 'Security Scanners' },
+    { value: '4', label: 'LLM Providers Supported' },
+    { value: 'MFA', label: 'Auth & Email Verification' },
   ];
 
   return (

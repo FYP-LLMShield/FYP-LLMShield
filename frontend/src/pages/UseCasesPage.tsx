@@ -5,52 +5,52 @@ const UseCasesPage: React.FC = () => {
   const useCases = [
     {
       id: 'prompt-injection',
-      title: 'Prompt Injection Scanner',
-      description: 'Detect and prevent malicious prompt injection attacks that can manipulate AI systems.',
+      title: 'Prompt Injection Testing',
+      description: 'Test prompts and documents for injection, jailbreak, and system leak with multi-provider support (OpenAI, Anthropic, Google, Ollama).',
       steps: [
-        { title: 'Upload Document', description: 'Upload your prompt templates or input data for analysis.' },
-        { title: 'Automated Scanning', description: 'Our system analyzes your content for potential injection vulnerabilities.' },
-        { title: 'Review Results', description: 'Get detailed reports on identified risks with severity ratings.' },
-        { title: 'Implement Fixes', description: 'Follow our recommended mitigations to secure your prompts.' },
+        { title: 'Configure Model', description: 'Set up your LLM provider (OpenAI, Anthropic, Google, or Ollama) in model config.' },
+        { title: 'Upload or Paste', description: 'Upload PDF/DOCX/TXT/MD documents or paste prompts for analysis.' },
+        { title: 'Run Detection', description: 'Robust detection with Unicode normalization, leetspeak, and pattern matching.' },
+        { title: 'Review Reports', description: 'Get PDF reports, risk levels, and vector store analysis.' },
       ],
       image: '/images/prompt-injection.svg',
       color: 'from-accent-teal to-purple-500',
     },
     {
       id: 'model-poisoning',
-      title: 'Model Poisoning Detection',
-      description: 'Identify potential poisoning in your training data that could compromise model integrity.',
+      title: 'Model & Dataset Poisoning',
+      description: 'Compare safe vs poisoned GGUF models (Llama, Qwen, TinyLlama) and analyze datasets or Hugging Face JSONL for poisoning indicators.',
       steps: [
-        { title: 'Connect Training Data', description: 'Link your training datasets or upload sample data.' },
-        { title: 'Deep Analysis', description: 'Our system performs statistical analysis to detect anomalies.' },
-        { title: 'Poisoning Report', description: 'Receive a comprehensive report highlighting suspicious data points.' },
-        { title: 'Clean Your Data', description: 'Use our tools to sanitize your training data.' },
+        { title: 'Add Model Pairs', description: 'Place GGUF safe/poison pairs in CompleteModels/ for model comparison.' },
+        { title: 'Upload Datasets', description: 'Upload text files or Hugging Face JSONL for dataset poisoning analysis.' },
+        { title: 'Run Analysis', description: 'File-level and behavioral tests for Hugging Face models; statistical analysis for datasets.' },
+        { title: 'Review Verdict', description: 'Get scan results with verdict, confidence, and risk assessment.' },
       ],
       image: '/images/model-poisoning.svg',
       color: 'from-accent-purple to-pink-500',
     },
     {
-      id: 'vector-embedding',
-      title: 'Vector Embedding Security',
-      description: 'Secure your RAG systems against embedding attacks and vulnerabilities.',
+      id: 'vector-security',
+      title: 'Vector Security',
+      description: 'Three integrated tabs: Document Inspection, Anomaly Detection, and Retrieval Attack Simulation for RAG systems.',
       steps: [
-        { title: 'Upload Vectors', description: 'Upload your vector embeddings or connect to your vector database.' },
-        { title: 'Vulnerability Scan', description: 'Our system analyzes embedding patterns for security issues.' },
-        { title: 'Risk Assessment', description: 'Get a detailed risk assessment of your vector space.' },
-        { title: 'Secure Your Vectors', description: 'Implement our recommendations to secure your embeddings.' },
+        { title: 'Document Inspection', description: 'Upload docs, chunk, detect instruction/trigger patterns, sanitize, and export.' },
+        { title: 'Anomaly Detection', description: 'Analyze vector store for collisions, outliers, clusters (DBSCAN).' },
+        { title: 'Attack Simulation', description: 'Query perturbation (paraphrase, unicode, homoglyph), baseline vs adversarial retrieval.' },
+        { title: 'Export Results', description: 'Export inspection reports or retrieval attack results.' },
       ],
       image: '/images/vector-embedding.svg',
       color: 'from-purple-500 to-accent-purple',
     },
     {
-      id: 'cpp-scanner',
-      title: 'C/C++ Code Scanner',
-      description: 'Detect vulnerabilities in C/C++ code that could lead to security breaches.',
+      id: 'code-scanning',
+      title: 'Code Security Scanning',
+      description: '200+ secret patterns (AWS, API keys, SSH) and 200+ C/C++ dangerous functions. File upload or GitHub repo scanning with CWE mapping.',
       steps: [
-        { title: 'Upload Code', description: 'Upload your C/C++ source files for analysis.' },
-        { title: 'Static Analysis', description: 'Our system performs static code analysis to identify vulnerabilities.' },
-        { title: 'Vulnerability Report', description: 'Receive a detailed report of potential security issues.' },
-        { title: 'Fix Recommendations', description: 'Get specific code recommendations to address each vulnerability.' },
+        { title: 'Paste or Upload', description: 'Paste code, upload files, or provide a GitHub repo URL.' },
+        { title: 'Select Scan Types', description: 'Choose secrets and/or cpp_vulns scan types.' },
+        { title: 'Run Scan', description: 'Get results with severity, CWE mapping, and PDF reports.' },
+        { title: 'Track History', description: 'View scan history with filters in the dashboard.' },
       ],
       image: '/images/cpp-scanner.svg',
       color: 'from-accent-teal to-accent-purple',
@@ -79,7 +79,7 @@ const UseCasesPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-light-primary dark:bg-dark-primary pt-36 pb-16 transition-colors duration-300 page-transition relative overflow-hidden">
+    <div className="bg-gradient-to-b from-[#0a0a0a] via-gray-900 to-[#0a0a0a] pt-36 pb-16 transition-colors duration-300 page-transition relative overflow-hidden min-h-screen">
       {/* Animated Background - Scattered Glow Lights */}
       <div className="absolute inset-0 overflow-hidden z-10">
         {/* Desktop: 120 lights total (25 header + 3 above title + 32 middle + 8 vector + 35 bottom + 8 cpp + 9 scanner), Mobile: 30 lights */}
@@ -174,11 +174,11 @@ const UseCasesPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-5xl mb-4">
+          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl mb-4">
             Use Cases
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Explore how LLMShield can protect your AI systems from various threats
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            Explore how LLMShield helps security teams and developers test and harden AI applications
           </p>
         </motion.div>
 

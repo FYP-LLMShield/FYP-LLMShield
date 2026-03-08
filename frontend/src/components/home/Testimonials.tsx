@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 
 const Testimonials: React.FC = () => {
@@ -7,21 +8,21 @@ const Testimonials: React.FC = () => {
 
   const testimonials = [
     {
-      quote: "LLMShield has been instrumental in securing our AI systems. We've detected and prevented multiple prompt injection attacks that would have otherwise gone unnoticed.",
-      author: "Sarah Johnson",
-      position: "CTO, TechInnovate",
+      quote: "The prompt injection testing with multiple providers and document upload has made it easy to validate our AI assistants before deployment. The PDF reports are exactly what we needed for compliance.",
+      author: "Security Engineer",
+      position: "AI Product Team",
       image: "https://randomuser.me/api/portraits/women/32.jpg",
     },
     {
-      quote: "The model poisoning detection feature saved us countless hours of debugging and potential security breaches. Highly recommended for any organization working with LLMs.",
-      author: "Michael Chen",
-      position: "AI Security Lead, DataDefend",
+      quote: "Comparing safe vs poisoned GGUF models and analyzing our training datasets for poisoning indicators has been invaluable. The vector store anomaly detection caught issues we would have missed.",
+      author: "ML Engineer",
+      position: "Research & Development",
       image: "https://randomuser.me/api/portraits/men/46.jpg",
     },
     {
-      quote: "As a financial institution, security is paramount. LLMShield's comprehensive scanning tools have become an essential part of our AI development pipeline.",
-      author: "Emily Rodriguez",
-      position: "CISO, Global Finance",
+      quote: "The code scanner with 200+ secret patterns and C/C++ vulnerability checks, plus GitHub repo integration, fits perfectly into our CI/CD pipeline. CWE mapping and scan history are great for tracking.",
+      author: "DevOps Lead",
+      position: "Platform Team",
       image: "https://randomuser.me/api/portraits/women/65.jpg",
     },
   ];
@@ -44,7 +45,7 @@ const Testimonials: React.FC = () => {
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            Trusted by leading organizations worldwide
+            Built for security teams and developers testing AI applications
           </motion.p>
         </div>
 
@@ -84,15 +85,15 @@ const Testimonials: React.FC = () => {
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.6 }}
           >
-            <a 
-              href="/case-studies" 
+            <Link 
+              to="/use-cases" 
               className="inline-flex items-center text-accent-teal hover:text-accent-darkTeal transition-colors duration-300"
             >
-              <span>View all case studies</span>
+              <span>Explore use cases</span>
               <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
-            </a>
+            </Link>
           </motion.div>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const Hero: React.FC = () => {
   return (
-    <section className="relative min-h-screen pt-16 pb-8 flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen pt-16 pb-8 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#0a0a0a] via-[#0f172a] to-[#0a0a0a]">
       {/* Video Background */}
       <video
         autoPlay
@@ -22,8 +22,24 @@ const Hero: React.FC = () => {
         <source src="/videos/hero.mp4" type="video/mp4" />
       </video>
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70 pointer-events-none"></div>
+      {/* Gradient Overlay - dark futuristic theme */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/60 to-black/80 pointer-events-none"></div>
+      {/* Subtle neon particle glow */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[...Array(30)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full bg-teal-500/40 blur-sm animate-pulse"
+            style={{
+              width: 4 + (i % 3) * 4,
+              height: 4 + (i % 3) * 4,
+              left: `${(i * 7) % 100}%`,
+              top: `${(i * 11) % 100}%`,
+              animationDelay: `${i * 0.2}s`,
+            }}
+          />
+        ))}
+      </div>
       
       {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-4xl">

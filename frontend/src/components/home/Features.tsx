@@ -8,23 +8,23 @@ const Features: React.FC = () => {
 
   const features = [
     {
-      title: 'Prompt Injection Scanner',
-      description: 'Detect and prevent malicious prompt injections with our advanced scanning technology.',
+      title: 'Prompt Injection Testing',
+      description: 'Multi-provider testing (OpenAI, Anthropic, Google, Ollama) with probe categories, document upload, and robust detection for injection and jailbreak attacks.',
       icon: <DocumentTextIcon className="h-8 w-8 text-accent-teal" />,
     },
     {
-      title: 'Model Poisoning Detection',
-      description: 'Identify potential poisoning in your training data before it affects your models.',
+      title: 'Model & Data Poisoning',
+      description: 'Compare safe vs poisoned GGUF models (Llama, Qwen, TinyLlama) and analyze datasets or Hugging Face JSONL for poisoning indicators.',
       icon: <ShieldCheckIcon className="h-8 w-8 text-accent-purple" />,
     },
     {
-      title: 'Vector Embedding Security',
-      description: 'Secure your RAG systems with comprehensive embedding risk analysis.',
+      title: 'Vector Security',
+      description: 'Document inspection, vector store anomaly detection, and retrieval attack simulation—all from a single dashboard with three integrated tabs.',
       icon: <ServerIcon className="h-8 w-8 text-accent-blue" />,
     },
     {
-      title: 'C/C++ Code Scanner',
-      description: 'Find vulnerabilities in your C/C++ code with our specialized scanner.',
+      title: 'Code Security Scanning',
+      description: '200+ secret patterns, C/C++ vulnerability checks, file upload and GitHub repo scanning with CWE mapping and PDF reports.',
       icon: <CodeBracketIcon className="h-8 w-8 text-accent-teal" />,
     },
   ];
@@ -68,7 +68,7 @@ const Features: React.FC = () => {
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            Protect your AI systems with our suite of specialized security tools
+            Test and harden AI applications with prompt injection, model poisoning, RAG embedding, and code security tools—all from a single dashboard.
           </motion.p>
         </div>
 

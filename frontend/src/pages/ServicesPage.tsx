@@ -42,130 +42,130 @@ const ServicesPage: React.FC = React.memo(() => {
     },
   };
 
-  // Main service categories
+  // Main service categories - aligned with project capabilities (README, PROJECT_MANUAL)
   const services = [
     {
       id: 1,
-      title: 'Advanced Prompt Injection Detection',
-      category: 'Prompt Injection Protection',
-      description: 'Detect and prevent hidden instructions, jailbreak attempts, and system prompt overrides',
+      title: 'Prompt Injection Testing',
+      category: 'Multi-Provider Detection',
+      description: 'Test prompts and documents for injection, jailbreak, and system leak with robust detection (Unicode normalization, leetspeak, pattern matching)',
       icon: <DocumentTextIcon className="h-8 w-8 text-teal-600" />,
       features: [
-        'Direct and indirect prompt injection detection',
-        'Jailbreak prompt identification', 
-        'System prompt override protection',
-        'Real-time monitoring and alerts'
+        'Multi-provider support: OpenAI, Anthropic, Google, Ollama',
+        'Probe categories: prompt_injection, jailbreak',
+        'Document upload (PDF, DOCX, TXT, MD) and scan',
+        'PDF reports and vector store analysis'
       ],
       useCases: ['Chatbots', 'AI assistants', 'Customer service bots'],
-      delivery: 'File upload scanning + Live API monitoring'
+      delivery: 'Dashboard at /dashboard/prompt-injection + API endpoints'
     },
     {
       id: 2,
-      title: 'AI Model Poisoning Detection',
-      category: 'Model & Data Poisoning Analysis',
-      description: 'Identify contaminated training data and compromised model behaviors',
+      title: 'Model & Dataset Poisoning',
+      category: 'Poisoning Analysis',
+      description: 'Compare safe vs poisoned GGUF models (Llama, Qwen, TinyLlama) and analyze text/file datasets or Hugging Face JSONL for poisoning indicators',
       icon: <ShieldCheckIcon className="h-8 w-8 text-purple-600" />,
       features: [
-        'Training data analysis for poisoned samples',
-        'Backdoor trigger detection',
-        'Model behavior anomaly identification',
-        'Contamination percentage reporting'
+        'GGUF model comparison (safe vs poisoned pairs in CompleteModels/)',
+        'Hugging Face model scan: file-level + behavioral tests',
+        'Dataset poisoning: text/file and Hugging Face JSONL analysis',
+        'Poisoning simulation and attack scenarios'
       ],
       useCases: ['Model training', 'Data validation', 'AI pipeline security'],
-      delivery: 'Dataset analysis + Model testing + Behavioral monitoring'
+      delivery: 'Model poisoning + Data poisoning dashboards + API'
     },
     {
       id: 3,
-      title: 'RAG Pipeline Protection',
-      category: 'RAG System Security',
-      description: 'Secure your Retrieval-Augmented Generation systems from embedding manipulation',
+      title: 'Vector Security',
+      category: 'RAG & Embedding Protection',
+      description: 'Single dashboard with three tabs: Document Inspection, Anomaly Detection, and Retrieval Attack Simulation',
       icon: <ServerIcon className="h-8 w-8 text-blue-600" />,
       features: [
-        'Vector embedding poisoning detection',
-        'Hallucination identification from manipulated data',
-        'False citation detection',
-        'Semantic reliability monitoring'
+        'Document Inspection: chunking, pattern detection, sanitization preview, export',
+        'Anomaly Detection: collision, outlier, cluster analysis (DBSCAN)',
+        'Attack Simulation: query perturbation, baseline vs adversarial retrieval',
+        'Optional Qdrant vector store integration'
       ],
-      useCases: ['Knowledge bases', 'Document search', 'AI research assistants'],
-      delivery: 'Embedding analysis + RAG pipeline testing + Retrieval monitoring'
+      useCases: ['Knowledge bases', 'Document search', 'RAG systems'],
+      delivery: 'Vector Security dashboard at /dashboard/vector-security'
     },
     {
       id: 4,
-      title: 'Source Code Security Analysis',
-      category: 'C/C++ Code Vulnerability Scanning',
-      description: 'Automated vulnerability detection in C/C++ codebases',
+      title: 'Code Security Scanning',
+      category: 'Secrets & C/C++ Vulnerabilities',
+      description: '200+ secret patterns (AWS, API keys, SSH), 200+ C/C++ dangerous functions, file upload and GitHub repo scanning with CWE mapping',
       icon: <CodeBracketIcon className="h-8 w-8 text-teal-600" />,
       features: [
-        'Buffer overflow detection',
-        'Memory corruption identification',
-        'CVE database matching',
-        'Function-level security analysis'
+        '200+ secret patterns and 200+ C/C++ vulnerability checks',
+        'Input: text paste, file upload, GitHub repo (with cache)',
+        'CWE mapping, severity levels, PDF reports',
+        'Scan history and metrics in dashboard'
       ],
-      useCases: ['AI infrastructure', 'Embedded systems', 'Performance-critical code'],
-      delivery: 'Code upload scanning + Repository integration + CI/CD pipeline'
+      useCases: ['AI infrastructure', 'Embedded systems', 'CI/CD pipelines'],
+      delivery: 'Code scanning at /dashboard/code-scanning + /api/v1/scan'
     },
     {
       id: 5,
-      title: 'Deployed Application Scanning',
-      category: 'Live Application Security Testing (Premium)',
-      description: 'Real-time security assessment of your live AI applications',
+      title: 'RAG Chatbot',
+      category: 'Conversation & Retrieval',
+      description: 'RAG-based conversation with optional vector store (e.g. Qdrant) for contextual queries',
       icon: <CpuChipIcon className="h-8 w-8 text-purple-600" />,
       features: [
-        'API endpoint security testing',
-        'Live prompt injection attempts',
-        'Real-time response monitoring',
-        'Performance impact assessment'
+        'RAG conversation with optional Qdrant integration',
+        'Contextual retrieval from vector store',
+        'Conversation history and management',
+        'Part of the unified dashboard'
       ],
-      useCases: ['Production AI systems', 'Customer-facing applications'],
-      delivery: 'API connection + Continuous monitoring + Alert system'
+      useCases: ['Internal knowledge search', 'AI assistants', 'Document Q&A'],
+      delivery: 'Chatbot at /dashboard/chatbot'
     },
     {
       id: 6,
-      title: 'AI Attack Simulation',
-      category: 'Threat Simulation & Testing',
-      description: 'Generate realistic attacks to test your AI system resilience',
+      title: 'Authentication & Security',
+      category: 'Identity & Access',
+      description: 'JWT auth, MFA (TOTP), recovery codes, Google OAuth, email verification, password reset',
       icon: <BugAntIcon className="h-8 w-8 text-blue-600" />,
       features: [
-        'Fake attack generation (prompt injection, document poisoning)',
-        'Base64 and markdown trick testing',
-        'Jailbreak attempt simulation',
-        'Custom threat scenario creation'
+        'JWT access and refresh tokens',
+        'MFA (TOTP), recovery codes, trusted devices',
+        'Google OAuth and optional Supabase for email',
+        'Password reset and email verification'
       ],
-      useCases: ['Security testing', 'Compliance validation', 'Penetration testing'],
-      delivery: 'Simulation reports + Threat scenarios + Security recommendations'
+      useCases: ['Team access', 'Enterprise deployment', 'Compliance'],
+      delivery: 'Auth routes + MFA at /dashboard/mfa + optional Supabase'
     }
   ];
 
-  // Enterprise solutions
+  // Platform capabilities
   const enterpriseSolutions = [
     {
-      title: 'Custom Security Audits',
-      description: 'Comprehensive AI security assessments',
+      title: 'Dashboard & Metrics',
+      description: 'Security metrics, scan history, quick actions, and recent scans in one place',
       icon: '🔍'
     },
     {
-      title: 'Consulting Services',
-      description: 'Expert guidance on AI security best practices',
+      title: 'API Documentation',
+      description: 'Swagger UI and ReDoc at /docs and /redoc for integration',
       icon: '💡'
     },
     {
-      title: 'Integration Support',
-      description: 'Custom API integration and webhook setup',
+      title: 'Model Configuration',
+      description: 'CRUD for LLM provider configs (OpenAI, Anthropic, Google, Ollama)',
       icon: '🔗'
     },
     {
-      title: 'Compliance Assistance',
-      description: 'SOC2, ISO27001, GDPR compliance for AI systems',
+      title: 'Profile & Settings',
+      description: 'User profile, MFA setup, and application settings',
       icon: '📋'
     },
     {
-      title: '24/7 Monitoring',
-      description: 'Continuous threat detection and response services',
+      title: 'Scan History',
+      description: 'Save and list scans with filters across scanner types',
       icon: '⚡'
     },
     {
-      title: 'Training Programs',
-      description: 'AI security awareness and technical training',
+      title: 'Optional Supabase',
+      description: 'Email verification and password reset via Supabase or SMTP',
       icon: '🎓'
     }
   ];
@@ -173,23 +173,23 @@ const ServicesPage: React.FC = React.memo(() => {
   // Service delivery models
   const deliveryModels = [
     {
-      title: 'On-Demand Scanning',
-      description: 'Upload files and get instant results',
+      title: 'File & Document Upload',
+      description: 'Upload prompts, PDFs, DOCX, code, or datasets for analysis',
       icon: '📤'
     },
     {
-      title: 'API Integration',
-      description: 'Seamless integration with existing workflows',
+      title: 'REST API',
+      description: 'Integrate via /api/v1 endpoints (scan, prompt-injection, etc.)',
       icon: '🔌'
     },
     {
-      title: 'Continuous Monitoring',
-      description: 'Real-time threat detection for live systems',
+      title: 'GitHub Repo Scanning',
+      description: 'Scan repositories for secrets and C/C++ vulnerabilities',
       icon: '📊'
     },
     {
-      title: 'Custom Solutions',
-      description: 'Tailored security frameworks for enterprise needs',
+      title: 'Docker Deployment',
+      description: 'Run full stack with docker compose for local or production',
       icon: '⚙️'
     }
   ];
@@ -197,9 +197,9 @@ const ServicesPage: React.FC = React.memo(() => {
   return (
   <>
       {/* Services Hero Section - Desktop 50/50 Split, Mobile Stacked */}
-      <div className="services-hero min-h-screen w-full flex flex-col md:flex-row overflow-hidden pt-16">
-        {/* Video Section */}
-        <div className="video-section w-full md:w-1/2 h-[55vh] md:h-screen relative overflow-hidden">
+      <div className="services-hero min-h-screen w-full flex flex-col md:flex-row overflow-hidden pt-16 bg-gradient-to-b from-[#0a0a0a] via-[#0f172a] to-[#0a0a0a]">
+        {/* Video Section - with dark fallback */}
+        <div className="video-section w-full md:w-1/2 h-[55vh] md:h-screen relative overflow-hidden bg-gradient-to-br from-teal-900/30 via-gray-900 to-blue-900/30">
           <video
             autoPlay
             muted
@@ -214,10 +214,11 @@ const ServicesPage: React.FC = React.memo(() => {
           >
             <source src="/videos/Background.mp4" type="video/mp4" />
           </video>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent md:from-black/40" />
         </div>
 
-        {/* Content Section */}
-        <div className="content-section w-full md:w-1/2 h-[55vh] md:h-screen flex flex-col justify-center px-6 md:px-12 py-6 md:py-12 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        {/* Content Section - dark futuristic theme matching project design */}
+        <div className="content-section w-full md:w-1/2 h-[55vh] md:h-screen flex flex-col justify-center px-6 md:px-12 py-6 md:py-12 bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -227,14 +228,14 @@ const ServicesPage: React.FC = React.memo(() => {
             }}
             className="max-w-xl mx-auto text-center"
           >
-            <h1 className="text-[1.8rem] leading-[1.3] md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4 md:mb-6">
-              Comprehensive AI Security Services
+            <h1 className="text-[1.8rem] leading-[1.3] md:text-4xl lg:text-5xl font-bold text-white mb-4 md:mb-6">
+              Unified Threat Detection Platform
             </h1>
-            <h2 className="text-base md:text-lg lg:text-xl text-gray-700 dark:text-gray-300 mb-4 md:mb-6 leading-relaxed">
-              Protecting Your AI Systems from Advanced Threats
+            <h2 className="text-base md:text-lg lg:text-xl text-teal-300 mb-4 md:mb-6 leading-relaxed">
+              Mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems
             </h2>
-            <p className="text-[0.9rem] leading-[1.5] md:text-base text-gray-600 dark:text-gray-400 mb-6 md:mb-8">
-              Our cutting-edge AI security solutions provide comprehensive protection against emerging threats, ensuring your artificial intelligence systems remain secure, reliable, and compliant with industry standards.
+            <p className="text-[0.9rem] leading-[1.5] md:text-base text-gray-400 mb-6 md:mb-8">
+              LLMShield helps security teams and developers test and harden AI applications. Detect prompt injection and jailbreaks, analyze vector stores and embeddings for poisoning, scan code for secrets and C/C++ vulnerabilities, and evaluate dataset/model poisoning—all from a single dashboard.
             </p>
             
             <div className="cta-buttons flex flex-col md:flex-row gap-3 md:gap-4 w-full md:w-auto justify-center items-center">
@@ -255,8 +256,8 @@ const ServicesPage: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white pt-10">
+      {/* Main Content - dark theme to match project design */}
+      <div className="relative z-10 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 text-white dark:text-white pt-10">
         {/* Service Categories Section */}
         <motion.div
           initial="hidden"
@@ -269,10 +270,10 @@ const ServicesPage: React.FC = React.memo(() => {
             variants={itemVariants}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               Our Security Services
             </h2>
-            <p className="text-xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Comprehensive protection across all aspects of your AI infrastructure
             </p>
           </motion.div>
@@ -393,17 +394,17 @@ const ServicesPage: React.FC = React.memo(() => {
           whileInView="visible"
           viewport={{ once: true }}
           variants={containerVariants}
-          className="py-24 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-accent-darkBlue dark:to-accent-darkTeal"
+          className="py-24 bg-gradient-to-r from-gray-800 to-gray-900"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               variants={itemVariants}
               className="text-center mb-16"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
                 Enterprise Solutions
               </h2>
-              <p className="text-xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                 Tailored security solutions for enterprise-scale AI deployments
               </p>
             </motion.div>
@@ -452,10 +453,10 @@ const ServicesPage: React.FC = React.memo(() => {
               variants={itemVariants}
               className="text-center mb-16"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
                 Service Delivery Models
               </h2>
-              <p className="text-xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                 Flexible deployment options to fit your workflow
               </p>
             </motion.div>
@@ -504,11 +505,11 @@ const ServicesPage: React.FC = React.memo(() => {
               variants={itemVariants}
               className="text-center mb-16"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
                 Technology Stack
               </h2>
-              <p className="text-xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">
-                Powered by cutting-edge AI security research and methodologies
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                FastAPI backend, React + TypeScript frontend, MongoDB, optional Supabase for email/auth
               </p>
             </motion.div>
 
@@ -529,10 +530,10 @@ const ServicesPage: React.FC = React.memo(() => {
                 <div className="relative z-10">
                   <div className="text-2xl mb-3">🤖</div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                    AI Detection
+                    Prompt Injection
                   </h3>
                   <p className="text-gray-700 dark:text-gray-200 text-sm font-medium">
-                    Advanced LLM-based threat identification
+                    Robust detection with Unicode normalization and pattern matching
                   </p>
                 </div>
               </motion.div>
@@ -552,10 +553,10 @@ const ServicesPage: React.FC = React.memo(() => {
                 <div className="relative z-10">
                   <div className="text-2xl mb-3">🔍</div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                    Threat Intelligence
+                    Vector Analysis
                   </h3>
                   <p className="text-gray-700 dark:text-gray-200 text-sm font-medium">
-                    Real-time monitoring and analysis of emerging AI threats
+                    Vector store anomaly detection and retrieval attack simulation
                   </p>
                 </div>
               </motion.div>
@@ -578,7 +579,7 @@ const ServicesPage: React.FC = React.memo(() => {
                     Reporting
                   </h3>
                   <p className="text-gray-700 dark:text-gray-200 text-sm font-medium">
-                    PDF, JSON, CSV exports with detailed remediation guidance
+                    PDF reports, CWE mapping, and scan history with filters
                   </p>
                 </div>
               </motion.div>
@@ -601,7 +602,7 @@ const ServicesPage: React.FC = React.memo(() => {
                     Scalability
                   </h3>
                   <p className="text-gray-700 dark:text-gray-200 text-sm font-medium">
-                    Cloud-native architecture supporting enterprise workloads
+                    MongoDB, optional Qdrant for vectors, Docker deployment
                   </p>
                 </div>
               </motion.div>
@@ -622,13 +623,13 @@ const ServicesPage: React.FC = React.memo(() => {
               variants={itemVariants}
               className="text-4xl md:text-5xl font-bold text-white mb-6"
             >
-              Ready to Secure Your AI Systems?
+              Ready to Test and Harden Your AI Applications?
             </motion.h2>
             <motion.p
               variants={itemVariants}
               className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto"
             >
-              Join leading organizations in protecting their AI infrastructure with our comprehensive security solutions.
+              Sign up for free and start detecting prompt injection, model poisoning, RAG embedding risks, and code vulnerabilities from a single dashboard.
             </motion.p>
             <motion.div
               variants={itemVariants}

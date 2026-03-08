@@ -4,7 +4,7 @@ import { EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 
 const ContactPage: React.FC = React.memo(() => {
   return (
-    <div className="bg-light-primary dark:bg-dark-primary pt-28 pb-16 transition-colors duration-300 page-transition relative overflow-hidden">
+    <div className="bg-gradient-to-b from-[#0a0a0a] via-gray-900 to-[#0a0a0a] pt-28 pb-16 transition-colors duration-300 page-transition relative overflow-hidden min-h-screen">
       {/* Animated Background - Scattered Glow Lights */}
       <div className="absolute inset-0 overflow-hidden z-10">
         {/* Optimized: 20 lights total for better performance */}
@@ -119,7 +119,7 @@ const ContactPage: React.FC = React.memo(() => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            Have questions about LLMShield? We're here to help you secure your AI infrastructure.
+            Have questions about LLMShield? We're here to help you test and harden your AI applications with prompt injection, model poisoning, vector security, and code scanning.
           </motion.p>
         </motion.div>
 
@@ -273,7 +273,9 @@ const ContactPage: React.FC = React.memo(() => {
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-semibold text-teal-600 dark:text-accent-teal mb-1">Email</p>
-                      <p className="text-gray-900 dark:text-white font-medium">contact@llmshield.com</p>
+                      <a href="mailto:team.llmshield@gmail.com" className="text-gray-900 dark:text-white font-medium hover:text-accent-teal transition-colors">
+                        team.llmshield@gmail.com
+                      </a>
                     </div>
                   </motion.div>
                   <motion.div 

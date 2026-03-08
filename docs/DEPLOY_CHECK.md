@@ -201,6 +201,30 @@ For **MODEL_ENCRYPTION_KEY** and **Supabase** (and other Azure env vars), see **
 
 ---
 
+## 5c. Google "Continue with Google" – Error 400: origin_mismatch
+
+If you see **Access blocked: Authorization Error** and **Error 400: origin_mismatch** when clicking "Continue with Google" (Supabase Auth), Google is rejecting the **exact URL** your app is running on because it is not in **Authorized JavaScript origins**.
+
+**Important:** Vercel gives you different URLs:
+
+- **Production:** e.g. `https://fyp-llmshield.vercel.app` (or your custom domain)
+- **Preview (branch/PR):** e.g. `https://fyp-llmshield-xxx-username.vercel.app` — **each deployment can have a different host**
+
+Google validates the **origin** (scheme + host, no path). You must add **every origin** you use for sign-in.
+
+**Fix:**
+
+1. Open **Google Cloud Console** → **APIs & Services** → **Credentials** → your **OAuth 2.0 Client ID** (Web application).
+2. Under **Authorized JavaScript origins**, add the **exact** origin(s) you use:
+   - For production: `https://fyp-llmshield.vercel.app` (no trailing slash; use your real production host).
+   - If you are testing on a **preview** URL: copy the full origin from the browser address bar (e.g. `https://fyp-llmshield-bw-dgeu-h-alishashahidkhan-121-s-projects.vercel.app`) and add it. Each new preview deployment may have a **new** host, so you’d have to add that too if you test there.
+3. Under **Authorized redirect URIs** keep: `https://<your-project-ref>.supabase.co/auth/v1/callback`.
+4. **Save**. Changes can take a few minutes to apply; try again after 5-10 minutes or in an incognito window.
+
+**Recommended:** Test "Continue with Google" only on your **production** URL and add only that one origin. Avoid using preview URLs for Google sign-in so you don’t have to update Google Console for every new preview.
+
+---
+
 ## 5b. Oryx "panic: extract tarball" / startup.sh not found
 
 If logs show:

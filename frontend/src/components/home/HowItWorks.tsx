@@ -8,23 +8,23 @@ const HowItWorks: React.FC = () => {
   const steps = [
     {
       number: '01',
-      title: 'Upload Your Content',
-      description: 'Upload your prompts, training data, or code files for analysis.',
+      title: 'Sign Up & Configure',
+      description: 'Create an account, optionally set up MFA, and configure your LLM provider keys (OpenAI, Anthropic, Google, or Ollama).',
     },
     {
       number: '02',
-      title: 'Automated Scanning',
-      description: 'Our advanced algorithms scan for vulnerabilities and security risks.',
+      title: 'Run Security Scans',
+      description: 'Upload prompts, documents, code, or datasets. Use the dashboard to run prompt injection, model poisoning, vector security, or code scans.',
     },
     {
       number: '03',
-      title: 'Detailed Reports',
-      description: 'Receive comprehensive reports with risk levels and mitigation recommendations.',
+      title: 'Review Results',
+      description: 'Get detailed reports with risk levels, CWE mapping, and PDF exports. View scan history and metrics in one place.',
     },
     {
       number: '04',
-      title: 'Implement Fixes',
-      description: 'Follow our guided recommendations to secure your AI systems.',
+      title: 'Harden & Monitor',
+      description: 'Apply mitigations, use the RAG chatbot for queries, and keep your AI systems secure with ongoing scans.',
     },
   ];
 
@@ -46,7 +46,7 @@ const HowItWorks: React.FC = () => {
             animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            Securing your AI systems in four simple steps
+            From sign-up to hardened AI systems—configure, scan, review, and monitor in one platform
           </motion.p>
         </div>
 

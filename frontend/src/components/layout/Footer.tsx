@@ -11,8 +11,11 @@ const Footer: React.FC = () => {
               LLMShield
             </h3>
             <p className="mb-4">
-              A unified threat detection framework for mitigating prompt injection, model poisoning, and RAG embedding risks.
+              A unified threat detection platform for mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems.
             </p>
+            <a href="mailto:team.llmshield@gmail.com" className="text-sm text-gray-500 hover:text-accent-teal transition-colors duration-300 mb-4 inline-block">
+              team.llmshield@gmail.com
+            </a>
             <div className="flex space-x-4">
               <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
                 <svg className="h-6 w-6 text-gray-500 hover:text-accent-teal transition-colors duration-300" fill="currentColor" viewBox="0 0 24 24">
@@ -33,26 +36,26 @@ const Footer: React.FC = () => {
           </div>
           
           <div>
-            <h3 className="text-lg font-semibold mb-4">Products</h3>
+            <h3 className="text-lg font-semibold mb-4">Scanners</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/scanners/prompt-injection" className="hover:text-accent-teal transition-colors duration-300">
-                  Prompt Injection Scanner
+                <Link to="/use-cases#prompt-injection" className="hover:text-accent-teal transition-colors duration-300">
+                  Prompt Injection Testing
                 </Link>
               </li>
               <li>
-                <Link to="/scanners/model-poisoning" className="hover:text-accent-teal transition-colors duration-300">
-                  Model Poisoning Scanner
+                <Link to="/use-cases#model-poisoning" className="hover:text-accent-teal transition-colors duration-300">
+                  Model & Dataset Poisoning
                 </Link>
               </li>
               <li>
-                <Link to="/scanners/vector-embedding" className="hover:text-accent-teal transition-colors duration-300">
-                  Vector Embedding Scanner
+                <Link to="/use-cases#vector-security" className="hover:text-accent-teal transition-colors duration-300">
+                  Vector Security
                 </Link>
               </li>
               <li>
-                <Link to="/scanners/code" className="hover:text-accent-teal transition-colors duration-300">
-                  C/C++ Scanner
+                <Link to="/use-cases#code-scanning" className="hover:text-accent-teal transition-colors duration-300">
+                  Code Security Scanning
                 </Link>
               </li>
             </ul>
@@ -72,13 +75,13 @@ const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/careers" className="hover:text-accent-teal transition-colors duration-300">
-                  Careers
+                <Link to="/pricing" className="hover:text-accent-teal transition-colors duration-300">
+                  Pricing
                 </Link>
               </li>
               <li>
-                <Link to="/blog" className="hover:text-accent-teal transition-colors duration-300">
-                  Blog
+                <Link to="/services" className="hover:text-accent-teal transition-colors duration-300">
+                  Services
                 </Link>
               </li>
             </ul>

@@ -23,7 +23,7 @@ const CTA: React.FC = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          Start protecting your LLMs against prompt injection, model poisoning, and embedding risks today.
+          Test and harden your AI applications with prompt injection, model and dataset poisoning, RAG embedding, and code security—all from one dashboard.
         </motion.p>
         
         <motion.div
