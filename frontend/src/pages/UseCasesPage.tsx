@@ -19,12 +19,12 @@ const UseCasesPage: React.FC = () => {
     {
       id: 'model-poisoning',
       title: 'Model & Dataset Poisoning',
-      description: 'Compare safe vs poisoned GGUF models (Llama, Qwen, TinyLlama) and analyze datasets or Hugging Face JSONL for poisoning indicators.',
+      description: 'Scan HuggingFace datasets for data poisoning indicators, backdoors, and anomalies using advanced detection techniques.',
       steps: [
-        { title: 'Add Model Pairs', description: 'Place GGUF safe/poison pairs in CompleteModels/ for model comparison.' },
-        { title: 'Upload Datasets', description: 'Upload text files or Hugging Face JSONL for dataset poisoning analysis.' },
-        { title: 'Run Analysis', description: 'File-level and behavioral tests for Hugging Face models; statistical analysis for datasets.' },
-        { title: 'Review Verdict', description: 'Get scan results with verdict, confidence, and risk assessment.' },
+        { title: 'Provide Dataset Link', description: 'Upload a local dataset file or provide a HuggingFace dataset URL for scanning.' },
+        { title: 'Select Analysis Type', description: 'System automatically detects dataset format and prepares for poisoning analysis.' },
+        { title: 'Run Analysis', description: 'Scan with LLM Shield deep learning and statistical techniques to detect poisoning threats.' },
+        { title: 'Review Verdict', description: 'Get scan results with verdict (Safe/Suspicious/Unsafe), risk score, and suspicious samples identified.' },
       ],
       image: '/images/model-poisoning.svg',
       color: 'from-accent-purple to-pink-500',

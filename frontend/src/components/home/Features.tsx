@@ -14,7 +14,7 @@ const Features: React.FC = () => {
     },
     {
       title: 'Model & Data Poisoning',
-      description: 'Compare safe vs poisoned GGUF models (Llama, Qwen, TinyLlama) and analyze datasets or Hugging Face JSONL for poisoning indicators.',
+      description: 'Scan HuggingFace datasets for poisoning indicators. Provide a dataset link and our trained model analyzes for backdoors, anomalies, and data poisoning threats.',
       icon: <ShieldCheckIcon className="h-8 w-8 text-accent-purple" />,
     },
     {

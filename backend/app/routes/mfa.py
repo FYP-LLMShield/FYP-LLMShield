@@ -258,6 +258,9 @@ async def disable_mfa(
     Disable MFA (requires password + TOTP confirmation). Accepts both Supabase Auth JWT and backend JWT.
     """
     try:
+        import logging
+        _log = logging.getLogger(__name__)
+
         email = current_user.email
         user = await unified_user_service.get_user_by_email(email)
         if not user:
@@ -265,15 +268,23 @@ async def disable_mfa(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
+
         if not user.mfa_enabled:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="MFA is not enabled for this account"
             )
-        
+
+        # Debug logging
+        _log.info(f"MFA disable for user {email}: hashed_password={repr(user.hashed_password)}, has_google_id={bool(getattr(user, 'google_id', None))}")
+
         # Verify password only if user has a password (e.g. email sign-up). Skip for Google/social sign-in.
-        if user.hashed_password:
+        # Check if user has a non-empty password (OAuth users have empty string or None)
+        # Also skip password check for Google OAuth users (they have google_id)
+        is_oauth_user = bool(getattr(user, 'google_id', None))
+        has_password = not is_oauth_user and user.hashed_password and user.hashed_password.strip()
+
+        if has_password:
             if not disable_request.current_password:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

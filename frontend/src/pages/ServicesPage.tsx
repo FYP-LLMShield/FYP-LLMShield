@@ -63,16 +63,16 @@ const ServicesPage: React.FC = React.memo(() => {
       id: 2,
       title: 'Model & Dataset Poisoning',
       category: 'Poisoning Analysis',
-      description: 'Compare safe vs poisoned GGUF models (Llama, Qwen, TinyLlama) and analyze text/file datasets or Hugging Face JSONL for poisoning indicators',
+      description: 'Scan HuggingFace datasets for data poisoning indicators. Upload dataset links and analyze for backdoors, trigger keywords, statistical anomalies, and poisoning threats using advanced detection techniques.',
       icon: <ShieldCheckIcon className="h-8 w-8 text-purple-600" />,
       features: [
-        'GGUF model comparison (safe vs poisoned pairs in CompleteModels/)',
-        'Hugging Face model scan: file-level + behavioral tests',
-        'Dataset poisoning: text/file and Hugging Face JSONL analysis',
-        'Poisoning simulation and attack scenarios'
+        'HuggingFace dataset integration: automatic .jsonl file detection and preview',
+        'LLM Shield deep learning classification (MultiTaskBERT)',
+        'Comprehensive verdicts (Safe/Suspicious/Unsafe) with risk scores and suspicious samples',
+        'Detailed analysis reports with anomaly detection and trigger identification'
       ],
-      useCases: ['Model training', 'Data validation', 'AI pipeline security'],
-      delivery: 'Model poisoning + Data poisoning dashboards + API'
+      useCases: ['Dataset validation', 'Data security', 'Model training safety'],
+      delivery: 'Data poisoning analysis dashboard + REST API endpoints'
     },
     {
       id: 3,
@@ -229,13 +229,11 @@ const ServicesPage: React.FC = React.memo(() => {
             className="max-w-xl mx-auto text-center"
           >
             <h1 className="text-[1.8rem] leading-[1.3] md:text-4xl lg:text-5xl font-bold text-white mb-4 md:mb-6">
-              Unified Threat Detection Platform
+              Unified Threat Detection Framework
             </h1>
-            <h2 className="text-base md:text-lg lg:text-xl text-teal-300 mb-4 md:mb-6 leading-relaxed">
-              Mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems
-            </h2>
+            
             <p className="text-[0.9rem] leading-[1.5] md:text-base text-gray-400 mb-6 md:mb-8">
-              LLMShield helps security teams and developers test and harden AI applications. Detect prompt injection and jailbreaks, analyze vector stores and embeddings for poisoning, scan code for secrets and C/C++ vulnerabilities, and evaluate dataset/model poisoning—all from a single dashboard.
+              LLMShield helps security teams and developers test and harden AI applications. Detect prompt injection and jailbreaks, analyze vector stores and embeddings for poisoning, scan code for secrets and C/C++ vulnerabilities, and evaluate dataset/model poisoning, all from a single dashboard.
             </p>
             
             <div className="cta-buttons flex flex-col md:flex-row gap-3 md:gap-4 w-full md:w-auto justify-center items-center">

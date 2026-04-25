@@ -13,8 +13,8 @@ const Footer: React.FC = () => {
             <p className="mb-4">
               A unified threat detection platform for mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems.
             </p>
-            <a href="mailto:team.llmshield@gmail.com" className="text-sm text-gray-500 hover:text-accent-teal transition-colors duration-300 mb-4 inline-block">
-              team.llmshield@gmail.com
+            <a href="mailto:llmshield.team@gmail.com" className="text-sm text-gray-500 hover:text-accent-teal transition-colors duration-300 mb-4 inline-block">
+              llmshield.team@gmail.com
             </a>
             <div className="flex space-x-4">
               <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">

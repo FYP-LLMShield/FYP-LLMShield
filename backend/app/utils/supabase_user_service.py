@@ -56,13 +56,12 @@ class SupabaseUserService:
             
             # Hash password
             hashed_password = self.hash_password(user_data.password)
-            
+
             # Generate verification token
             import secrets
             verification_token = secrets.token_urlsafe(32)
-            
-            # Payload: only required and simple fields. Let DB set created_at/updated_at and array defaults
-            # (avoids timestamp format issues and TEXT[] vs jsonb for recovery_codes/trusted_devices)
+
+            # Step 1: Insert user with basic fields
             user_dict = {
                 "email": user_data.email,
                 "hashed_password": hashed_password,
@@ -70,30 +69,57 @@ class SupabaseUserService:
                 "name": user_data.name,
                 "is_verified": False,
                 "is_active": True,
-                "verification_token": verification_token,
                 "mfa_enabled": False,
                 "mfa_setup_complete": False,
                 "display_name": "",
                 "current_subscription_tier": "premium",
                 "subscription_status": "active",
             }
-            # Insert into Supabase (DB defaults: created_at, updated_at, recovery_codes, trusted_devices)
+
             result = self.client.table("users").insert(user_dict).execute()
-            
-            if result.data and len(result.data) > 0:
-                user_data_dict = result.data[0]
-                user = self._convert_supabase_to_userindb(user_data_dict)
-                if user:
-                    logger.info(f"User created in Supabase: {user_data.email}")
-                    return user
-            
-            # Insert may have succeeded but returned no rows; try to fetch
-            logger.warning("Supabase insert returned no data; checking if user exists.")
+
+            # Step 2: ALWAYS update verification_token (regardless of INSERT result)
+            logger.info(f"Saving verification token for {user_data.email}")
+            try:
+                update_result = self.client.table("users").update({
+                    "verification_token": verification_token
+                }).eq("email", user_data.email).execute()
+
+                if update_result.data and len(update_result.data) > 0:
+                    logger.info(f"Verification token saved successfully for {user_data.email}")
+                    logger.info(f"Token in database: {update_result.data[0].get('verification_token', 'NOT_FOUND')[:20]}...")
+                else:
+                    logger.warning(f"Token update returned no data for {user_data.email}")
+            except Exception as token_error:
+                logger.error(f"Error saving verification token: {token_error}", exc_info=True)
+
+            # Step 3: Always fetch fresh user from database to ensure token is present
+            logger.info(f"Fetching user from database to verify token: {user_data.email}")
             fetched = await self.get_user_by_email(user_data.email)
             if fetched:
+                logger.info(f"User fetched from database: {user_data.email}")
+                if fetched.verification_token:
+                    logger.info(f"Token confirmed in database: {fetched.verification_token[:20]}...")
+                else:
+                    logger.warning(f"Token NOT found in database for {user_data.email} - this is a problem!")
                 return fetched
+
+            # Final fallback: try to use INSERT result if fetch failed
+            if result.data and len(result.data) > 0:
+                user_data_dict = result.data[0]
+                # Manually set token since it wasn't in INSERT result
+                user_data_dict["verification_token"] = verification_token
+                user = self._convert_supabase_to_userindb(user_data_dict)
+                if user:
+                    logger.info(f"User created from INSERT data: {user_data.email}")
+                    return user
+
+            logger.error(f"Failed to create or fetch user: {user_data.email}")
             return None
-            
+
+        except HTTPException:
+            # HTTP errors should be re-raised without logging as they're validation errors
+            raise
         except Exception as e:
             # Log full error so we can see PostgREST/Supabase message (e.g. column type, RLS)
             err_msg = str(e)
@@ -209,26 +235,39 @@ class SupabaseUserService:
             return None
     
     async def authenticate_user(self, username_or_email: str, password: str) -> Optional[UserInDB]:
-        """Authenticate user with username/email and password"""
+        """Authenticate user with username/email and password
+
+        Returns user if authenticated, None otherwise.
+        Does not raise exceptions - caller should check separately for better error messages.
+        """
         try:
             # Try email first
             user = await self.get_user_by_email(username_or_email)
-            
+
             # If not found, try username
             if not user:
                 user = await self.get_user_by_username(username_or_email)
-            
-            if not user or not user.is_active:
+
+            # User doesn't exist - return None (caller will provide error message)
+            if not user:
+                logger.warning(f"Authentication attempt with non-existent account: {username_or_email}")
                 return None
-            
+
+            # User exists but not active
+            if not user.is_active:
+                logger.warning(f"Authentication attempt on inactive account: {username_or_email}")
+                return None
+
+            # Password mismatch
             if not self.verify_password(password, user.hashed_password):
+                logger.warning(f"Authentication attempt with wrong password: {username_or_email}")
                 return None
-            
+
             # Update last login
             await self.update_user_last_login(user.email)
-            
+
             return user
-            
+
         except Exception as e:
             logger.error(f"Error authenticating user in Supabase: {e}")
             return None
@@ -253,18 +292,38 @@ class SupabaseUserService:
         """Verify user email with token"""
         try:
             if not self.is_available():
+                logger.error("Supabase not available for email verification")
                 return False
-            
+
+            # First, try to find the user with this token
+            logger.info(f"Attempting to verify token (length={len(token)}): {token[:30]}...")
+            search_result = self.client.table("users").select("email,verification_token").eq("verification_token", token).execute()
+            logger.info(f"Search result: found {len(search_result.data) if search_result.data else 0} users with this token")
+
+            if search_result.data:
+                logger.info(f"Found user for verification: {search_result.data[0].get('email')}")
+            else:
+                logger.warning(f"No user found with token: {token[:30]}... (checking database...)")
+                # Check if any tokens exist in the database at all
+                all_tokens = self.client.table("users").select("email,verification_token").limit(5).execute()
+                logger.warning(f"Sample tokens in database: {[{'email': u.get('email'), 'token_present': bool(u.get('verification_token'))} for u in (all_tokens.data or [])]}")
+
             result = self.client.table("users").update({
                 "is_verified": True,
                 "verification_token": None,
                 "updated_at": datetime.utcnow().isoformat()
             }).eq("verification_token", token).execute()
-            
-            return result.data is not None and len(result.data) > 0
-            
+
+            success = result.data is not None and len(result.data) > 0
+            if success:
+                logger.info(f"Email verification successful for: {result.data[0].get('email')}")
+            else:
+                logger.error(f"Email verification failed: UPDATE returned no data for token {token[:30]}...")
+
+            return success
+
         except Exception as e:
-            logger.error(f"Error verifying email in Supabase: {e}")
+            logger.error(f"Error verifying email in Supabase: {e}", exc_info=True)
             return False
     
     async def update_profile(self, email: str, update_data: dict) -> Optional[UserInDB]:
@@ -330,7 +389,9 @@ class SupabaseUserService:
                 payload["profile_picture"] = user_data["profile_picture"]
             if user_data.get("last_login") is not None:
                 payload["last_login"] = user_data["last_login"]
-            # Omit hashed_password for Google users so column stays NULL (some clients reject explicit null)
+
+            # Set hashed_password to empty string for Google users (can't be NULL)
+            payload["hashed_password"] = user_data.get("hashed_password") or ""
 
             result = self.client.table("users").insert(payload).execute()
             

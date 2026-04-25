@@ -27,7 +27,7 @@ const PricingPage: React.FC = () => {
     },
     {
       name: 'Pro',
-      price: '10',
+      price: '5',
       description: 'Enhanced access for teams with model poisoning and vector security',
       features: [
         { name: 'Prompt Injection Testing', included: true, limit: '50/month' },
@@ -46,7 +46,7 @@ const PricingPage: React.FC = () => {
     },
     {
       name: 'Premium',
-      price: '15',
+      price: '10',
       description: 'Full platform access for enterprises and critical AI applications',
       features: [
         { name: 'Prompt Injection Testing', included: true, limit: 'Unlimited' },

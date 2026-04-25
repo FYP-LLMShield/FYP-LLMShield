@@ -33,7 +33,8 @@ const API_URL = 'http://localhost:8000/api/v1';
 
 export const ChatbotPage: React.FC = () => {
   const { user } = useAuth();
-  const token = localStorage.getItem('access_token') || '';
+  // Get token dynamically instead of once on mount to handle post-login scenarios
+  const getToken = () => localStorage.getItem('access_token') || '';
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
@@ -56,6 +57,11 @@ export const ChatbotPage: React.FC = () => {
   const [savedMemories, setSavedMemories] = useState<Array<{type: string; value: string}>>([]);
   const [lastMemorySavedIndex, setLastMemorySavedIndex] = useState<number | null>(null);;
   const lastMessageCountRef = useRef(messages.length);
+  const [uploadingPDF, setUploadingPDF] = useState(false);
+  const [uploadedPDFs, setUploadedPDFs] = useState<any[]>([]);
+  const [showPDFs, setShowPDFs] = useState(false);
+  const [deletingPDF, setDeletingPDF] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -75,7 +81,7 @@ export const ChatbotPage: React.FC = () => {
     try {
       const response = await fetch(`${API_URL}/chatbot/memories`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         }
       });
 
@@ -99,7 +105,7 @@ export const ChatbotPage: React.FC = () => {
       const response = await fetch(`${API_URL}/chatbot/memories/${memoryKey}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         }
       });
 
@@ -109,6 +115,95 @@ export const ChatbotPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to delete memory:', error);
+    }
+  };
+
+  const handlePDFUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    setUploadingPDF(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_URL}/chatbot/upload-pdf`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Upload failed');
+      }
+
+      const result = await response.json();
+      console.log('✅ PDF uploaded successfully:', result);
+
+      // Add to uploaded PDFs list
+      setUploadedPDFs(prev => [...prev, result]);
+      setShowPDFs(true);
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Show success message in chat
+      const successMessage = `✅ PDF "${result.filename}" uploaded successfully!\n📦 ${result.total_chunks} chunks added to knowledge base.\nYou can now ask questions about this PDF!`;
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: successMessage
+      }]);
+    } catch (error) {
+      console.error('Failed to upload PDF:', error);
+      alert(`❌ Upload failed: ${(error as Error).message}`);
+    } finally {
+      setUploadingPDF(false);
+    }
+  };
+
+  const handleDeletePDF = async (pdfId: string, filename: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${filename}"? This will remove all ${uploadedPDFs.find(p => p.pdf_id === pdfId)?.total_chunks || 0} chunks from the knowledge base.`)) {
+      return;
+    }
+
+    setDeletingPDF(pdfId);
+
+    try {
+      const response = await fetch(`${API_URL}/chatbot/delete-pdf/${pdfId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Deletion failed');
+      }
+
+      // Remove from local state
+      setUploadedPDFs(prev => prev.filter(p => p.pdf_id !== pdfId));
+
+      // Show message in chat
+      const deleteMessage = `🗑️ PDF "${filename}" deleted successfully.\n✓ All ${uploadedPDFs.find(p => p.pdf_id === pdfId)?.total_chunks} chunks removed from knowledge base.`;
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: deleteMessage
+      }]);
+
+      console.log('✅ PDF deleted successfully:', filename);
+    } catch (error) {
+      console.error('Failed to delete PDF:', error);
+      alert(`❌ Deletion failed: ${(error as Error).message}`);
+    } finally {
+      setDeletingPDF(null);
     }
   };
 
@@ -155,7 +250,7 @@ export const ChatbotPage: React.FC = () => {
     try {
       const response = await fetch(`${API_URL}/chatbot/conversations`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         }
       });
       if (response.ok) {
@@ -185,7 +280,7 @@ export const ChatbotPage: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         },
         body: JSON.stringify({ title: 'New Chat' })
       });
@@ -212,7 +307,7 @@ export const ChatbotPage: React.FC = () => {
     try {
       const response = await fetch(`${API_URL}/chatbot/conversations/${conversationId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         }
       });
 
@@ -232,7 +327,7 @@ export const ChatbotPage: React.FC = () => {
       const response = await fetch(`${API_URL}/chatbot/conversations/${conversationId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         }
       });
 
@@ -270,7 +365,7 @@ export const ChatbotPage: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`
         },
         body: JSON.stringify({
           message: messageToSend,
@@ -326,7 +421,7 @@ export const ChatbotPage: React.FC = () => {
         await fetch(`${API_URL}/chatbot/conversations/${currentConversationId}/messages?role=user&content=${encodeURIComponent(messageToSend)}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${getToken()}`
           }
         });
 
@@ -334,7 +429,7 @@ export const ChatbotPage: React.FC = () => {
         await fetch(`${API_URL}/chatbot/conversations/${currentConversationId}/messages?role=assistant&content=${encodeURIComponent(data.response)}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${getToken()}`
           }
         });
 
@@ -345,7 +440,7 @@ export const ChatbotPage: React.FC = () => {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${getToken()}`
             },
             body: JSON.stringify({ title })
           });
@@ -357,7 +452,7 @@ export const ChatbotPage: React.FC = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${getToken()}`
           },
           body: JSON.stringify({ title: messageToSend.substring(0, 50) })
         });
@@ -469,6 +564,33 @@ export const ChatbotPage: React.FC = () => {
           </div>
           <div className="flex gap-3">
             <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPDF}
+              className="px-5 py-2.5 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-500 hover:to-orange-600 transition-all duration-200 text-sm font-medium shadow-lg shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed relative"
+            >
+              {uploadingPDF ? '⏳ Uploading...' : '📄 Upload PDF'}
+              {uploadedPDFs.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {uploadedPDFs.length}
+                </span>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              onChange={handlePDFUpload}
+              className="hidden"
+            />
+            {uploadedPDFs.length > 0 && (
+              <button
+                onClick={() => setShowPDFs(!showPDFs)}
+                className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-400 hover:to-amber-500 transition-all duration-200 text-sm font-medium shadow-lg shadow-orange-500/30"
+              >
+                {showPDFs ? '📚 Hide PDFs' : '📚 Uploaded PDFs'}
+              </button>
+            )}
+            <button
               onClick={() => setShowContexts(!showContexts)}
               className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-500 hover:to-blue-600 transition-all duration-200 text-sm font-medium shadow-lg shadow-blue-500/30"
             >
@@ -528,6 +650,45 @@ export const ChatbotPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Uploaded PDFs Display */}
+          {showPDFs && uploadedPDFs.length > 0 && (
+            <div className="mt-6 bg-gradient-to-br from-orange-700/40 to-orange-800/40 border border-orange-600/50 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-bold text-base">📄 Uploaded PDFs ({uploadedPDFs.length})</h3>
+                <p className="text-orange-300 text-xs">
+                  Total: {uploadedPDFs.reduce((sum, pdf) => sum + pdf.total_chunks, 0)} chunks
+                </p>
+              </div>
+              <div className="space-y-3">
+                {uploadedPDFs.map((pdf, idx) => (
+                  <div key={idx} className="bg-orange-800/50 p-4 rounded-lg border border-orange-600/50 hover:border-orange-500/50 transition-all duration-200">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-orange-200 text-sm font-semibold truncate">{pdf.filename}</p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-orange-300 text-xs">
+                            <span className="font-semibold">Chunks:</span> {pdf.total_chunks} 📦
+                          </p>
+                          <p className="text-orange-300 text-xs">
+                            <span className="font-semibold">Pages:</span> {pdf.total_pages} 📄
+                          </p>
+                        </div>
+                        <p className="text-orange-100 text-xs mt-2">✅ Active in knowledge base</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeletePDF(pdf.pdf_id, pdf.filename)}
+                        disabled={deletingPDF === pdf.pdf_id}
+                        className="flex-shrink-0 px-3 py-2 bg-red-600/50 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-red-100 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap"
+                      >
+                        {deletingPDF === pdf.pdf_id ? '⏳...' : '🗑️ Delete'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

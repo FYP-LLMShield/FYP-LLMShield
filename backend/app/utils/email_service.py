@@ -144,20 +144,7 @@ LLMShield Team
             If you didn't create this account, please contact support immediately.
             """
 
-            # Try Supabase first, fallback to SMTP
-            if supabase_service.is_available():
-                try:
-                    success = await supabase_service.send_email(
-                        to_email=email,
-                        subject=subject,
-                        message=message
-                    )
-                    if success:
-                        logger.info(f"Welcome email sent via Supabase to {email}")
-                        return True
-                except Exception as supabase_error:
-                    logger.warning(f"Supabase email failed, falling back to SMTP: {supabase_error}")
-            
+            # Send via SMTP
             return await self._send_email(
                 to_email=email,
                 subject=subject,
@@ -223,22 +210,8 @@ For support, visit: https://llmshield.com/support
             return False
 
     async def _send_email(self, to_email: str, subject: str, message: str) -> bool:
-        """Send email using Supabase or SMTP"""
-        # Try Supabase first if available
-        if supabase_service.is_available():
-            try:
-                success = await supabase_service.send_email(
-                    to_email=to_email,
-                    subject=subject,
-                    message=message
-                )
-                if success:
-                    logger.info(f"Email sent via Supabase to {to_email}")
-                    return True
-            except Exception as supabase_error:
-                logger.warning(f"Supabase email failed, falling back to SMTP: {supabase_error}")
-        
-        # Fallback to SMTP
+        """Send email using SMTP"""
+        # Use SMTP directly (no Supabase tables anymore)
         return self._send_email_smtp(to_email, subject, message)
     
     def _send_email_smtp(self, to_email: str, subject: str, message: str) -> bool:

@@ -22,65 +22,34 @@ class SupabaseService:
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize Supabase client. Monkey-patch Postgrest Client to ignore proxy (Azure env breaks supabase-py)."""
+        """Initialize Supabase client - clear proxy environment first."""
         saved = {}
         try:
             if not settings.SUPABASE_PROJECT_URL or not settings.SUPABASE_SERVICE_KEY:
                 logger.info("Supabase not configured (optional); app will use MongoDB and other backends.")
                 return
 
-            # Clear proxy env so they're not passed; also patch Postgrest Client to drop proxy if still passed
+            # IMPORTANT: Clear proxy env BEFORE any imports to prevent supabase-py from using them
             proxy_keys = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
             saved = {k: os.environ.pop(k, None) for k in proxy_keys}
 
-            # Monkey-patch: supabase-py passes proxy to Client (supabase or postgrest) which may not accept it
             try:
-                import postgrest
-                _orig_postgrest_init = postgrest.Client.__init__
+                from supabase import create_client
 
-                def _patched_postgrest_init(self, *args, **kwargs):
-                    kwargs.pop("proxy", None)
-                    _orig_postgrest_init(self, *args, **kwargs)
-
-                postgrest.Client.__init__ = _patched_postgrest_init
-            except Exception as patch_err:
-                logger.debug("Could not patch postgrest Client: %s", patch_err)
-
-            try:
-                from supabase import Client as SupabaseClient
-                _orig_sb_init = SupabaseClient.__init__
-
-                def _patched_supabase_init(self, *args, **kwargs):
-                    kwargs.pop("proxy", None)
-                    _orig_sb_init(self, *args, **kwargs)
-
-                SupabaseClient.__init__ = _patched_supabase_init
-            except Exception as patch_err:
-                logger.debug("Could not patch supabase Client: %s", patch_err)
-
-            from supabase import create_client
-
-            try:
                 self.client = create_client(
                     settings.SUPABASE_PROJECT_URL,
                     settings.SUPABASE_SERVICE_KEY,
                 )
-            except TypeError as te:
-                if "proxy" in str(te).lower():
-                    try:
-                        self.client = create_client(
-                            settings.SUPABASE_PROJECT_URL,
-                            settings.SUPABASE_SERVICE_KEY,
-                        )
-                    except Exception as e2:
-                        self.client = None
-                        self._init_error = str(e2)
-                        raise
-                else:
-                    self._init_error = str(te)
-                    raise
-            if self.client is not None:
-                logger.info("Supabase client initialized successfully")
+
+                if self.client is not None:
+                    logger.info("Supabase client initialized successfully")
+
+            except Exception as e:
+                self.client = None
+                self._init_error = str(e)
+                logger.error(f"Failed to initialize Supabase client: {e}")
+                raise
+
         except Exception as e:
             if self._init_error is None:
                 self._init_error = str(e)
@@ -175,36 +144,30 @@ class SupabaseService:
             return False
     
     async def verify_email_token(self, email: str, token: str) -> bool:
-        """Verify email verification token stored in Supabase"""
+        """Verify email verification token in users table"""
         try:
             if not self.is_available():
                 return False
-            
-            # Query email_verifications table
-            result = self.client.table("email_verifications").select("*").eq(
+
+            # Query users table for matching email and verification token
+            result = self.client.table("users").select("*").eq(
                 "email", email
-            ).eq("token", token).eq("used", False).execute()
-            
+            ).eq("verification_token", token).execute()
+
             if result.data and len(result.data) > 0:
-                verification = result.data[0]
-                
-                # Check if token is expired
-                from datetime import datetime
-                expires_at = datetime.fromisoformat(verification["expires_at"].replace("Z", "+00:00"))
-                if datetime.now(expires_at.tzinfo) > expires_at:
-                    logger.warning(f"Email verification token expired for {email}")
-                    return False
-                
-                # Mark token as used
-                self.client.table("email_verifications").update({
-                    "used": True,
-                    "verified_at": "now()"
-                }).eq("id", verification["id"]).execute()
-                
+                user = result.data[0]
+
+                # Mark user as verified
+                self.client.table("users").update({
+                    "is_verified": True,
+                    "verification_token": None
+                }).eq("id", user["id"]).execute()
+
+                logger.info(f"Email verified for {email}")
                 return True
-            
+
             return False
-            
+
         except Exception as e:
             logger.error(f"Error verifying email token in Supabase: {e}")
             return False
@@ -215,31 +178,18 @@ class SupabaseService:
         token: str,
         expires_in_minutes: int = 10
     ) -> bool:
-        """Create email verification token in Supabase"""
+        """Create email verification token in users table"""
         try:
             if not self.is_available():
                 return False
-            
-            from datetime import datetime, timedelta
-            
-            expires_at = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
-            
-            verification_data = {
-                "email": email,
-                "token": token,
-                "expires_at": expires_at.isoformat(),
-                "used": False,
-                "created_at": datetime.utcnow().isoformat()
-            }
-            
-            # Delete any existing tokens for this email
-            self.client.table("email_verifications").delete().eq("email", email).execute()
-            
-            # Insert new token
-            result = self.client.table("email_verifications").insert(verification_data).execute()
-            
+
+            # Update users table with verification token
+            result = self.client.table("users").update({
+                "verification_token": token
+            }).eq("email", email).execute()
+
             return result.data is not None and len(result.data) > 0
-            
+
         except Exception as e:
             logger.error(f"Error creating verification token in Supabase: {e}")
             return False

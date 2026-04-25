@@ -8,14 +8,19 @@ class MongoDB:
 mongodb = MongoDB()
 
 async def connect_to_mongo():
-    """Create database connection. Use certifi CA bundle to fix SSL handshake with MongoDB Atlas on Azure."""
+    """Create database connection. Use certifi CA bundle for remote MongoDB Atlas connections."""
     try:
         import certifi
-        # Explicit CA bundle fixes TLSV1_ALERT_INTERNAL_ERROR from Azure App Service to Atlas
-        mongodb.client = AsyncIOMotorClient(
-            settings.MONGODB_URL,
-            tlsCAFile=certifi.where(),
-        )
+        # Only add TLS CA bundle for remote MongoDB (Atlas), not for localhost
+        if "localhost" in settings.MONGODB_URL or "127.0.0.1" in settings.MONGODB_URL:
+            # Local MongoDB - no TLS needed
+            mongodb.client = AsyncIOMotorClient(settings.MONGODB_URL)
+        else:
+            # Remote MongoDB Atlas - use TLS with CA bundle
+            mongodb.client = AsyncIOMotorClient(
+                settings.MONGODB_URL,
+                tlsCAFile=certifi.where(),
+            )
     except ImportError:
         mongodb.client = AsyncIOMotorClient(settings.MONGODB_URL)
     mongodb.database = mongodb.client[settings.DATABASE_NAME]

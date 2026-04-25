@@ -3,7 +3,7 @@ RAG Chatbot API Routes
 Simple chat endpoint using Qdrant + Groq for Q&A with conversation history
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -12,6 +12,8 @@ import logging
 from app.services.chatbot_service import get_chatbot_service
 from app.services.conversation_service import ConversationService
 from app.services.user_memory_service import get_memory_service
+from app.services.pdf_service import PDFService
+from qdrant_client.http import models
 from app.models.conversation import (
     ConversationResponse,
     ConversationListItem,
@@ -158,6 +160,233 @@ async def chat(
     except Exception as e:
         logger.error(f"❌ Chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
+# ==================== PDF Upload Endpoints ====================
+
+@router.post("/upload-pdf")
+async def upload_pdf(
+    file: UploadFile = File(...),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    """
+    Upload a PDF file for RAG processing
+
+    Args:
+        file: PDF file to upload
+        credentials: Optional authentication token
+
+    Returns:
+        Processing results with chunks
+    """
+    try:
+        user_id = get_user_id_from_token(credentials)
+
+        # Validate file type
+        if file.content_type not in ["application/pdf", "application/octet-stream"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Only PDF files are allowed"
+            )
+
+        if not file.filename or not file.filename.endswith('.pdf'):
+            raise HTTPException(
+                status_code=400,
+                detail="File must be a PDF"
+            )
+
+        # Read file content
+        file_content = await file.read()
+        if not file_content:
+            raise HTTPException(
+                status_code=400,
+                detail="File is empty"
+            )
+
+        # Process PDF
+        db = mongodb.database
+        pdf_service = PDFService(db)
+
+        result = await pdf_service.process_pdf(
+            file_content,
+            file.filename,
+            user_id
+        )
+
+        if result["success"]:
+            logger.info(f"✅ PDF uploaded: {file.filename} - {result['total_chunks']} chunks")
+
+            # Now add chunks to Qdrant for RAG
+            try:
+                chatbot = get_chatbot_service(db)
+                added_count = 0
+
+                for chunk in result["chunks"]:
+                    try:
+                        # Create a point in Qdrant with PDF chunk
+                        embedding = chatbot.embed_query(chunk["text"])
+
+                        # Store in Qdrant with metadata
+                        from qdrant_client.http import models
+                        point = models.PointStruct(
+                            id=hash(f"{file.filename}_{chunk['chunk_id']}") % (2**63),
+                            vector=embedding,
+                            payload={
+                                "text": chunk["text"],
+                                "filename": chunk["filename"],
+                                "page": chunk["page"],
+                                "chunk_id": chunk["chunk_id"],
+                                "user_id": user_id,
+                                "source": "pdf"
+                            }
+                        )
+
+                        chatbot.qdrant_client.upsert(
+                            collection_name=chatbot.collection_name,
+                            points=[point]
+                        )
+                        added_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to add chunk to Qdrant: {e}")
+
+                logger.info(f"📦 Added {added_count} chunks to Qdrant")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to add chunks to Qdrant: {e}")
+                # Don't fail the upload if Qdrant fails
+
+            return {
+                "success": True,
+                "message": f"PDF uploaded successfully",
+                "filename": result["filename"],
+                "total_chunks": result["total_chunks"],
+                "total_pages": result["total_pages"],
+                "pdf_id": str(result["metadata"].get("_id", ""))
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to process PDF"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ PDF upload failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"PDF upload failed: {str(e)}")
+
+
+@router.get("/pdfs")
+async def get_user_pdfs(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    """Get all PDFs uploaded by user"""
+    try:
+        user_id = get_user_id_from_token(credentials)
+        db = mongodb.database
+        pdf_service = PDFService(db)
+
+        pdfs = await pdf_service.get_user_pdfs(user_id)
+        logger.info(f"✅ Retrieved {len(pdfs)} PDFs for user {user_id}")
+
+        return {
+            "success": True,
+            "pdfs": pdfs
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get PDFs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/delete-pdf/{pdf_id}")
+async def delete_pdf(
+    pdf_id: str,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    """
+    Delete a PDF and all its chunks from Qdrant
+
+    Args:
+        pdf_id: PDF document ID
+        credentials: Optional authentication token
+
+    Returns:
+        Success message
+    """
+    try:
+        from bson import ObjectId
+
+        user_id = get_user_id_from_token(credentials)
+        db = mongodb.database
+
+        # Convert string ID to ObjectId
+        try:
+            pdf_id_obj = ObjectId(pdf_id)
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid PDF ID format"
+            )
+
+        # Get PDF metadata
+        pdf_metadata = await db["pdf_documents"].find_one({"_id": pdf_id_obj})
+        if not pdf_metadata:
+            raise HTTPException(
+                status_code=404,
+                detail="PDF not found"
+            )
+
+        # Verify ownership
+        if pdf_metadata.get("user_id") != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized - this PDF belongs to another user"
+            )
+
+        filename = pdf_metadata.get("filename", "Unknown")
+        total_chunks = pdf_metadata.get("total_chunks", 0)
+
+        # Delete from Qdrant
+        try:
+            chatbot = get_chatbot_service(db)
+
+            # Delete all chunks belonging to this PDF from Qdrant
+            # We use a filter to delete chunks with matching filename and user_id
+            chatbot.qdrant_client.delete(
+                collection_name=chatbot.collection_name,
+                points_selector=models.HasIdCondition(
+                    has_id=[
+                        hash(f"{filename}_{i}") % (2**63)
+                        for i in range(total_chunks)
+                    ]
+                )
+            )
+            logger.info(f"📦 Deleted {total_chunks} chunks from Qdrant")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to delete chunks from Qdrant: {e}")
+            # Continue with MongoDB deletion even if Qdrant fails
+
+        # Delete from MongoDB
+        result = await db["pdf_documents"].delete_one({"_id": pdf_id_obj})
+
+        if result.deleted_count > 0:
+            logger.info(f"✅ Deleted PDF: {filename} ({total_chunks} chunks)")
+            return {
+                "success": True,
+                "message": f"PDF '{filename}' deleted successfully",
+                "chunks_removed": total_chunks
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to delete PDF from database"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to delete PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"PDF deletion failed: {str(e)}")
 
 
 # ==================== Conversation History Endpoints ====================

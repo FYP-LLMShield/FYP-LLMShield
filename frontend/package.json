@@ -83,8 +83,6 @@
     "legacyPeerDeps": true
   },
   "scripts": {
-    "sync-env": "node scripts/sync-env.js",
-    "prestart": "npm run sync-env",
     "start": "react-app-rewired start",
     "build": "node scripts/ensure-lib-utils.js && node scripts/build.js",
     "test": "react-scripts test",

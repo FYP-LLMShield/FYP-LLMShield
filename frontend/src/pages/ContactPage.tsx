@@ -273,8 +273,8 @@ const ContactPage: React.FC = React.memo(() => {
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-semibold text-teal-600 dark:text-accent-teal mb-1">Email</p>
-                      <a href="mailto:team.llmshield@gmail.com" className="text-gray-900 dark:text-white font-medium hover:text-accent-teal transition-colors">
-                        team.llmshield@gmail.com
+                      <a href="mailto:llmshield.team@gmail.com" className="text-gray-900 dark:text-white font-medium hover:text-accent-teal transition-colors">
+                        llmshield.team@gmail.com
                       </a>
                     </div>
                   </motion.div>

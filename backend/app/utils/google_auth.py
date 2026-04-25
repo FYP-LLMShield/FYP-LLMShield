@@ -348,7 +348,7 @@ class GoogleAuthService:
                 "google_id": google_user.sub,
                 "profile_picture": google_user.picture,
                 "is_verified": True,  # Google accounts are pre-verified
-                "hashed_password": None,  # No password for Google users
+                "hashed_password": "",  # Empty password for Google users (no password login)
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat(),
                 "last_login": datetime.utcnow().isoformat(),

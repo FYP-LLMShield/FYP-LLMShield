@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,8 +6,7 @@ import TOTPInput from '../components/TOTPInput';
 import { authAPI } from '../lib/api';
 import PasswordRequirements from '../components/auth/PasswordRequirements';
 import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
-import { useGoogleSignIn, signInWithGoogleViaSupabase } from '../hooks/useGoogleSignIn';
-import { supabase, isSupabaseAuthAvailable } from '../lib/supabase';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 // Helper to turn unknown error shapes into user-friendly strings
 const formatErrorMessage = (err: any): string => {
@@ -67,158 +66,168 @@ const AuthPage: React.FC = memo(() => {
   const [showMfaVerification, setShowMfaVerification] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [showResendModal, setShowResendModal] = useState(false);
+  const [resendEmail, setResendEmail] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
+  const [resendError, setResendError] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [showResendButton, setShowResendButton] = useState(false);
 
-  // Show overlay when user is logging in / signing up / signing in with Google (until redirect)
-  const authInProgress = (isInitialized && isLoading) || googleAuthLoading || mfaVerifying;
+  // Show overlay when user is logging in / signing up (until redirect)
+  const authInProgress = (isInitialized && isLoading) || mfaVerifying;
 
-  // Google Sign-In: sign-up form = create user if needed; login form = only allow if user exists
-  const { renderGoogleButton, initializeGoogleSignIn, isSupabaseAuthAvailable: supabaseAuthAvailable } = useGoogleSignIn({
-    isSignUp,
-    onAuthStart: () => setGoogleAuthLoading(true),
-    onAuthEnd: () => setGoogleAuthLoading(false),
-    onSuccess: (response) => {
-      setLoginError('');
-      setSignupError('');
-      if (response.access_token) {
+  // Track verification attempts to prevent duplicate API calls
+  const verificationAttemptedRef = useRef(false);
+
+  // Check for OAuth token in URL immediately
+  const hasOAuthToken = typeof window !== 'undefined' &&
+    window.location.hash.includes('id_token');
+
+  // Track OAuth redirect in progress
+  const [oauthRedirecting, setOauthRedirecting] = useState(hasOAuthToken);
+  const handleGoogleSuccess = useCallback(
+    (response: any) => {
+      console.log('Google button/popup response:', JSON.stringify(response, null, 2));
+      // Check if MFA is required
+      if (response.mfa_required) {
+        console.log('MFA verification required for Google sign-in');
+        // Store partial token and show MFA screen
+        localStorage.setItem('partial_token', response.partial_token);
+        setShowMfaVerification(true);
+        setOauthRedirecting(false);
+      } else if (response.access_token) {
+        // Store tokens
         localStorage.setItem('access_token', response.access_token);
-        authAPI.setToken(response.access_token);
-      }
-      if (response.refresh_token) {
-        localStorage.setItem('refresh_token', response.refresh_token);
-      }
-      const userData = {
-        id: response.user?.id ?? null,
-        email: response.user?.email ?? '',
-        name: response.user?.name ?? response.user?.email?.split('@')[0] ?? 'User',
-        plan: 'free',
-        isVerified: response.user?.is_verified ?? true,
-        mfaEnabled: response.user?.mfa_enabled ?? false,
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setGoogleAuthLoading(false);
-      setLoginSuccess(
-        response.is_new_user
-          ? 'Account created successfully. Redirecting to dashboard.'
-          : 'Login successful ... redirecting to dashboard.'
-      );
-      setTimeout(() => navigate('/dashboard'), 1500);
-    },
-    onError: (err) => {
-      setGoogleAuthLoading(false);
-      const msg = err?.message || err?.error || 'Google Sign-In failed. Please try again.';
-      if (isSignUp) setSignupError(msg);
-      else setLoginError(msg);
-    },
-  });
-
-  // Handle Google Sign-In button click: use Supabase OAuth when available, else One Tap
-  const handleGoogleSignIn = useCallback(async () => {
-    if (supabaseAuthAvailable) {
-      setGoogleAuthLoading(true);
-      setLoginError('');
-      setSignupError('');
-      try {
-        const didRedirect = await signInWithGoogleViaSupabase();
-        if (!didRedirect) {
-          setGoogleAuthLoading(false);
-          const msg = 'Google sign-in is not available. Please check configuration.';
-          if (isSignUp) setSignupError(msg);
-          else setLoginError(msg);
+        if (response.refresh_token) {
+          localStorage.setItem('refresh_token', response.refresh_token);
         }
-      } catch (e) {
-        setGoogleAuthLoading(false);
-        const msg = formatErrorMessage(e);
-        if (isSignUp) setSignupError(msg);
-        else setLoginError(msg);
-      }
-      return;
-    }
-    try {
-      console.log('=== Google Sign-In Debug Info ===');
-      console.log('Button clicked!');
-      console.log('Client ID from env:', process.env.REACT_APP_GOOGLE_CLIENT_ID);
-      console.log('window.google available:', !!window.google);
-      console.log('window.google object:', window.google);
 
-      initializeGoogleSignIn();
+        // Store user data
+        const userData = {
+          id: response.user.id,
+          email: response.user.email,
+          name: response.user.name,
+          plan: 'free',
+          isVerified: response.user.is_verified,
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
 
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        console.log('Prompting Google Sign-In');
-        window.google.accounts.id.prompt();
+        // Update auth context
+        setUser(userData);
+        login(response.user.email, '');
+
+        // Redirect
+        setTimeout(() => navigate('/dashboard'), 1500);
       } else {
-        console.error('Google Sign-In not available');
-        setLoginError('Google Sign-In is not available. Please try again later.');
+        setLoginError('Authentication response invalid. Please try again.');
       }
-    } catch (error) {
-      console.error('Google Sign-In error:', error);
+    },
+    [navigate, setUser, login]
+  );
+
+  const handleGoogleError = useCallback((error: any) => {
+    console.error('Google Sign-In error:', error);
+    if (isSignUp) {
+      setSignupError('Google Sign-In failed. Please try again.');
+    } else {
       setLoginError('Google Sign-In failed. Please try again.');
     }
-  }, [initializeGoogleSignIn, supabaseAuthAvailable, isSignUp]);
+  }, [isSignUp]);
 
-  // Render Google's button into containers only when not using Supabase (One Tap path)
-  const renderGoogleSignInButton = useCallback((containerId: string) => {
-    if (supabaseAuthAvailable) return; // Supabase uses a custom "Continue with Google" button
-    const container = document.getElementById(containerId);
-    if (container && window.google) {
-      container.innerHTML = '';
-      renderGoogleButton(container, {
-        theme: 'filled_black',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        width: '100%',
-      });
-    }
-  }, [renderGoogleButton, supabaseAuthAvailable]);
+  const { openGoogleOAuthFlow, isLoading: googleLoading } = useGoogleAuth({
+    onSuccess: handleGoogleSuccess,
+    onError: handleGoogleError,
+  });
 
+
+
+  // Handle OAuth callback with id_token in URL
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isSignUp) {
-        renderGoogleSignInButton('google-signin-signup');
-      } else {
-        renderGoogleSignInButton('google-signin-login');
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [isSignUp, renderGoogleSignInButton]);
+    const handleOAuthCallback = async () => {
+      // Extract id_token from URL hash (from Google OAuth redirect)
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const idToken = params.get('id_token');
 
-  // Handle return from Supabase OAuth (Google): restore session and redirect
-  useEffect(() => {
-    if (!isSupabaseAuthAvailable() || !supabase) return;
-    const checkSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) return;
-      if (session?.access_token) {
-        localStorage.setItem('access_token', session.access_token);
-        if (session.refresh_token) localStorage.setItem('refresh_token', session.refresh_token);
-        authAPI.setToken(session.access_token);
-        const u = session.user;
-        const userData = {
-          id: u?.id ?? null,
-          email: u?.email ?? '',
-          name: (u?.user_metadata?.full_name ?? u?.user_metadata?.name ?? u?.email?.split('@')[0]) ?? 'User',
-          plan: 'free',
-          isVerified: !!u?.email_confirmed_at,
-          mfaEnabled: false,
-        };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setLoginError('');
-        setSignupError('');
-        navigate('/dashboard', { replace: true });
+      if (idToken) {
+        console.log('Found id_token in URL, authenticating...');
+        try {
+          // Send token to backend for verification
+          const response = await authAPI.googleSignIn({ id_token: idToken });
+          console.log('Full Google OAuth response:', JSON.stringify(response, null, 2));
+
+          if (response.success && response.data) {
+            // Check if MFA is required
+            if (response.data.mfa_required) {
+              console.log('MFA verification required for Google OAuth user');
+              // Store partial token and show MFA screen
+              localStorage.setItem('partial_token', response.data.partial_token);
+              setShowMfaVerification(true);
+              setOauthRedirecting(false); // Hide the loading overlay
+              // Clear URL hash
+              window.history.replaceState({}, document.title, '/auth');
+            } else if (response.data.access_token) {
+              console.log('Google Sign-In successful via URL callback');
+
+              // Store tokens
+              localStorage.setItem('access_token', response.data.access_token);
+              if (response.data.refresh_token) {
+                localStorage.setItem('refresh_token', response.data.refresh_token);
+              }
+
+              // Store user data
+              const userData = {
+                id: response.data.user.id,
+                email: response.data.user.email,
+                name: response.data.user.name,
+                plan: 'free',
+                isVerified: response.data.user.is_verified,
+              };
+              localStorage.setItem('user', JSON.stringify(userData));
+
+              // Update API client with token
+              authAPI.setToken(response.data.access_token);
+
+              // Clear URL hash
+              window.history.replaceState({}, document.title, '/auth');
+
+              // Show redirect screen
+              setOauthRedirecting(true);
+
+              // Reload page to reinitialize auth context with stored tokens
+              // This ensures AuthContext picks up the tokens from localStorage
+              console.log('Reloading page with authenticated tokens...');
+              setTimeout(() => {
+                window.location.href = '/dashboard';
+              }, 500);
+            } else {
+              console.error('Unexpected response format:', response.data);
+              setOauthRedirecting(false);
+              setLoginError('Authentication response invalid. Please try again.');
+            }
+          } else {
+            console.error('Google Sign-In failed:', response.error);
+            setOauthRedirecting(false);
+            setLoginError(response.error || 'Google Sign-In failed');
+          }
+        } catch (err: any) {
+          console.error('OAuth callback error:', err);
+          setOauthRedirecting(false);
+          setLoginError('Authentication failed. Please try again.');
+        }
       }
     };
-    checkSession();
+
+    handleOAuthCallback();
   }, [navigate, setUser]);
 
   // Load remembered email if exists, otherwise clear fields
   useEffect(() => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     const wasRemembered = localStorage.getItem('rememberMeChecked') === 'true';
-    
+
     if (rememberedEmail && wasRemembered) {
       setEmail(rememberedEmail);
       setRememberMe(true);
@@ -228,7 +237,7 @@ const AuthPage: React.FC = memo(() => {
       localStorage.removeItem('rememberedEmail');
       localStorage.removeItem('rememberMeChecked');
     }
-    
+
     // Always clear password field
     setPassword('');
   }, []);
@@ -260,7 +269,14 @@ const AuthPage: React.FC = memo(() => {
           setShowMfaVerification(true);
         } else {
           // Store the error message from the backend
-          setLoginError(formatErrorMessage(error));
+          const errorMsg = formatErrorMessage(error);
+          setLoginError(errorMsg);
+
+          // Show resend button if email verification is needed
+          if (errorMsg.toLowerCase().includes('email') || errorMsg.toLowerCase().includes('verified')) {
+            setShowResendButton(true);
+            setResendEmail(email);
+          }
         }
       }
     }
@@ -348,6 +364,65 @@ const AuthPage: React.FC = memo(() => {
     setMfaError('');
   }, []);
 
+  // Handle resend verification email with cooldown
+  const handleResendVerificationEmail = useCallback(async () => {
+    setResendError('');
+    setResendMessage('');
+
+    if (!resendEmail) {
+      setResendError('Please enter your email');
+      return;
+    }
+
+    if (resendCooldown > 0) {
+      setResendError(`Please wait ${resendCooldown} seconds before trying again`);
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBase}/auth/resend-verification-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resendEmail })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResendMessage('Verification email sent! Check your inbox (or spam folder).');
+        setResendEmail('');
+
+        // Start 60-second cooldown
+        setResendCooldown(60);
+        const cooldownInterval = setInterval(() => {
+          setResendCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(cooldownInterval);
+              setShowResendButton(true); // Re-enable after cooldown
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        setTimeout(() => {
+          setShowResendModal(false);
+          setResendMessage('');
+        }, 3000);
+      } else {
+        setResendError(data.detail || 'Failed to resend email');
+      }
+    } catch (error: any) {
+      setResendError(error.message || 'Failed to resend email');
+    } finally {
+      setResendLoading(false);
+    }
+  }, [resendEmail, resendCooldown]);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('signup') === 'true') {
@@ -362,15 +437,32 @@ const AuthPage: React.FC = memo(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
     const verify = params.get('verify');
-    if (verify !== '1' || !token) return;
+
+    // Reset verification attempt flag if token changed (new verification link)
+    if (verify !== '1' || !token) {
+      verificationAttemptedRef.current = false;
+      return;
+    }
+
+    // Prevent duplicate verification attempts (fixes React StrictMode double-call)
+    if (verificationAttemptedRef.current) return;
+
+    // Mark as attempted to prevent duplicate calls
+    verificationAttemptedRef.current = true;
+
     const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
     fetch(`${apiBase}/auth/verify-email/${encodeURIComponent(token)}`, { method: 'POST' })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
+          // Clear error message and show success
+          setLoginError('');
           setLoginSuccess('Email verified. You can now log in.');
           setIsSignUp(false);
-          navigate('/auth', { replace: true });
+          // Wait a moment before navigating to show success message
+          setTimeout(() => {
+            navigate('/auth', { replace: true });
+          }, 1500);
         } else {
           setLoginError(data?.detail || 'Verification failed. The link may have expired.');
           navigate('/auth', { replace: true });
@@ -417,7 +509,7 @@ const AuthPage: React.FC = memo(() => {
   }, [navigate, isSignUp]);
 
   return (
-    <div className="h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className={`h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ${oauthRedirecting ? 'pointer-events-none opacity-50' : ''}`}>
       {/* Logo in upper left corner – match header sizing */}
       <div className="absolute -top-8 left-2 z-10">
         <Link to="/" className="flex items-center ml-0 mt-0">
@@ -504,17 +596,13 @@ const AuthPage: React.FC = memo(() => {
                     </div>
                   </div>
                   <p className="text-white font-medium text-lg">
-                    {googleAuthLoading
-                      ? 'Please wait…'
-                      : mfaVerifying
-                        ? 'Verifying code…'
-                        : isSignUp
-                          ? 'Creating your account…'
-                          : 'Signing you in…'}
+                    {mfaVerifying
+                      ? 'Verifying code…'
+                      : isSignUp
+                        ? 'Creating your account…'
+                        : 'Signing you in…'}
                   </p>
-                  {!googleAuthLoading && (
-                    <p className="text-white/70 text-sm">Taking you to the dashboard</p>
-                  )}
+                  <p className="text-white/70 text-sm">Taking you to the dashboard</p>
                 </div>
               </div>
             )}
@@ -540,9 +628,9 @@ const AuthPage: React.FC = memo(() => {
                           setPassword={setPassword}
                           error={signupError}
                           successMessage={signupSuccess}
-                          handleGoogleSignIn={handleGoogleSignIn}
                           submitting={isInitialized && isLoading}
-                          useSupabaseGoogle={supabaseAuthAvailable}
+                          onGoogleSignIn={openGoogleOAuthFlow}
+                          googleLoading={googleLoading}
                         />
                     ) : showMfaVerification ? (
                       <MfaVerificationForm
@@ -564,10 +652,13 @@ const AuthPage: React.FC = memo(() => {
                         handleLogin={handleLogin}
                         error={loginError}
                         successMessage={loginSuccess}
-                        handleGoogleSignIn={handleGoogleSignIn}
                         setShowForgotPasswordModal={setShowForgotPasswordModal}
+                        setShowResendModal={setShowResendModal}
+                        showResendButton={showResendButton}
+                        resendCooldown={resendCooldown}
                         submitting={isInitialized && isLoading}
-                        useSupabaseGoogle={supabaseAuthAvailable}
+                        onGoogleSignIn={openGoogleOAuthFlow}
+                        googleLoading={googleLoading}
                       />
                     )}
                   </motion.div>
@@ -604,6 +695,111 @@ const AuthPage: React.FC = memo(() => {
         </motion.div>
       </div>
 
+      {/* OAuth Redirect Loading Screen */}
+      {oauthRedirecting && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          style={{ backdropFilter: 'blur(10px)' }}
+        >
+          <div className="bg-gray-800 rounded-2xl p-12 text-center border border-teal-500/30 shadow-2xl">
+            <div className="flex flex-col items-center gap-6">
+              {/* Loading Spinner */}
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 animate-spin auth-loading-spin">
+                  <svg className="w-16 h-16 block" viewBox="0 0 56 56" aria-hidden="true">
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      className="text-white/25"
+                    />
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray="75 150"
+                      transform="rotate(-90 28 28)"
+                      className="text-teal-400"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Text */}
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-white">Redirecting to Dashboard</h3>
+                <p className="text-white/70 text-sm">Finalizing your authentication...</p>
+              </div>
+
+              {/* Progress */}
+              <div className="w-48 h-1 bg-gray-700 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-teal-400 to-teal-600"
+                  initial={{ width: 0 }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 0.5, ease: 'easeInOut' }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resend Verification Email Modal */}
+      {showResendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="relative bg-gray-800 rounded-lg p-6 w-96 border border-gray-700">
+            <h2 className="text-xl font-bold text-white mb-4">Resend Verification Email</h2>
+
+            {resendMessage && (
+              <div className="text-green-500 text-sm bg-green-100/10 p-3 rounded border border-green-500/30 mb-4">
+                {resendMessage}
+              </div>
+            )}
+
+            {resendError && (
+              <div className="text-red-500 text-sm bg-red-100/10 p-3 rounded border border-red-500/30 mb-4">
+                {resendError}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-white mb-2">Email Address</label>
+              <input
+                type="email"
+                value={resendEmail}
+                onChange={(e) => setResendEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-teal-400 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleResendVerificationEmail}
+                disabled={resendLoading || resendCooldown > 0}
+                className="flex-1 py-2 px-4 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 text-white rounded font-medium transition"
+              >
+                {resendLoading ? 'Sending...' : resendCooldown > 0 ? `Wait ${resendCooldown}s` : 'Resend Email'}
+              </button>
+              <button
+                onClick={() => setShowResendModal(false)}
+                className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded font-medium transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Forgot Password Modal: uses login form email so user is not asked to type it again */}
       <ForgotPasswordModal
         isOpen={showForgotPasswordModal}
@@ -628,11 +824,13 @@ interface AuthFormProps {
   handleSignup?: (e: React.FormEvent, name: string, username: string) => void;
   error?: string;
   successMessage?: string;
-  handleGoogleSignIn?: () => void;
   setShowForgotPasswordModal?: (show: boolean) => void;
+  setShowResendModal?: (show: boolean) => void;
+  showResendButton?: boolean;
+  resendCooldown?: number;
   submitting?: boolean;
-  /** When true, show a single "Continue with Google" button (Supabase OAuth) instead of Google widget */
-  useSupabaseGoogle?: boolean;
+  onGoogleSignIn?: () => void;
+  googleLoading?: boolean;
 }
 
 const LoginForm: React.FC<AuthFormProps> = memo(({
@@ -646,10 +844,13 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
   handleLogin = () => {},
   error = '',
   successMessage = '',
-  handleGoogleSignIn,
   setShowForgotPasswordModal,
+  setShowResendModal,
+  showResendButton = false,
+  resendCooldown = 0,
   submitting = false,
-  useSupabaseGoogle = false
+  onGoogleSignIn,
+  googleLoading = false,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   return (
@@ -753,14 +954,31 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
               Remember me
             </label>
           </div>
-          <div className="text-sm">
-            <button 
-              type="button" 
+          <div className="text-sm flex gap-3">
+            <button
+              type="button"
               onClick={() => setShowForgotPasswordModal?.(true)}
               className="text-teal-400 hover:text-teal-300 transition-colors duration-300"
             >
               Forgot password?
             </button>
+            {showResendButton && (
+              <>
+                <span className="text-white/30">•</span>
+                <button
+                  type="button"
+                  onClick={() => setShowResendModal?.(true)}
+                  disabled={resendCooldown > 0}
+                  className={`transition-colors duration-300 ${
+                    resendCooldown > 0
+                      ? 'text-gray-500 cursor-not-allowed'
+                      : 'text-teal-400 hover:text-teal-300'
+                  }`}
+                >
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend email?'}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -794,33 +1012,40 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
 
         <div className="mt-4">
           <div className="relative my-4">
-             <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600" />
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-800 text-white/60">OR</span>
             </div>
           </div>
 
-          <div className="rounded-lg border border-teal-500/60 bg-gray-800/80 p-1 min-h-[48px] flex items-center justify-center">
-            {useSupabaseGoogle ? (
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                className="w-full min-h-[40px] flex items-center justify-center gap-2 rounded-md bg-white text-gray-800 font-medium hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <button
+            type="button"
+            onClick={onGoogleSignIn}
+            disabled={googleLoading || submitting}
+            className="w-full min-h-[44px] flex items-center justify-center gap-3 rounded-md bg-white text-gray-800 font-medium hover:bg-gray-50 transition-all px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {googleLoading ? (
+              <>
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Signing in…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
-              </button>
-            ) : (
-              <div id="google-signin-login" className="w-full min-h-[40px]" />
+                <span>Continue with Google</span>
+              </>
             )}
-          </div>
+          </button>
         </div>
 
         <p className="pt-4 text-center text-sm text-white/60">
@@ -852,9 +1077,9 @@ const SignUpForm = memo(({
   setPassword = () => {},
   error = '',
   successMessage = '',
-  handleGoogleSignIn,
   submitting = false,
-  useSupabaseGoogle = false
+  onGoogleSignIn,
+  googleLoading = false,
 }: AuthFormProps) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -1195,35 +1420,42 @@ const SignUpForm = memo(({
 
         <div className="mt-4">
           <div className="relative my-4">
-             <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-600" />
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-gray-800 text-white/60">OR</span>
             </div>
           </div>
 
-          <div className="rounded-lg border border-teal-500/60 bg-gray-800/80 p-1 min-h-[48px] flex items-center justify-center">
-            {useSupabaseGoogle ? (
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                className="w-full min-h-[40px] flex items-center justify-center gap-2 rounded-md bg-white text-gray-800 font-medium hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <button
+            type="button"
+            onClick={onGoogleSignIn}
+            disabled={googleLoading || submitting}
+            className="w-full min-h-[44px] flex items-center justify-center gap-3 rounded-md bg-white text-gray-800 font-medium hover:bg-gray-50 transition-all px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {googleLoading ? (
+              <>
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Signing up…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Continue with Google
-              </button>
-            ) : (
-              <div id="google-signin-signup" className="w-full min-h-[40px]" />
+                <span>Continue with Google</span>
+              </>
             )}
-          </div>
+          </button>
         </div>
-        
+
         <p className="pt-4 text-center text-sm text-white/60">
           Already have an account?{' '}
           <button
