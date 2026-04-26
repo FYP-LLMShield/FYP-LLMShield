@@ -27,6 +27,7 @@ cryptography>=41.0.0
 PyJWT>=2.10.1
 
 # HTTP & Utilities
+# httpx>=0.28 required: supabase-py/gotrue call Client(proxy=...); httpx<0.26 only has proxies= and fails at import/init
 httpx>=0.28.1
 aiolimiter==1.1.0
 # pydantic-settings pinned to >=2.4.0 (2.1.0 too old for fastapi/langgraph)

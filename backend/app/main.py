@@ -62,7 +62,21 @@ async def lifespan(app: FastAPI):
         if supabase_service.is_available():
             logger.info("✅ Supabase: enabled (users synced to Supabase + MongoDB)")
         else:
-            logger.warning("⚠️ Supabase: disabled (set SUPABASE_PROJECT_URL and SUPABASE_SERVICE_KEY in .env)")
+            configured = bool(settings.SUPABASE_PROJECT_URL and settings.SUPABASE_SERVICE_KEY)
+            init_err = supabase_service.get_init_error()
+            if configured and init_err:
+                logger.warning(
+                    "⚠️ Supabase: URL and service key are set but the client did not initialize (%s). "
+                    "Common fix: upgrade httpx to >=0.28 (e.g. pip install -U 'httpx>=0.28.1') so it accepts the "
+                    "`proxy` argument used by supabase-py / gotrue.",
+                    init_err,
+                )
+            elif not configured:
+                logger.warning(
+                    "⚠️ Supabase: disabled (set SUPABASE_PROJECT_URL and SUPABASE_SERVICE_KEY in .env)"
+                )
+            else:
+                logger.warning("⚠️ Supabase: disabled (client unavailable; check earlier error logs)")
     except Exception as e:
         logger.error(f"⚠️ Supabase: check failed: {e}")
 

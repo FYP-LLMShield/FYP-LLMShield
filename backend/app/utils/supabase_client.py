@@ -47,13 +47,12 @@ class SupabaseService:
             except Exception as e:
                 self.client = None
                 self._init_error = str(e)
-                logger.error(f"Failed to initialize Supabase client: {e}")
-                raise
+                logger.error("Failed to initialize Supabase client: %s", e)
 
         except Exception as e:
             if self._init_error is None:
                 self._init_error = str(e)
-            logger.error(f"Failed to initialize Supabase client: {e}")
+                logger.error("Failed to initialize Supabase client: %s", e)
             self.client = None
         finally:
             for k, v in saved.items():
