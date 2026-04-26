@@ -408,7 +408,7 @@ export function DataPoisoningPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-12">
@@ -422,10 +422,10 @@ export function DataPoisoningPage() {
                   <h1 className="text-5xl font-bold gradient-text-cyber mb-2 animate-pulse-glow" style={{lineHeight: '1.1', paddingBottom: '4px'}}>
                     Data Poisoning Detection
                   </h1>
-                  <p className="text-gray-300 text-base font-semibold">Advanced behavioral analysis for Hugging Face models</p>
+                  <p className="text-slate-600 dark:text-gray-300 text-base font-semibold">Advanced behavioral analysis for Hugging Face models</p>
                 </div>
               </div>
-              <p className="text-gray-400 text-sm ml-0 max-w-2xl">Detect malicious data injection, backdoors, and behavioral manipulations using file safety checks and black-box behavioral tests.</p>
+              <p className="text-slate-600 dark:text-gray-400 text-sm ml-0 max-w-2xl">Detect malicious data injection, backdoors, and behavioral manipulations using file safety checks and black-box behavioral tests.</p>
             </div>
             {scanPhase !== "setup" && (
               <Button

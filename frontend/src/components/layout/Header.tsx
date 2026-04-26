@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTheme } from '../../contexts/ThemeContext';
-import { SunIcon, MoonIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const StickyNavigation: React.FC = () => {
   const location = useLocation();
@@ -67,8 +66,6 @@ const StickyNavigation: React.FC = () => {
 };
 
 const Header: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
-
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -156,22 +153,6 @@ const Header: React.FC = () => {
           >
             Sign Up
           </Link>
-          
-          {/* Divider */}
-          <div className="hidden md:block mx-3 h-6 w-px bg-white/20"></div>
-          
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal"
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? (
-              <MoonIcon className="h-5 w-5 text-accent-blue" />
-            ) : (
-              <SunIcon className="h-5 w-5 text-yellow-500" />
-            )}
-          </button>
 
           {/* Mobile menu button */}
           <button 
@@ -230,23 +211,8 @@ const Header: React.FC = () => {
               Contact Us
             </Link>
             
-            {/* Mobile Auth Buttons with Theme Toggle */}
+            {/* Mobile Auth Buttons */}
             <div className="flex flex-col space-y-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Theme</span>
-                <button
-                  onClick={toggleTheme}
-                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-accent-teal"
-                  aria-label="Toggle theme"
-                >
-                  {theme === 'light' ? (
-                    <MoonIcon className="h-5 w-5 text-accent-blue" />
-                  ) : (
-                    <SunIcon className="h-5 w-5 text-yellow-500" />
-                  )}
-                </button>
-              </div>
-              
               <Link 
                 to="/auth" 
                 className="px-4 py-2 rounded-md border border-accent-teal text-accent-teal hover:bg-accent-teal/10 transition-colors duration-300 text-center"

@@ -196,13 +196,13 @@ export function ModelPoisoningPage() {
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Model Poisoning Detection</h1>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Model Poisoning Detection</h1>
             <p className="text-gray-400">Detect and analyze model poisoning attacks and behavioral anomalies</p>
           </div>
           <div className="flex gap-4">
             <Button
               variant="outline"
-              className="border-gray-700 hover:bg-white/5 text-gray-300"
+              className="border-border hover:bg-muted/60 text-muted-foreground dark:border-gray-700 dark:hover:bg-white/5 dark:text-gray-300"
               onClick={() => setIsConnected(!isConnected)}
             >
               {isConnected ? (

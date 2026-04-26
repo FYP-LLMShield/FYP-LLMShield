@@ -3,6 +3,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeDocumentSync } from './components/theme-document-sync';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -48,15 +49,15 @@ function App() {
 
   // Optimized loading component for Suspense fallback
   const LoadingSpinner = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex items-center justify-center animated-gradient">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-200 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 flex items-center justify-center animated-gradient">
       <div className="flex flex-col items-center space-y-6">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-teal-500/30 border-t-teal-400 rounded-full animate-spin shadow-lg"></div>
           <div className="absolute inset-0 w-16 h-16 border-4 border-purple-500/20 border-b-purple-400 rounded-full animate-spin animation-delay-150"></div>
         </div>
         <div className="text-center">
-          <p className="text-white text-lg font-semibold mb-2">Loading Dashboard...</p>
-          <div className="w-32 h-1 bg-slate-700 rounded-full overflow-hidden">
+          <p className="text-slate-800 dark:text-white text-lg font-semibold mb-2">Loading Dashboard...</p>
+          <div className="w-32 h-1 bg-slate-300 dark:bg-slate-700 rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-teal-400 to-purple-500 rounded-full animate-pulse"></div>
           </div>
         </div>
@@ -69,6 +70,7 @@ function App() {
 
     return (
       <>
+        <ThemeDocumentSync />
         {showChatbot && (
           <Suspense fallback={null}>
             <Chatbot />

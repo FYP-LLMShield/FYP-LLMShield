@@ -96,18 +96,18 @@ export default function SplitChatView({
   }
 
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#1d2736' }}>
+    <div className="h-screen flex flex-col bg-background text-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-4 border-b border-border bg-muted/50 dark:bg-black/20 backdrop-blur-sm">
         <Button
           onClick={onBack}
           variant="ghost"
-          className="text-gray-300 hover:text-white"
+          className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Models
         </Button>
-        <h2 className="text-lg font-semibold text-white flex-1 text-center">{modelName} Comparison</h2>
+        <h2 className="text-lg font-semibold flex-1 text-center">{modelName} Comparison</h2>
         <div className="w-32" /> {/* Spacer for alignment */}
       </div>
 

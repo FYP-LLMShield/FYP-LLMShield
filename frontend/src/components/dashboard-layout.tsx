@@ -13,10 +13,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
 
   return (
-    <div className="min-h-screen relative" style={{backgroundColor: '#1d2736'}}>
+    <div className="min-h-screen relative bg-background text-foreground">
       {/* Background effects with performance optimization - subtly toned down for consistency */}
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_60%)] will-change-auto" />
-      <div className="fixed inset-0 opacity-[0.01] bg-[url('data:image/svg+xml,%3Csvg width=60 height=60 viewBox=0 0 60 60 xmlns=http://www.w3.org/2000/svg%3E%3Cg fill=none fillRule=evenodd%3E%3Cg fill=%23ffffff fillOpacity=1%3E%3Ccircle cx=7 cy=7 r=1/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] will-change-auto" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.12),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_60%)] will-change-auto pointer-events-none" />
+      <div className="fixed inset-0 opacity-[0.04] bg-[url('data:image/svg+xml,%3Csvg width=60 height=60 viewBox=0 0 60 60 xmlns=http://www.w3.org/2000/svg%3E%3Cg fill=none fillRule=evenodd%3E%3Cg fill=%230f172a fillOpacity=1%3E%3Ccircle cx=7 cy=7 r=1/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] will-change-auto pointer-events-none dark:hidden" />
+      <div className="fixed inset-0 hidden dark:block opacity-[0.01] bg-[url('data:image/svg+xml,%3Csvg width=60 height=60 viewBox=0 0 60 60 xmlns=http://www.w3.org/2000/svg%3E%3Cg fill=none fillRule=evenodd%3E%3Cg fill=%23ffffff fillOpacity=1%3E%3Ccircle cx=7 cy=7 r=1/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] will-change-auto pointer-events-none" />
 
       {/* Layout structure with sidebar, topbar, and chat panel */}
       <div className="relative z-10 flex min-h-screen">
@@ -27,12 +28,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <div className="flex-1 flex" style={{ minHeight: 0, height: '100%', overflow: 'hidden' }}>
             <main 
-              className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 smooth-scroll scroll-container" 
+              className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 smooth-scroll scroll-container bg-background relative z-[1] touch-pan-y"
               style={{
-                backgroundColor: '#1d2736',
-                position: 'relative',
-                zIndex: 1,
-                touchAction: 'pan-y',
                 WebkitOverflowScrolling: 'touch'
               }}
             >

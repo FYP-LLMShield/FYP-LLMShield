@@ -32,32 +32,19 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <div
-      className={`bg-white/10 backdrop-blur-md border-r border-white/20 transition-all duration-300 ${
+      className={`bg-slate-100/90 dark:bg-white/10 backdrop-blur-md border-r border-slate-200/90 dark:border-white/20 transition-all duration-300 ${
         collapsed ? "w-16" : "w-64"
-      } flex flex-col relative overflow-hidden`}
-      style={{
-        background: `linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)`,
-        boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.1)`,
-      }}
+      } flex flex-col relative overflow-hidden shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] dark:[box-shadow:0_8px_32px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(255,255,255,0.1)]`}
     >
-      {/* Enhanced glow overlay */}
-      <div 
-        className="absolute inset-0 opacity-20"
-        style={{
-          background: `radial-gradient(circle at 0% 50%, rgba(59,130,246,0.2), transparent 70%)`
-        }}
+      <div
+        className="absolute inset-0 opacity-30 dark:opacity-20 bg-[radial-gradient(circle_at_0%_50%,rgba(59,130,246,0.18),transparent_70%)] dark:bg-[radial-gradient(circle_at_0%_50%,rgba(59,130,246,0.2),transparent_70%)]"
       />
       
       {/* Header with toggle */}
-      <div className="p-3 border-b border-white/20 relative z-10">
+      <div className="p-3 border-b border-slate-200/90 dark:border-white/20 relative z-10">
         <div className="flex items-center justify-between">
           {!collapsed && (
-            <h2 
-              className="text-white font-bold text-base drop-shadow-lg"
-              style={{
-                textShadow: `0 0 10px rgba(59,130,246,0.5)`
-              }}
-            >
+            <h2 className="text-slate-900 dark:text-white font-bold text-base drop-shadow-sm dark:drop-shadow-lg">
               Security Center
             </h2>
           )}
@@ -65,10 +52,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             variant="ghost"
             size="sm"
             onClick={onToggle}
-            className="text-gray-300 hover:text-white hover:bg-blue-500/30 transition-all duration-200 hover:shadow-lg p-1.5"
-            style={{
-              boxShadow: `0 0 15px rgba(59,130,246,0.3)`
-            }}
+            className="text-slate-600 hover:text-slate-900 hover:bg-blue-500/15 dark:text-gray-300 dark:hover:text-white dark:hover:bg-blue-500/30 transition-all duration-200 p-1.5 dark:hover:shadow-lg"
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>
@@ -77,22 +61,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* User Avatar Section */}
       {!collapsed && (
-        <div className="p-3 border-b border-white/20 relative z-10">
+        <div className="p-3 border-b border-slate-200/90 dark:border-white/20 relative z-10">
           <div className="flex items-center space-x-2">
-            <div 
-              className="relative"
-              style={{
-                filter: `drop-shadow(0 0 10px rgba(59,130,246,0.4))`
-              }}
-            >
-              <Avatar className="h-8 w-8 border-2 border-blue-400/50">
+            <div className="relative dark:[filter:drop-shadow(0_0_10px_rgba(59,130,246,0.4))]">
+              <Avatar className="h-8 w-8 border-2 border-blue-400/60 dark:border-blue-400/50">
                 <AvatarImage src="/security-admin-avatar.png" alt="Security Admin" />
-                <AvatarFallback className="bg-blue-500/20 text-white text-xs">SA</AvatarFallback>
+                <AvatarFallback className="bg-blue-500/20 text-slate-800 dark:text-white text-xs">SA</AvatarFallback>
               </Avatar>
             </div>
             <div>
-              <p className="text-white font-medium text-sm drop-shadow-lg">Security Admin</p>
-              <p className="text-gray-300 text-xs">admin@company.com</p>
+              <p className="text-slate-900 dark:text-white font-medium text-sm">Security Admin</p>
+              <p className="text-slate-600 dark:text-gray-300 text-xs">admin@company.com</p>
             </div>
           </div>
         </div>
@@ -110,8 +89,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 <div
                   className={`flex items-center space-x-2 px-2 py-2 rounded-lg transition-all duration-300 group hover:scale-105 ${
                     isActive
-                      ? "bg-white/20 text-white shadow-lg"
-                      : "text-gray-300 hover:text-white hover:bg-white/10"
+                      ? "bg-slate-200/90 text-slate-900 shadow-md dark:bg-white/20 dark:text-white dark:shadow-lg"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 dark:text-gray-300 dark:hover:text-white dark:hover:bg-white/10"
                   }`}
                   style={{
                     background: isActive 

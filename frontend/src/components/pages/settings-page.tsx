@@ -127,11 +127,11 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 min-h-screen" style={{backgroundColor: '#1d2736'}}>
+    <div className="p-6 space-y-6 min-h-screen bg-background text-foreground">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Settings</h1>
-          <p className="text-gray-400 mt-2">Configure your security dashboard preferences and system settings</p>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground mt-2">Configure your security dashboard preferences and system settings</p>
         </div>
         <div className="flex items-center space-x-2">
           <Settings className="w-8 h-8 text-blue-400" />
@@ -139,7 +139,7 @@ export function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+        <TabsList className="grid w-full grid-cols-6 bg-muted/70 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
           <TabsTrigger value="user" className="data-[state=active]:bg-blue-600">
             <User className="w-4 h-4 mr-2" />
             Profile
@@ -168,9 +168,9 @@ export function SettingsPage() {
 
         <TabsContent value="user" className="space-y-6">
           {/* Profile Photo Selection */}
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Profile Photo</CardTitle>
+              <CardTitle className="text-foreground">Profile Photo</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
@@ -188,31 +188,31 @@ export function SettingsPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-gray-400 text-sm mt-4">Selected: {avatarOptions.find(a => a.id === selectedAvatar)?.name}</p>
+              <p className="text-muted-foreground text-sm mt-4">Selected: {avatarOptions.find(a => a.id === selectedAvatar)?.name}</p>
             </CardContent>
           </Card>
 
           {/* User Profile Information */}
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Profile Information</CardTitle>
+              <CardTitle className="text-foreground">Profile Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-gray-300">Display Name</Label>
+                  <Label className="text-muted-foreground">Display Name</Label>
                   <Input
                     value={settings.displayName}
                     onChange={(e) => updateSetting("displayName", e.target.value)}
-                    className="bg-white/5 border-white/10 text-white"
+                    className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-300">Email</Label>
+                  <Label className="text-muted-foreground">Email</Label>
                   <Input
                     value={settings.email}
                     onChange={(e) => updateSetting("email", e.target.value)}
-                    className="bg-white/5 border-white/10 text-white"
+                    className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                   />
                 </div>
               </div>
@@ -220,39 +220,39 @@ export function SettingsPage() {
           </Card>
 
           {/* Password Change */}
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Change Password</CardTitle>
+              <CardTitle className="text-foreground">Change Password</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-gray-300">Current Password</Label>
+                <Label className="text-muted-foreground">Current Password</Label>
                 <Input
                   type="password"
                   value={settings.password}
                   onChange={(e) => updateSetting("password", e.target.value)}
-                  className="bg-white/5 border-white/10 text-white"
+                  className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                   placeholder="Enter current password"
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-gray-300">New Password</Label>
+                  <Label className="text-muted-foreground">New Password</Label>
                   <Input
                     type="password"
                     value={settings.newPassword}
                     onChange={(e) => updateSetting("newPassword", e.target.value)}
-                    className="bg-white/5 border-white/10 text-white"
+                    className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                     placeholder="Enter new password"
                   />
                 </div>
                 <div>
-                  <Label className="text-gray-300">Confirm New Password</Label>
+                  <Label className="text-muted-foreground">Confirm New Password</Label>
                   <Input
                     type="password"
                     value={settings.confirmPassword}
                     onChange={(e) => updateSetting("confirmPassword", e.target.value)}
-                    className="bg-white/5 border-white/10 text-white"
+                    className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                     placeholder="Confirm new password"
                   />
                 </div>
@@ -265,10 +265,10 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="plans" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Subscription Plans</CardTitle>
-              <p className="text-gray-400">Choose the plan that best fits your needs</p>
+              <CardTitle className="text-foreground">Subscription Plans</CardTitle>
+              <p className="text-muted-foreground">Choose the plan that best fits your needs</p>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -290,7 +290,7 @@ export function SettingsPage() {
                     )}
                     
                     <div className="text-center mb-4">
-                      <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
+                      <h3 className="text-xl font-bold text-foreground mb-2">{plan.name}</h3>
                       <div className={`text-3xl font-bold bg-gradient-to-r ${plan.color} bg-clip-text text-transparent`}>
                         {plan.price}
                       </div>
@@ -298,7 +298,7 @@ export function SettingsPage() {
                     
                     <ul className="space-y-3 mb-6">
                       {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-center text-gray-300">
+                        <li key={index} className="flex items-center text-muted-foreground">
                           <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mr-3"></div>
                           {feature}
                         </li>
@@ -324,13 +324,13 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Security Configuration</CardTitle>
+              <CardTitle className="text-foreground">Security Configuration</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                <Label className="text-gray-300">Multi-Factor Authentication</Label>
+                <Label className="text-muted-foreground">Multi-Factor Authentication</Label>
                 <Switch
                   checked={settings.mfaEnabled}
                   onCheckedChange={(checked) => updateSetting("mfaEnabled", checked)}
@@ -340,26 +340,26 @@ export function SettingsPage() {
           </Card>
 
           {/* Two-Factor Authentication Setup */}
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-foreground flex items-center gap-2">
                 <Shield className="w-5 h-5" />
                 Two-Factor Authentication
               </CardTitle>
-              <p className="text-gray-400">Add an extra layer of security to your account</p>
+              <p className="text-muted-foreground">Add an extra layer of security to your account</p>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${mfaStatus?.enabled ? 'bg-green-500' : 'bg-gray-500'}`}></div>
                   <div>
-                    <h4 className="text-white font-medium">Two-Factor Authentication</h4>
-                    <p className="text-gray-400 text-sm">
+                    <h4 className="text-foreground font-medium">Two-Factor Authentication</h4>
+                    <p className="text-muted-foreground text-sm">
                       {mfaStatus?.enabled ? 'Active - Your account is protected' : 'Disabled - Enable for better security'}
                     </p>
                   </div>
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-muted-foreground">
                   {mfaStatus?.enabled ? 'Active' : 'Inactive'}
                 </div>
               </div>
@@ -374,14 +374,14 @@ export function SettingsPage() {
                     <Button 
                       onClick={() => navigate('/dashboard/mfa')}
                       variant="outline" 
-                      className="border-white/20 text-white hover:bg-white/10"
+                      className="border-border text-foreground hover:bg-muted/60 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
                     >
                       Manage MFA
                     </Button>
                     <Button 
                       onClick={() => navigate('/dashboard/mfa')}
                       variant="outline" 
-                      className="border-white/20 text-white hover:bg-white/10"
+                      className="border-border text-foreground hover:bg-muted/60 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
                     >
                       View Recovery Codes
                     </Button>
@@ -402,7 +402,7 @@ export function SettingsPage() {
                     <AlertTriangle className="w-4 h-4" />
                     <span className="text-sm font-medium">Enable 2FA for Enhanced Security</span>
                   </div>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-muted-foreground text-sm">
                     Protect your account with an additional security layer using your mobile device.
                   </p>
                   <Button 
@@ -418,16 +418,16 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Notification Preferences</CardTitle>
+              <CardTitle className="text-foreground">Notification Preferences</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-gray-300">Email Alerts</Label>
-                    <p className="text-sm text-gray-400">Receive security alerts via email</p>
+                    <Label className="text-muted-foreground">Email Alerts</Label>
+                    <p className="text-sm text-muted-foreground">Receive security alerts via email</p>
                   </div>
                   <Switch
                     checked={settings.emailAlerts}
@@ -436,8 +436,8 @@ export function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-gray-300">Slack Notifications</Label>
-                    <p className="text-sm text-gray-400">Send notifications to Slack channels</p>
+                    <Label className="text-muted-foreground">Slack Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Send notifications to Slack channels</p>
                   </div>
                   <Switch
                     checked={settings.slackNotifications}
@@ -446,8 +446,8 @@ export function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-gray-300">Critical Alerts</Label>
-                    <p className="text-sm text-gray-400">Immediate notifications for critical issues</p>
+                    <Label className="text-muted-foreground">Critical Alerts</Label>
+                    <p className="text-sm text-muted-foreground">Immediate notifications for critical issues</p>
                   </div>
                   <Switch
                     checked={settings.criticalAlerts}
@@ -456,8 +456,8 @@ export function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-gray-300">Weekly Reports</Label>
-                    <p className="text-sm text-gray-400">Receive weekly security summary reports</p>
+                    <Label className="text-muted-foreground">Weekly Reports</Label>
+                    <p className="text-sm text-muted-foreground">Receive weekly security summary reports</p>
                   </div>
                   <Switch
                     checked={settings.weeklyReports}
@@ -470,15 +470,15 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="scanning" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Scanning Configuration</CardTitle>
+              <CardTitle className="text-foreground">Scanning Configuration</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-gray-300">Default Scan Timeout (seconds)</Label>
+                    <Label className="text-muted-foreground">Default Scan Timeout (seconds)</Label>
                     <Input
                       type="number"
                       value={settings.defaultScanTimeout}
@@ -486,31 +486,31 @@ export function SettingsPage() {
                         const value = parseInt(e.target.value) || 300
                         updateSetting("defaultScanTimeout", value)
                       }}
-                      className="bg-white/5 border-white/10 text-white"
+                      className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-300">Max Concurrent Scans</Label>
+                    <Label className="text-muted-foreground">Max Concurrent Scans</Label>
                     <Input
                       type="number"
                       value={settings.maxConcurrentScans}
                       onChange={(e) => updateSetting("maxConcurrentScans", Number.parseInt(e.target.value))}
-                      className="bg-white/5 border-white/10 text-white"
+                      className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                     />
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-gray-300">Data Retention (days)</Label>
+                    <Label className="text-muted-foreground">Data Retention (days)</Label>
                     <Input
                       type="number"
                       value={settings.retentionDays}
                       onChange={(e) => updateSetting("retentionDays", Number.parseInt(e.target.value))}
-                      className="bg-white/5 border-white/10 text-white"
+                      className="bg-muted/50 border-border text-foreground dark:bg-white/5 dark:border-white/10 dark:text-white"
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-gray-300">Auto-Scan Enabled</Label>
+                    <Label className="text-muted-foreground">Auto-Scan Enabled</Label>
                     <Switch
                       checked={settings.autoScanEnabled}
                       onCheckedChange={(checked) => updateSetting("autoScanEnabled", checked)}
@@ -523,14 +523,14 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="thresholds" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+          <Card className="bg-card/95 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-border dark:border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">Detection Thresholds</CardTitle>
+              <CardTitle className="text-foreground">Detection Thresholds</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-6">
                 <div>
-                  <Label className="text-gray-300">
+                  <Label className="text-muted-foreground">
                     Prompt Injection Threshold: {settings.promptInjectionThreshold}%
                   </Label>
                   <Slider
@@ -540,10 +540,10 @@ export function SettingsPage() {
                     step={5}
                     className="mt-2"
                   />
-                  <p className="text-sm text-gray-400 mt-1">Sensitivity for detecting prompt injection attacks</p>
+                  <p className="text-sm text-muted-foreground mt-1">Sensitivity for detecting prompt injection attacks</p>
                 </div>
                 <div>
-                  <Label className="text-gray-300">Anomaly Detection Threshold: {settings.anomalyThreshold}%</Label>
+                  <Label className="text-muted-foreground">Anomaly Detection Threshold: {settings.anomalyThreshold}%</Label>
                   <Slider
                     value={[settings.anomalyThreshold]}
                     onValueChange={(value) => updateSetting("anomalyThreshold", value[0])}
@@ -551,10 +551,10 @@ export function SettingsPage() {
                     step={5}
                     className="mt-2"
                   />
-                  <p className="text-sm text-gray-400 mt-1">Threshold for flagging behavioral anomalies</p>
+                  <p className="text-sm text-muted-foreground mt-1">Threshold for flagging behavioral anomalies</p>
                 </div>
                 <div>
-                  <Label className="text-gray-300">Risk Score Threshold: {settings.riskScoreThreshold}%</Label>
+                  <Label className="text-muted-foreground">Risk Score Threshold: {settings.riskScoreThreshold}%</Label>
                   <Slider
                     value={[settings.riskScoreThreshold]}
                     onValueChange={(value) => updateSetting("riskScoreThreshold", value[0])}
@@ -562,7 +562,7 @@ export function SettingsPage() {
                     step={5}
                     className="mt-2"
                   />
-                  <p className="text-sm text-gray-400 mt-1">Overall risk score threshold for alerts</p>
+                  <p className="text-sm text-muted-foreground mt-1">Overall risk score threshold for alerts</p>
                 </div>
               </div>
             </CardContent>

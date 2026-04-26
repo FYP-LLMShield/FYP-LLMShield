@@ -238,11 +238,11 @@ export function HistoryPage() {
   })
 
   return (
-    <div className="p-6 space-y-6 min-h-screen" style={{backgroundColor: '#1d2736'}}>
+    <div className="p-6 space-y-6 min-h-screen bg-background text-foreground">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Security History</h1>
-          <p className="text-gray-400 mt-2">Audit trail and activity logs for all security operations</p>
+          <h1 className="text-3xl font-bold">Security History</h1>
+          <p className="text-muted-foreground mt-2">Audit trail and activity logs for all security operations</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -260,18 +260,18 @@ export function HistoryPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Total Scans</p>
-                <p className="text-2xl font-bold text-white">{total}</p>
+                <p className="text-2xl font-bold text-foreground">{total}</p>
               </div>
               <Search className="w-8 h-8 text-blue-400" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -284,7 +284,7 @@ export function HistoryPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -297,7 +297,7 @@ export function HistoryPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -313,7 +313,7 @@ export function HistoryPage() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-gray-800/50 border-gray-700">
+      <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -323,12 +323,12 @@ export function HistoryPage() {
                   placeholder="Search history..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700/50 border-gray-600 text-white placeholder-gray-400"
+                  className="pl-10 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground dark:bg-gray-700/50 dark:border-gray-600 dark:text-white"
                 />
               </div>
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-full md:w-48 bg-gray-700/50 border-gray-600 text-white">
+              <SelectTrigger className="w-full md:w-48 bg-muted/50 border-border dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
@@ -339,7 +339,7 @@ export function HistoryPage() {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full md:w-48 bg-gray-700/50 border-gray-600 text-white">
+              <SelectTrigger className="w-full md:w-48 bg-muted/50 border-border dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
@@ -367,7 +367,7 @@ export function HistoryPage() {
 
       {/* Loading State */}
       {isLoading && (
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardContent className="p-8">
             <div className="flex items-center justify-center space-x-2 text-gray-400">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -379,9 +379,9 @@ export function HistoryPage() {
 
       {/* History Timeline */}
       {!isLoading && !error && (
-        <Card className="bg-gray-800/50 border-gray-700">
+        <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="text-white flex items-center space-x-2">
+            <CardTitle className="text-foreground flex items-center space-x-2">
               <Clock className="w-5 h-5" />
               <span>Recent Activity</span>
             </CardTitle>
@@ -402,7 +402,7 @@ export function HistoryPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-white font-medium">{event.title}</h3>
+                        <h3 className="text-foreground font-medium">{event.title}</h3>
                         <div className="flex items-center space-x-2">
                           {getStatusIcon(event.status)}
                           <span className="text-sm text-gray-400">
@@ -410,7 +410,7 @@ export function HistoryPage() {
                           </span>
                         </div>
                       </div>
-                      <p className="text-gray-300 mt-1">{event.description}</p>
+                      <p className="text-muted-foreground mt-1">{event.description}</p>
                       <div className="flex items-center space-x-4 mt-2">
                         <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
                           {event.module}

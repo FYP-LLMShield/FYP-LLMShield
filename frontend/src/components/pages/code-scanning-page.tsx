@@ -352,14 +352,14 @@ export function CodeScanningPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{backgroundColor: '#1d2736'}}>
+    <div className="min-h-screen p-6 bg-background text-foreground">
       {/* Cache Stats Dialog */}
       <Dialog open={showCacheDialog} onOpenChange={setShowCacheDialog}>
-        <DialogContent className="bg-gray-900 border border-blue-500/30">
+        <DialogContent className="bg-background dark:bg-gray-900 border border-border dark:border-blue-500/30">
           <DialogHeader>
-            <DialogTitle className="text-white">Cache Statistics</DialogTitle>
+            <DialogTitle>Cache Statistics</DialogTitle>
           </DialogHeader>
-          <div className="text-gray-200">
+          <div className="text-foreground dark:text-gray-200">
             {cacheStats ? (
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -402,7 +402,7 @@ export function CodeScanningPage() {
               <Code2 className="w-12 h-12 text-blue-400" />
               C/C++ Code Scanning
             </h1>
-            <p className="text-gray-300 text-lg">Advanced static analysis with vulnerability detection</p>
+            <p className="text-muted-foreground text-lg">Advanced static analysis with vulnerability detection</p>
           </div>
           {scanPhase !== "setup" && (
             <Button
@@ -431,31 +431,31 @@ export function CodeScanningPage() {
               <div className="xl:col-span-3">
                 <Card className="glass-card border-purple-500/30 shadow-purple-500/20 h-full">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-white text-xl flex items-center gap-3">
+                    <CardTitle className="text-foreground text-xl flex items-center gap-3">
                       <Target className="w-5 h-5 text-purple-400" />
                       Input Method Selection
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Tabs value={inputMethod} onValueChange={(value) => setInputMethod(value as InputMethod)}>
-                      <TabsList className="grid w-full grid-cols-3 bg-white/5 backdrop-blur-md border border-white/10 mb-4">
+                      <TabsList className="grid w-full grid-cols-3 bg-muted/60 dark:bg-white/5 backdrop-blur-md border border-border dark:border-white/10 mb-4">
                         <TabsTrigger
                           value="code"
-                          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/30 data-[state=active]:to-blue-600/20 data-[state=active]:text-white transition-all duration-300"
+                          className="text-slate-700 dark:text-gray-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/30 data-[state=active]:to-blue-600/20 data-[state=active]:text-white transition-all duration-300"
                         >
                           <FileText className="w-4 h-4 mr-2" />
                           Enter Code
                         </TabsTrigger>
                         <TabsTrigger
                           value="file"
-                          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/30 data-[state=active]:to-blue-600/20 data-[state=active]:text-white transition-all duration-300"
+                          className="text-slate-700 dark:text-gray-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/30 data-[state=active]:to-blue-600/20 data-[state=active]:text-white transition-all duration-300"
                         >
                           <Upload className="w-4 h-4 mr-2" />
                           Upload File
                         </TabsTrigger>
                         <TabsTrigger
                           value="github"
-                          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/30 data-[state=active]:to-blue-600/20 data-[state=active]:text-white transition-all duration-300"
+                          className="text-slate-700 dark:text-gray-400 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/30 data-[state=active]:to-blue-600/20 data-[state=active]:text-white transition-all duration-300"
                         >
                           <Github className="w-4 h-4 mr-2" />
                           Github Repo Link
@@ -463,19 +463,19 @@ export function CodeScanningPage() {
                       </TabsList>
 
                       <TabsContent value="code" className="animate-fadeIn">
-                        <Label className="text-gray-300 text-base mb-2 block">C/C++ Source Code</Label>
+                        <Label className="text-muted-foreground text-base mb-2 block">C/C++ Source Code</Label>
                         <Textarea
                           value={codeInput}
                           onChange={(e) => setCodeInput(e.target.value)}
                           placeholder="Enter your C/C++ code to analyze for vulnerabilities..."
-                          className="h-32 bg-gray-900/80 backdrop-blur-md border border-white/20 text-black placeholder-gray-400 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 resize-none"
+                          className="h-32 bg-muted/40 dark:bg-gray-900/80 backdrop-blur-md border border-border dark:border-white/20 text-foreground placeholder:text-muted-foreground focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300 resize-none"
                         />
                       </TabsContent>
 
                       <TabsContent value="file" className="animate-fadeIn">
                         <div className="border-2 border-dashed border-purple-500/30 rounded-xl p-8 text-center bg-gradient-to-br from-purple-500/5 to-transparent hover:border-purple-500/50 transition-all duration-300 hover-lift">
                           <Upload className="mx-auto h-12 w-12 text-purple-400 mb-4" />
-                          <p className="text-white text-base mb-2">Drop files here or click to upload</p>
+                          <p className="text-foreground text-base mb-2">Drop files here or click to upload</p>
                           <p className="text-gray-400 text-sm mb-4">Supports .c, .cpp, .h, .hpp files up to 10MB</p>
                           <input
                             type="file"
@@ -567,7 +567,7 @@ export function CodeScanningPage() {
               <div className="xl:col-span-1">
                 <Card className="glass-card border-green-500/30 shadow-green-500/20 h-full">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-white text-xl flex items-center gap-3">
+                    <CardTitle className="text-foreground text-xl flex items-center gap-3">
                       <Lock className="w-5 h-5 text-green-400" />
                       Scan Configuration
                     </CardTitle>
@@ -599,7 +599,7 @@ export function CodeScanningPage() {
           <div className="animate-fadeIn">
             <Card className="glass-card border-blue-500/30 shadow-blue-500/20">
               <CardHeader>
-                <CardTitle className="text-white text-2xl flex items-center gap-3">
+                <CardTitle className="text-foreground text-2xl flex items-center gap-3">
                   <Search className="w-6 h-6 text-blue-400 animate-spin" />
                   Scanning in Progress
                 </CardTitle>
@@ -608,11 +608,11 @@ export function CodeScanningPage() {
                 <div className="space-y-4">
                   <div className="text-center">
                     <div className="text-4xl font-bold text-blue-400 mb-2">{scanProgress}%</div>
-                    <div className="text-gray-300 text-lg font-semibold">Scan Progress</div>
+                    <div className="text-muted-foreground text-lg font-semibold">Scan Progress</div>
                   </div>
                   <div className="relative">
-                    <Progress value={scanProgress} className="h-6 bg-gray-800/60" indicatorClassName="bg-blue-500" />
-                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+                    <Progress value={scanProgress} className="h-6 bg-muted dark:bg-gray-800/60" indicatorClassName="bg-blue-500" />
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-900 dark:text-white">
                       {scanProgress}% Complete
                     </div>
                   </div>

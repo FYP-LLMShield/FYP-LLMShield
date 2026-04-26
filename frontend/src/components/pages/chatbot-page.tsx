@@ -482,7 +482,7 @@ export const ChatbotPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
+    <div className="flex h-full bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-teal-900 via-teal-900/90 to-teal-950 backdrop-blur-xl border-r-2 border-teal-600/60 shadow-2xl transition-all duration-300 flex flex-col`}>
         <div className="p-5 border-b border-teal-600/40 bg-teal-900/30">
