@@ -118,7 +118,7 @@ export function ChatPanel({ open, width, onToggle, onResize }: ChatPanelProps) {
     const chatData = {
       messages,
       timestamp: new Date().toISOString(),
-      user: "Security Admin",
+      user: "current_user",
     }
     const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: "application/json" })
     const url = URL.createObjectURL(blob)

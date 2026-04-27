@@ -17,6 +17,31 @@ async function syncSupabaseSessionToApiClient() {
   }
 }
 
+function profilePictureCacheKey(userIdOrEmail) {
+  return userIdOrEmail ? `profile_picture_cache:${userIdOrEmail}` : null
+}
+
+function cacheProfilePicture(userIdOrEmail, profilePicture) {
+  const key = profilePictureCacheKey(userIdOrEmail)
+  if (!key) return
+  try {
+    if (profilePicture) localStorage.setItem(key, profilePicture)
+    else localStorage.removeItem(key)
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function readCachedProfilePicture(userIdOrEmail) {
+  const key = profilePictureCacheKey(userIdOrEmail)
+  if (!key) return null
+  try {
+    return localStorage.getItem(key)
+  } catch (_) {
+    return null
+  }
+}
+
 export { useAuth }
 
 export const AuthProvider = ({ children }) => {
@@ -49,6 +74,13 @@ export const AuthProvider = ({ children }) => {
               id: u?.id || null,
               email: u?.email || email,
               name: u?.user_metadata?.full_name || u?.user_metadata?.name || email.split('@')[0],
+              username: u?.user_metadata?.username || u?.email?.split('@')[0],
+              profile_picture: u?.user_metadata?.profile_picture || u?.user_metadata?.avatar_url || null,
+              phone_number: u?.user_metadata?.phone_number || null,
+              location: u?.user_metadata?.location || null,
+              job_role: u?.user_metadata?.job_role || null,
+              company: u?.user_metadata?.company || null,
+              bio: u?.user_metadata?.bio || null,
               plan: "free",
               isVerified: true,
               mfaEnabled: false
@@ -102,6 +134,13 @@ export const AuthProvider = ({ children }) => {
           id: response.data.user.id || null,
           email: response.data.user.email || email,
           name: response.data.user.name || response.data.user.full_name || email.split('@')[0],
+          username: response.data.user.username || response.data.user.email?.split('@')[0],
+          profile_picture: response.data.user.profile_picture || null,
+          phone_number: response.data.user.phone_number || null,
+          location: response.data.user.location || null,
+          job_role: response.data.user.job_role || null,
+          company: response.data.user.company || null,
+          bio: response.data.user.bio || null,
           plan: "free",
           isVerified: response.data.user.is_verified || false,
           mfaEnabled: false
@@ -239,6 +278,77 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateUser = async (patch) => {
+    if (!user) return null
+    const next = { ...user, ...patch }
+    // Optimistic UI
+    setUser(next)
+    localStorage.setItem("user", JSON.stringify(next))
+    if (Object.prototype.hasOwnProperty.call(patch || {}, "profile_picture")) {
+      cacheProfilePicture(next.id || next.email, next.profile_picture)
+    }
+    try {
+      // Keep Supabase session metadata aligned when available
+      if (isSupabaseAuthAvailable() && supabase) {
+        try {
+          await supabase.auth.updateUser({
+            data: {
+              username: next.username,
+              profile_picture: next.profile_picture,
+              phone_number: next.phone_number,
+              location: next.location,
+              job_role: next.job_role,
+              company: next.company,
+              bio: next.bio,
+              full_name: next.name,
+              name: next.name,
+            },
+          })
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      // Persist to backend user row (Supabase users table via service role OR Mongo fallback)
+      const payload = {
+        username: next.username,
+        name: next.name,
+        profile_picture: next.profile_picture,
+        phone_number: next.phone_number,
+        location: next.location,
+        job_role: next.job_role,
+        company: next.company,
+        bio: next.bio,
+      }
+      const res = await authAPI.updateProfile(payload)
+      if (res?.success && res?.data?.user) {
+        const u = res.data.user
+        const merged = {
+          ...next,
+          username: u.username ?? next.username,
+          name: u.name ?? next.name,
+          profile_picture: u.profile_picture ?? next.profile_picture,
+          phone_number: u.phone_number ?? next.phone_number,
+          location: u.location ?? next.location,
+          job_role: u.job_role ?? next.job_role,
+          company: u.company ?? next.company,
+          bio: u.bio ?? next.bio,
+        }
+        // Ensure we never lose an existing avatar on a partial response
+        if (!merged.profile_picture) {
+          merged.profile_picture = next.profile_picture || readCachedProfilePicture(merged.id || merged.email)
+        }
+        setUser(merged)
+        localStorage.setItem("user", JSON.stringify(merged))
+        cacheProfilePicture(merged.id || merged.email, merged.profile_picture)
+        return merged
+      }
+      return next
+    } catch (e) {
+      console.warn("updateUser failed:", e)
+      return next
+    }
+  }
+
   const logout = async () => {
     if (supabase) {
       try {
@@ -246,6 +356,13 @@ export const AuthProvider = ({ children }) => {
       } catch (e) {
         console.warn('Supabase signOut:', e)
       }
+    }
+    try {
+      if (user?.id || user?.email) {
+        localStorage.removeItem(profilePictureCacheKey(user.id || user.email))
+      }
+    } catch (_) {
+      /* ignore */
     }
     authAPI.logout()
     setUser(null)
@@ -444,10 +561,41 @@ export const AuthProvider = ({ children }) => {
               isVerified: !!u.email_confirmed_at,
               mfaEnabled: false
             }
+            const cachedPic = readCachedProfilePicture(userData.id || userData.email)
+            if (cachedPic) userData.profile_picture = cachedPic
             setUser(userData)
             localStorage.setItem("user", JSON.stringify(userData))
             localStorage.setItem('access_token', session.access_token)
             authAPI.setToken(session.access_token)
+
+            // Enrich from backend profile row so avatar/profile fields persist across refresh.
+            // This endpoint now accepts Supabase tokens.
+            try {
+              const me = await authAPI.getCurrentUser()
+              if (me?.success && me?.data?.user) {
+                const u2 = me.data.user
+                const merged = {
+                  ...userData,
+                  username: u2.username ?? userData.username,
+                  name: u2.name ?? userData.name,
+                  profile_picture: u2.profile_picture ?? userData.profile_picture,
+                  phone_number: u2.phone_number ?? userData.phone_number,
+                  location: u2.location ?? userData.location,
+                  job_role: u2.job_role ?? userData.job_role,
+                  company: u2.company ?? userData.company,
+                  bio: u2.bio ?? userData.bio,
+                }
+                if (!merged.profile_picture) {
+                  merged.profile_picture = readCachedProfilePicture(merged.id || merged.email)
+                }
+                setUser(merged)
+                localStorage.setItem("user", JSON.stringify(merged))
+                cacheProfilePicture(merged.id || merged.email, merged.profile_picture)
+              }
+            } catch (_) {
+              /* ignore */
+            }
+
             setIsLoading(false)
             setIsInitialized(true)
             return
@@ -480,6 +628,12 @@ export const AuthProvider = ({ children }) => {
                 email: userData.user.email,
                 name: userData.user.name || userData.user.email.split('@')[0],
                 username: userData.user.username || userData.user.email.split('@')[0],
+                profile_picture: userData.user.profile_picture || null,
+                phone_number: userData.user.phone_number || null,
+                location: userData.user.location || null,
+                job_role: userData.user.job_role || null,
+                company: userData.user.company || null,
+                bio: userData.user.bio || null,
                 plan: "free",
                 isVerified: userData.user.is_verified,
                 mfaEnabled: userData.user.mfa_enabled
@@ -501,6 +655,12 @@ export const AuthProvider = ({ children }) => {
                       email: refreshedUserData.user.email,
                       name: refreshedUserData.user.name || refreshedUserData.user.email.split('@')[0],
                       username: refreshedUserData.user.username || refreshedUserData.user.email.split('@')[0],
+                      profile_picture: refreshedUserData.user.profile_picture || null,
+                      phone_number: refreshedUserData.user.phone_number || null,
+                      location: refreshedUserData.user.location || null,
+                      job_role: refreshedUserData.user.job_role || null,
+                      company: refreshedUserData.user.company || null,
+                      bio: refreshedUserData.user.bio || null,
                       plan: "free",
                       isVerified: refreshedUserData.user.is_verified,
                       mfaEnabled: refreshedUserData.user.mfa_enabled
@@ -542,6 +702,12 @@ export const AuthProvider = ({ children }) => {
                 email: refreshedUserData.user.email,
                 name: refreshedUserData.user.name || refreshedUserData.user.email.split('@')[0],
                 username: refreshedUserData.user.username || refreshedUserData.user.email.split('@')[0],
+                profile_picture: refreshedUserData.user.profile_picture || null,
+                phone_number: refreshedUserData.user.phone_number || null,
+                location: refreshedUserData.user.location || null,
+                job_role: refreshedUserData.user.job_role || null,
+                company: refreshedUserData.user.company || null,
+                bio: refreshedUserData.user.bio || null,
                 plan: "free",
                 isVerified: refreshedUserData.user.is_verified,
                 mfaEnabled: refreshedUserData.user.mfa_enabled
@@ -574,6 +740,7 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         setUser,
+        updateUser,
         login,
         signup,
         logout,

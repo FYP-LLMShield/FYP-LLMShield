@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { Button } from "../ui/button"
 import { Home, User, Shield, Database, Code, History, Settings, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react"
+import { useAuth } from "../../contexts/AuthContext"
 
 interface SidebarProps {
   collapsed: boolean
@@ -23,6 +24,16 @@ const menuItems = [
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation()
   const pathname = location.pathname
+  const { user } = useAuth()
+
+  const displayName = user?.username || user?.name || "User"
+  const displayEmail = user?.email || ""
+  const initials = (displayName || "U")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("") || "U"
 
   const handleMenuClick = () => {
     if (!collapsed) {
@@ -65,13 +76,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <div className="flex items-center space-x-2">
             <div className="relative dark:[filter:drop-shadow(0_0_10px_rgba(59,130,246,0.4))]">
               <Avatar className="h-8 w-8 border-2 border-blue-400/60 dark:border-blue-400/50">
-                <AvatarImage src="/security-admin-avatar.png" alt="Security Admin" />
-                <AvatarFallback className="bg-blue-500/20 text-slate-800 dark:text-white text-xs">SA</AvatarFallback>
+                <AvatarImage src={(user?.profile_picture as string) || "/diverse-user-avatars.png"} alt={displayName} />
+                <AvatarFallback className="bg-blue-500/20 text-slate-800 dark:text-white text-xs">{initials}</AvatarFallback>
               </Avatar>
             </div>
             <div>
-              <p className="text-slate-900 dark:text-white font-medium text-sm">Security Admin</p>
-              <p className="text-slate-600 dark:text-gray-300 text-xs">admin@company.com</p>
+              <p className="text-slate-900 dark:text-white font-medium text-sm">{displayName}</p>
+              <p className="text-slate-600 dark:text-gray-300 text-xs">{displayEmail}</p>
             </div>
           </div>
         </div>

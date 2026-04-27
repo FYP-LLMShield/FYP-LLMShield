@@ -9,7 +9,7 @@ from app.models.password_reset import ForgotPasswordRequest, ResetPasswordReques
 from app.models.google_auth import GoogleSignInRequest, GoogleSignInResponse
 from app.utils.user_service import user_service as mongo_user_service
 from app.utils.unified_user_service import unified_user_service
-from app.utils.auth import create_access_token, create_refresh_token, verify_token
+from app.utils.auth import create_access_token, create_refresh_token, verify_token, get_current_user as get_current_user_dep
 from app.utils.mfa import mfa_utils
 from app.utils.password_reset_service import PasswordResetService
 from app.utils.google_auth import GoogleAuthService
@@ -312,43 +312,38 @@ async def verify_email(token: str):
         )
 
 @router.get("/me", response_model=dict)
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(current_user=Depends(get_current_user_dep)):
     """
-    Get current user information
-    
-    Requires valid JWT token in Authorization header
+    Get current user information (accepts Supabase access tokens + backend JWTs).
+
+    Important: when using Supabase Auth tokens, `get_current_user_dep` returns a minimal
+    user payload derived from the JWT. We then hydrate from the app user store (Supabase users
+    table / Mongo fallback) so profile fields (profile_picture, phone, etc.) persist.
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
-        
-        # Get user from database (tries Supabase first, falls back to MongoDB)
-        user = await unified_user_service.get_user_by_email(email)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-        
-        return {
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "name": user.name,
-                "is_verified": user.is_verified,
-                "is_active": user.is_active,
-                "created_at": user.created_at,
-                "mfa_enabled": user.mfa_enabled
-            }
+        user = await unified_user_service.get_user_by_email(current_user.email)
+    except Exception:
+        user = None
+    if not user:
+        user = current_user
+    return {
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "username": getattr(user, "username", None),
+            "name": getattr(user, "name", None),
+            "is_verified": getattr(user, "is_verified", False),
+            "is_active": getattr(user, "is_active", True),
+            "created_at": getattr(user, "created_at", None),
+            "mfa_enabled": getattr(user, "mfa_enabled", False),
+            "profile_picture": getattr(user, "profile_picture", None),
+            "phone_number": getattr(user, "phone_number", None),
+            "location": getattr(user, "location", None),
+            "job_role": getattr(user, "job_role", None),
+            "company": getattr(user, "company", None),
+            "bio": getattr(user, "bio", None),
         }
-    
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get user info: {str(e)}"
-        )
+    }
 
 @router.post("/refresh", response_model=dict)
 async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -445,14 +440,13 @@ async def reset_password(reset_data: ResetPasswordRequest):
 @router.put("/profile", response_model=dict)
 async def update_profile(
     profile_data: ProfileUpdate,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(get_current_user_dep),
 ):
     """
     Update user profile (name, password, etc.)
     """
     try:
-        # Verify token and get email
-        email = verify_token(credentials.credentials)
+        email = current_user.email
         
         # Update profile
         updated_user = await unified_user_service.update_profile(
@@ -471,10 +465,17 @@ async def update_profile(
             "user": {
                 "id": str(updated_user.id),
                 "email": updated_user.email,
+                "username": getattr(updated_user, "username", None),
                 "name": updated_user.name,
                 "is_verified": updated_user.is_verified,
                 "updated_at": updated_user.updated_at,
-                "mfa_enabled": updated_user.mfa_enabled
+                "mfa_enabled": updated_user.mfa_enabled,
+                "profile_picture": getattr(updated_user, "profile_picture", None),
+                "phone_number": getattr(updated_user, "phone_number", None),
+                "location": getattr(updated_user, "location", None),
+                "job_role": getattr(updated_user, "job_role", None),
+                "company": getattr(updated_user, "company", None),
+                "bio": getattr(updated_user, "bio", None),
             }
         }
     

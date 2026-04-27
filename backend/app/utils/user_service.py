@@ -238,6 +238,11 @@ class UserService:
         # Handle name update
         if "name" in update_data and update_data["name"]:
             update_doc["name"] = update_data["name"].strip()
+
+        # Optional profile fields (best-effort)
+        for key in ("profile_picture", "phone_number", "location", "job_role", "company", "bio"):
+            if key in update_data:
+                update_doc[key] = update_data[key]
         
         # Handle password change
         if update_data.get("current_password") and update_data.get("new_password"):

@@ -161,6 +161,7 @@ export const authAPI = {
   login: (payload: any) => apiClient.request("/auth/login", { method: "POST", body: payload }),
   register: (payload: any) => apiClient.request("/auth/register", { method: "POST", body: payload }),
   getCurrentUser: () => apiClient.request("/auth/me"),
+  updateProfile: (payload: any) => apiClient.request("/auth/profile", { method: "PUT", body: payload }),
   googleSignIn: (payload: { id_token: string; mode?: "signup" | "signin" }) =>
     apiClient.request("/auth/google", { method: "POST", body: payload }),
   forgotPassword: (payload: any) => apiClient.request("/auth/forgot-password", { method: "POST", body: payload }),
