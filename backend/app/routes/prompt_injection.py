@@ -5007,6 +5007,7 @@ class RetrievalAttackResponse(BaseModel):
     successful_queries: int
     failed_queries: int
     attack_success_rate: float
+    summary_metrics: Dict[str, Any] = Field(default_factory=dict)
     findings: List[RetrievalManipulationFinding]
     behavioral_impacts: List[BehavioralImpactResult]
     query_summaries: List[QueryResultSummary]
@@ -5159,8 +5160,10 @@ async def run_retrieval_attack_simulation(
         
         # Generate recommendations
         recommendations = []
-        if report.attack_success_rate > 0.5:
-            recommendations.append("High ASR detected. Consider strengthening input normalization and query sanitization.")
+        headline_asr = float((report.summary_metrics or {}).get("headline_variant_asr_top3_changed", 0.0))
+        material_asr = float((report.summary_metrics or {}).get("material_query_asr", 0.0))
+        if headline_asr > 0.35 or material_asr > 0.35 or report.attack_success_rate > 0.75:
+            recommendations.append("High retrieval sensitivity detected (top-3 instability and/or material rank shifts). Consider strengthening input normalization and query sanitization.")
         if any(f.variant_type == "unicode" for f in report.findings):
             recommendations.append("Unicode/homoglyph attacks successful. Implement character normalization before retrieval.")
         if any(f.variant_type == "trigger" for f in report.findings):
@@ -5177,6 +5180,7 @@ async def run_retrieval_attack_simulation(
             successful_queries=report.successful_queries,
             failed_queries=report.failed_queries,
             attack_success_rate=report.attack_success_rate,
+            summary_metrics=getattr(report, "summary_metrics", {}) or {},
             findings=findings,
             behavioral_impacts=behavioral_impacts,
             query_summaries=query_summaries,

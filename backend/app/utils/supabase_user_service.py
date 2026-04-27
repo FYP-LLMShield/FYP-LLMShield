@@ -197,6 +197,15 @@ class SupabaseUserService:
             logger.error(f"Error converting Supabase user to UserInDB: {e}")
             logger.error(f"User data keys: {list(user_data.keys()) if user_data else 'None'}")
             return None
+
+    @staticmethod
+    def _email_lookup_variants(email: Optional[str]) -> list:
+        """JWT may use different casing than the users row; try exact then lowercase."""
+        raw = (email or "").strip()
+        if not raw:
+            return []
+        lo = raw.lower()
+        return [raw, lo] if lo != raw else [raw]
     
     async def get_user_by_email(self, email: str) -> Optional[UserInDB]:
         """Get user by email from Supabase"""
@@ -204,11 +213,10 @@ class SupabaseUserService:
             if not self.is_available():
                 return None
             
-            result = self.client.table("users").select("*").eq("email", email).execute()
-            
-            if result.data and len(result.data) > 0:
-                user_data = result.data[0]
-                return self._convert_supabase_to_userindb(user_data)
+            for em in self._email_lookup_variants(email):
+                result = self.client.table("users").select("*").eq("email", em).execute()
+                if result.data and len(result.data) > 0:
+                    return self._convert_supabase_to_userindb(result.data[0])
             
             return None
             
@@ -432,12 +440,22 @@ class SupabaseUserService:
                 return False
             from app.utils.mfa import mfa_utils
             hashed_recovery_codes = [mfa_utils.hash_recovery_code(code) for code in recovery_codes]
-            result = self.client.table("users").update({
+            update_payload = {
                 "mfa_secret": secret,
                 "recovery_codes": hashed_recovery_codes,
                 "updated_at": datetime.utcnow().isoformat(),
-            }).eq("email", email).execute()
-            return result.data is not None and len(result.data) > 0
+            }
+            # PostgREST often returns empty `data` on UPDATE even when rows match — verify by re-fetch.
+            for em in self._email_lookup_variants(email):
+                try:
+                    self.client.table("users").update(update_payload).eq("email", em).execute()
+                except Exception as upd_err:
+                    logger.error(f"store_temp_mfa_secret update failed for {em!r}: {upd_err}")
+                    continue
+                check = await self.get_user_by_email(email)
+                if check and check.mfa_secret == secret:
+                    return True
+            return False
         except Exception as e:
             logger.error(f"Error storing temp MFA secret in Supabase: {e}")
             return False
@@ -447,14 +465,57 @@ class SupabaseUserService:
         try:
             if not self.is_available():
                 return False
-            result = self.client.table("users").update({
+            update_payload = {
                 "mfa_enabled": True,
                 "mfa_setup_complete": True,
                 "updated_at": datetime.utcnow().isoformat(),
-            }).eq("email", email).execute()
-            return result.data is not None and len(result.data) > 0
+            }
+            for em in self._email_lookup_variants(email):
+                try:
+                    self.client.table("users").update(update_payload).eq("email", em).execute()
+                except Exception as upd_err:
+                    logger.error(f"enable_mfa update failed for {em!r}: {upd_err}")
+                    continue
+                check = await self.get_user_by_email(email)
+                if check and check.mfa_enabled and check.mfa_setup_complete:
+                    return True
+            return False
         except Exception as e:
             logger.error(f"Error enabling MFA in Supabase: {e}")
+            return False
+
+    async def finalize_mfa_setup(self, email: str, secret: str, recovery_codes: list) -> bool:
+        """Persist MFA secret, hashed recovery codes, and enabled flags in one update."""
+        try:
+            if not self.is_available():
+                return False
+            from app.utils.mfa import mfa_utils
+
+            hashed_recovery_codes = [mfa_utils.hash_recovery_code(code) for code in recovery_codes]
+            update_payload = {
+                "mfa_secret": secret,
+                "recovery_codes": hashed_recovery_codes,
+                "mfa_enabled": True,
+                "mfa_setup_complete": True,
+                "updated_at": datetime.utcnow().isoformat(),
+            }
+            for em in self._email_lookup_variants(email):
+                try:
+                    self.client.table("users").update(update_payload).eq("email", em).execute()
+                except Exception as upd_err:
+                    logger.error(f"finalize_mfa_setup update failed for {em!r}: {upd_err}")
+                    continue
+                check = await self.get_user_by_email(email)
+                if (
+                    check
+                    and check.mfa_enabled
+                    and check.mfa_setup_complete
+                    and (check.mfa_secret or "").strip() == (secret or "").strip()
+                ):
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error finalize_mfa_setup in Supabase: {e}")
             return False
 
     async def disable_mfa(self, email: str) -> bool:
@@ -462,14 +523,23 @@ class SupabaseUserService:
         try:
             if not self.is_available():
                 return False
-            result = self.client.table("users").update({
+            clear_payload = {
                 "mfa_enabled": False,
                 "mfa_setup_complete": False,
                 "mfa_secret": None,
                 "recovery_codes": [],
                 "updated_at": datetime.utcnow().isoformat(),
-            }).eq("email", email).execute()
-            return result.data is not None and len(result.data) > 0
+            }
+            for em in self._email_lookup_variants(email):
+                try:
+                    self.client.table("users").update(clear_payload).eq("email", em).execute()
+                except Exception as upd_err:
+                    logger.error(f"disable_mfa update failed for {em!r}: {upd_err}")
+                    continue
+                check = await self.get_user_by_email(email)
+                if check and not check.mfa_enabled and not check.mfa_secret:
+                    return True
+            return False
         except Exception as e:
             logger.error(f"Error disabling MFA in Supabase: {e}")
             return False

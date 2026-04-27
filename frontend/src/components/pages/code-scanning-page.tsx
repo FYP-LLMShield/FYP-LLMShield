@@ -352,7 +352,7 @@ export function CodeScanningPage() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-background text-foreground">
+    <div className="min-h-screen p-6 bg-background text-foreground [&_.text-white]:text-slate-900 dark:[&_.text-white]:text-white [&_.text-gray-200]:text-slate-900 dark:[&_.text-gray-200]:text-gray-200 [&_.text-gray-300]:text-slate-900 dark:[&_.text-gray-300]:text-gray-300 [&_.text-gray-400]:text-slate-900 dark:[&_.text-gray-400]:text-gray-400 [&_.text-gray-500]:text-slate-700 dark:[&_.text-gray-500]:text-gray-500 [&_.text-muted-foreground]:text-slate-900 dark:[&_.text-muted-foreground]:text-muted-foreground">
       {/* Cache Stats Dialog */}
       <Dialog open={showCacheDialog} onOpenChange={setShowCacheDialog}>
         <DialogContent className="bg-background dark:bg-gray-900 border border-border dark:border-blue-500/30">

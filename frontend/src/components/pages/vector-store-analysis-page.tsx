@@ -17,6 +17,7 @@ import {
   DialogFooter
 } from "../ui/dialog"
 import { Progress } from "../ui/progress"
+import { cn } from "../../lib/utils"
 
 // All supported source types
 type SourceType = 
@@ -395,25 +396,36 @@ export const VectorStoreAnalysisPage: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <Database className="w-6 h-6 text-blue-500" />
+        <Database className="h-6 w-6 shrink-0 text-blue-600 dark:text-blue-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Vector Store Anomaly Detection</h1>
-          <p className="text-gray-400 text-sm">
+          <h1 className="text-2xl font-bold text-foreground">Vector Store Anomaly Detection</h1>
+          <p className="text-sm text-muted-foreground">
             Analyze vector store snapshots for suspicious vectors, collisions, and poisoning attacks.
           </p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-slate-900/50 border border-slate-700/50 p-1 mb-6">
-          <TabsTrigger value="config" className="data-[state=active]:bg-blue-600">
-            <Settings className="w-4 h-4 mr-2" /> Configuration
+        <TabsList className="mb-6 flex w-full gap-1 rounded-xl border border-border bg-muted p-1">
+          <TabsTrigger
+            value="config"
+            className="flex-1 !text-foreground data-[state=active]:!bg-blue-600 data-[state=active]:!text-white"
+          >
+            <Settings className="mr-2 h-4 w-4" /> Configuration
           </TabsTrigger>
-          <TabsTrigger value="results" disabled={!result && !isLoading} className="data-[state=active]:bg-blue-600">
-            <BarChart className="w-4 h-4 mr-2" /> Analysis Results
+          <TabsTrigger
+            value="results"
+            disabled={!result && !isLoading}
+            className="flex-1 !text-foreground data-[state=active]:!bg-blue-600 data-[state=active]:!text-white"
+          >
+            <BarChart className="mr-2 h-4 w-4" /> Analysis Results
           </TabsTrigger>
-          <TabsTrigger value="findings" disabled={!result || result.findings.length === 0} className="data-[state=active]:bg-blue-600">
-            <LayoutGrid className="w-4 h-4 mr-2" /> Detailed Findings
+          <TabsTrigger
+            value="findings"
+            disabled={!result || result.findings.length === 0}
+            className="flex-1 !text-foreground data-[state=active]:!bg-blue-600 data-[state=active]:!text-white"
+          >
+            <LayoutGrid className="mr-2 h-4 w-4" /> Detailed Findings
           </TabsTrigger>
         </TabsList>
 
@@ -434,8 +446,8 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                 <Upload className={`w-8 h-8 ${analysisMode === 'upload' ? 'text-blue-400' : 'text-gray-500'}`} />
               </div>
               <div>
-                <h3 className={`text-lg font-bold ${analysisMode === 'upload' ? 'text-white' : 'text-gray-400'}`}>Upload Snapshot</h3>
-                <p className="text-sm text-gray-500 mt-1">Analyze an offline JSON file containing your vector embeddings</p>
+                <h3 className="text-lg font-bold text-foreground">Upload Snapshot</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Analyze an offline JSON file containing your vector embeddings</p>
               </div>
               {analysisMode === 'upload' && <Badge className="bg-blue-500 text-white">Selected</Badge>}
             </div>
@@ -454,19 +466,19 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                 <Database className={`w-8 h-8 ${analysisMode === 'connect' ? 'text-green-400' : 'text-gray-500'}`} />
               </div>
               <div>
-                <h3 className={`text-lg font-bold ${analysisMode === 'connect' ? 'text-white' : 'text-gray-400'}`}>Connect to Database</h3>
-                <p className="text-sm text-gray-500 mt-1">Scan vectors directly from your live Cloud or Local vector store</p>
+                <h3 className="text-lg font-bold text-foreground">Connect to Database</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Scan vectors directly from your live Cloud or Local vector store</p>
               </div>
               {analysisMode === 'connect' && <Badge className="bg-green-500 text-white">Selected</Badge>}
             </div>
           </div>
 
           {/* Configuration Card */}
-          <Card className="bg-gradient-to-br from-slate-900/60 to-slate-800/40 border-slate-700/50 backdrop-blur-sm shadow-xl relative z-10">
-            <CardHeader className="pb-4 border-b border-slate-800/50 mb-6">
+          <Card className="relative z-10 border-border bg-card backdrop-blur-sm shadow-xl">
+            <CardHeader className="mb-6 border-b border-border pb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-white text-xl flex items-center gap-3">
+                  <CardTitle className="flex items-center gap-3 text-xl text-foreground">
                     <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
                       {analysisMode === 'upload' ? <Upload className="w-5 h-5 text-blue-400" /> : <Database className="w-5 h-5 text-green-400" />}
                     </div>
@@ -493,12 +505,12 @@ export const VectorStoreAnalysisPage: React.FC = () => {
               {analysisMode === 'connect' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                   <div className="space-y-3" ref={dbDropdownRef}>
-                    <Label className="text-gray-300 text-sm font-medium">Select Database Provider</Label>
+                    <Label className="text-sm font-medium text-foreground">Select Database Provider</Label>
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => setDbDropdownOpen(!dbDropdownOpen)}
-                        className="w-full flex items-center justify-between gap-3 bg-slate-800/50 border border-slate-600 text-white h-14 px-4 rounded-xl hover:border-blue-500/50 hover:bg-slate-800/70 transition-all text-left"
+                        className="w-full flex h-14 items-center justify-between gap-3 rounded-xl border border-border bg-muted/60 px-4 text-left text-foreground transition-all hover:border-blue-500/50 hover:bg-muted"
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
@@ -510,22 +522,24 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                           </div>
                           <div className="text-left">
                             <div className="text-sm font-semibold">{getCurrentSourceLabel()}</div>
-                            <div className="text-[10px] text-gray-400 uppercase tracking-wider">
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                               Live Database Connection
                             </div>
                           </div>
                         </div>
-                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${dbDropdownOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${dbDropdownOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {/* Inline dropdown - renders in document flow directly below trigger */}
                       {dbDropdownOpen && (
-                        <div className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-[320px] overflow-y-auto">
+                        <div className="mt-2 max-h-[320px] w-full overflow-hidden overflow-y-auto rounded-xl border border-border bg-popover shadow-2xl">
                           {SOURCE_OPTIONS.filter(g => g.group !== "Local File").map((group) => (
                             <div key={group.group}>
-                              <div className="text-blue-400 text-[10px] font-bold uppercase tracking-[0.1em] px-3 py-2 bg-slate-800/80 sticky top-0">
+                              <div className="sticky top-0 bg-muted/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-blue-500">
                                 {group.group}
                               </div>
-                              {group.items.map((item) => (
+                              {group.items.map((item) => {
+                                const ItemIcon = item.icon
+                                return (
                                 <button
                                   key={item.value}
                                   type="button"
@@ -534,19 +548,21 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                                     setConnectionStatus(null)
                                     setDbDropdownOpen(false)
                                   }}
-                                  className={`w-full flex items-center gap-3 py-3 px-3 text-left border-b border-slate-800/50 last:border-0 hover:bg-slate-800/80 transition-colors ${
-                                    sourceType === item.value ? 'bg-slate-800/60 text-white' : 'text-gray-300'
-                                  }`}
+                                  className={cn(
+                                    "w-full border-b border-border px-3 py-3 text-left transition-colors last:border-0 hover:bg-muted",
+                                    sourceType === item.value ? "bg-muted text-foreground" : "text-muted-foreground"
+                                  )}
                                 >
-                                  <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                    <item.icon className="w-4 h-4 text-blue-400" />
+                                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
+                                    <ItemIcon className="h-4 w-4 text-blue-400" />
                                   </div>
                                   <div>
-                                    <div className="font-medium text-sm">{item.label}</div>
-                                    <div className="text-[10px] text-gray-500">{item.description}</div>
+                                    <div className="text-sm font-medium">{item.label}</div>
+                                    <div className="text-[10px] text-muted-foreground">{item.description}</div>
                                   </div>
                                 </button>
-                              ))}
+                                )
+                              })}
                             </div>
                           ))}
                         </div>
@@ -555,12 +571,12 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                   </div>
                   
                   {/* Quick Info Panel */}
-                  <div className="bg-blue-500/5 rounded-xl p-4 border border-blue-500/10 h-full flex items-center">
+                  <div className="flex h-full items-center rounded-xl border border-blue-500/10 bg-blue-500/5 p-4">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                         <Info className="w-4 h-4 text-blue-400" />
                       </div>
-                      <div className="text-sm text-gray-400 leading-relaxed">
+                      <div className="text-sm leading-relaxed text-muted-foreground">
                         {sourceType.includes('pinecone') && "Connect to your Pinecone index. We'll scan your live vectors for poisoning, collisions, and outliers."}
                         {sourceType.includes('chroma') && "Connect to your ChromaDB instance. Supports both local persistent storage and cloud-hosted collections."}
                         {sourceType.includes('qdrant') && "Connect to your Qdrant cluster. We'll analyze your collection using high-performance vector similarity checks."}
@@ -575,15 +591,19 @@ export const VectorStoreAnalysisPage: React.FC = () => {
               <div className="bg-slate-800/20 rounded-xl p-5 border border-slate-700/50">
                 {/* JSON Upload Form - Only in Upload mode */}
                 {analysisMode === 'upload' && (
-                  <div className="p-8 border-2 border-dashed border-slate-600 rounded-xl bg-slate-800/30 hover:bg-slate-800/50 hover:border-blue-500/50 transition-all cursor-pointer">
+                  <div className="cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 transition-all hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-600 dark:bg-slate-800/30 dark:hover:border-blue-500/50 dark:hover:bg-slate-800/50">
                     <Input type="file" accept=".json" onChange={handleFileChange} className="hidden" id="snapshot-upload" />
-                    <label htmlFor="snapshot-upload" className="cursor-pointer block text-center">
-                      <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 mx-auto">
-                        <Upload className="w-8 h-8 text-blue-400" />
+                    <label htmlFor="snapshot-upload" className="block cursor-pointer text-center">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/15 dark:bg-blue-500/10">
+                        <Upload className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <div className="text-white font-semibold text-lg mb-1">{file ? file.name : "Drop JSON file here or click to browse"}</div>
-                      <div className="text-sm text-gray-400">Supports vector snapshots with embeddings and metadata</div>
-                      {file && <Badge className="mt-3 bg-blue-500/20 text-blue-300">{(file.size / 1024).toFixed(1)} KB</Badge>}
+                      <div className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">{file ? file.name : "Drop JSON file here or click to browse"}</div>
+                      <div className="text-sm text-slate-800 dark:text-slate-300">Supports vector snapshots with embeddings and metadata</div>
+                      {file && (
+                        <Badge className="mt-3 bg-blue-100 text-blue-900 dark:bg-blue-500/20 dark:text-blue-200">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </Badge>
+                      )}
                     </label>
                   </div>
                 )}
@@ -598,7 +618,7 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">API Key <span className="text-red-400">*</span></Label>
                         <div className="relative">
-                          <Input type={showApiKey ? "text" : "password"} value={pineconeApiKey} onChange={(e) => setPineconeApiKey(e.target.value)} placeholder="pcsk_xxxxx..." className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400 pr-10" />
+                          <Input type={showApiKey ? "text" : "password"} value={pineconeApiKey} onChange={(e) => setPineconeApiKey(e.target.value)} placeholder="pcsk_xxxxx..." className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm pr-10 dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                           <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300">
                             {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
@@ -606,15 +626,15 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Index Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={pineconeIndexName} onChange={(e) => setPineconeIndexName(e.target.value)} placeholder="my-index" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={pineconeIndexName} onChange={(e) => setPineconeIndexName(e.target.value)} placeholder="my-index" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Environment</Label>
-                        <Input type="text" value={pineconeEnvironment} onChange={(e) => setPineconeEnvironment(e.target.value)} placeholder="us-east-1-aws" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={pineconeEnvironment} onChange={(e) => setPineconeEnvironment(e.target.value)} placeholder="us-east-1-aws" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Namespace</Label>
-                        <Input type="text" value={pineconeNamespace} onChange={(e) => setPineconeNamespace(e.target.value)} placeholder="default" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={pineconeNamespace} onChange={(e) => setPineconeNamespace(e.target.value)} placeholder="default" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -629,19 +649,19 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Host</Label>
-                        <Input type="text" value={chromaHost} onChange={(e) => setChromaHost(e.target.value)} placeholder="localhost" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={chromaHost} onChange={(e) => setChromaHost(e.target.value)} placeholder="localhost" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Port</Label>
-                        <Input type="number" value={chromaPort} onChange={(e) => setChromaPort(Number(e.target.value))} placeholder="8000" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="number" value={chromaPort} onChange={(e) => setChromaPort(Number(e.target.value))} placeholder="8000" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Collection Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={chromaCollectionName} onChange={(e) => setChromaCollectionName(e.target.value)} placeholder="my_collection" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={chromaCollectionName} onChange={(e) => setChromaCollectionName(e.target.value)} placeholder="my_collection" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Persist Directory</Label>
-                        <Input type="text" value={chromaPersistDirectory} onChange={(e) => setChromaPersistDirectory(e.target.value)} placeholder="./chroma_data" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={chromaPersistDirectory} onChange={(e) => setChromaPersistDirectory(e.target.value)} placeholder="./chroma_data" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -657,7 +677,7 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">API Key <span className="text-red-400">*</span></Label>
                         <div className="relative">
-                          <Input type={showApiKey ? "text" : "password"} value={chromaApiKey} onChange={(e) => setChromaApiKey(e.target.value)} placeholder="Your ChromaDB Cloud API key" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400 pr-10" />
+                          <Input type={showApiKey ? "text" : "password"} value={chromaApiKey} onChange={(e) => setChromaApiKey(e.target.value)} placeholder="Your ChromaDB Cloud API key" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm pr-10 dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                           <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300">
                             {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
@@ -665,15 +685,15 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Collection Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={chromaCollectionName} onChange={(e) => setChromaCollectionName(e.target.value)} placeholder="my_collection" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={chromaCollectionName} onChange={(e) => setChromaCollectionName(e.target.value)} placeholder="my_collection" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Tenant</Label>
-                        <Input type="text" value={chromaTenant} onChange={(e) => setChromaTenant(e.target.value)} placeholder="default_tenant" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={chromaTenant} onChange={(e) => setChromaTenant(e.target.value)} placeholder="default_tenant" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Database</Label>
-                        <Input type="text" value={chromaDatabase} onChange={(e) => setChromaDatabase(e.target.value)} placeholder="default_database" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={chromaDatabase} onChange={(e) => setChromaDatabase(e.target.value)} placeholder="default_database" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -688,19 +708,19 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Host</Label>
-                        <Input type="text" value={qdrantHost} onChange={(e) => setQdrantHost(e.target.value)} placeholder="localhost" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={qdrantHost} onChange={(e) => setQdrantHost(e.target.value)} placeholder="localhost" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Port</Label>
-                        <Input type="number" value={qdrantPort} onChange={(e) => setQdrantPort(Number(e.target.value))} placeholder="6333" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="number" value={qdrantPort} onChange={(e) => setQdrantPort(Number(e.target.value))} placeholder="6333" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Collection Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={qdrantCollectionName} onChange={(e) => setQdrantCollectionName(e.target.value)} placeholder="my_collection" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={qdrantCollectionName} onChange={(e) => setQdrantCollectionName(e.target.value)} placeholder="my_collection" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">API Key (optional)</Label>
-                        <Input type="password" value={qdrantApiKey} onChange={(e) => setQdrantApiKey(e.target.value)} placeholder="For secured instances" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="password" value={qdrantApiKey} onChange={(e) => setQdrantApiKey(e.target.value)} placeholder="For secured instances" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -715,12 +735,12 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2 md:col-span-2">
                         <Label className="text-gray-300 text-sm">Cluster URL <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={qdrantUrl} onChange={(e) => setQdrantUrl(e.target.value)} placeholder="https://xxx-xxx.us-east-1-0.aws.cloud.qdrant.io" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={qdrantUrl} onChange={(e) => setQdrantUrl(e.target.value)} placeholder="https://xxx-xxx.us-east-1-0.aws.cloud.qdrant.io" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">API Key <span className="text-red-400">*</span></Label>
                         <div className="relative">
-                          <Input type={showApiKey ? "text" : "password"} value={qdrantApiKey} onChange={(e) => setQdrantApiKey(e.target.value)} placeholder="Your Qdrant Cloud API key" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400 pr-10" />
+                          <Input type={showApiKey ? "text" : "password"} value={qdrantApiKey} onChange={(e) => setQdrantApiKey(e.target.value)} placeholder="Your Qdrant Cloud API key" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm pr-10 dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                           <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300">
                             {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
@@ -728,7 +748,7 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Collection Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={qdrantCollectionName} onChange={(e) => setQdrantCollectionName(e.target.value)} placeholder="my_collection" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={qdrantCollectionName} onChange={(e) => setQdrantCollectionName(e.target.value)} placeholder="my_collection" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -743,19 +763,19 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Host</Label>
-                        <Input type="text" value={weaviateHost} onChange={(e) => setWeaviateHost(e.target.value)} placeholder="localhost" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={weaviateHost} onChange={(e) => setWeaviateHost(e.target.value)} placeholder="localhost" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Port</Label>
-                        <Input type="number" value={weaviatePort} onChange={(e) => setWeaviatePort(Number(e.target.value))} placeholder="8080" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="number" value={weaviatePort} onChange={(e) => setWeaviatePort(Number(e.target.value))} placeholder="8080" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Class Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={weaviateClassName} onChange={(e) => setWeaviateClassName(e.target.value)} placeholder="Article" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={weaviateClassName} onChange={(e) => setWeaviateClassName(e.target.value)} placeholder="Article" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">API Key (optional)</Label>
-                        <Input type="password" value={weaviateApiKey} onChange={(e) => setWeaviateApiKey(e.target.value)} placeholder="For secured instances" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="password" value={weaviateApiKey} onChange={(e) => setWeaviateApiKey(e.target.value)} placeholder="For secured instances" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -770,12 +790,12 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2 md:col-span-2">
                         <Label className="text-gray-300 text-sm">Cluster URL <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={weaviateUrl} onChange={(e) => setWeaviateUrl(e.target.value)} placeholder="https://my-cluster.weaviate.network" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={weaviateUrl} onChange={(e) => setWeaviateUrl(e.target.value)} placeholder="https://my-cluster.weaviate.network" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">API Key</Label>
                         <div className="relative">
-                          <Input type={showApiKey ? "text" : "password"} value={weaviateApiKey} onChange={(e) => setWeaviateApiKey(e.target.value)} placeholder="Your WCS API key" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400 pr-10" />
+                          <Input type={showApiKey ? "text" : "password"} value={weaviateApiKey} onChange={(e) => setWeaviateApiKey(e.target.value)} placeholder="Your WCS API key" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm pr-10 dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                           <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300">
                             {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
@@ -783,7 +803,7 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-300 text-sm">Class Name <span className="text-red-400">*</span></Label>
-                        <Input type="text" value={weaviateClassName} onChange={(e) => setWeaviateClassName(e.target.value)} placeholder="Article" className="bg-slate-800 border-slate-600 text-white placeholder:text-gray-400" />
+                        <Input type="text" value={weaviateClassName} onChange={(e) => setWeaviateClassName(e.target.value)} placeholder="Article" className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500" />
                       </div>
                     </div>
                   </div>
@@ -835,40 +855,40 @@ export const VectorStoreAnalysisPage: React.FC = () => {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 bg-slate-900/40 border-slate-800 backdrop-blur-sm">
+            <Card className="lg:col-span-2 border-border bg-card shadow-sm">
               <CardHeader>
-                <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-blue-400" />
+                <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                  <Settings className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   Analysis Parameters
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-gray-300">Sample Size</Label>
+                    <Label className="text-sm font-medium text-foreground">Sample Size</Label>
                     <Input
                       type="number"
                       min={100}
                       value={sampleSize || ""}
                       onChange={(e) => setSampleSize(e.target.value ? Number(e.target.value) : undefined)}
                       placeholder="Analyze all"
-                      className="bg-slate-800 border-slate-700 text-white placeholder:text-gray-400"
+                      className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500"
                     />
-                    <p className="text-[10px] text-gray-500">Limits vectors for faster analysis</p>
+                    <p className="text-xs text-muted-foreground">Limits vectors for faster analysis</p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-gray-300">Batch Size</Label>
+                    <Label className="text-sm font-medium text-foreground">Batch Size</Label>
                     <Input
                       type="number"
                       min={100}
                       value={batchSize}
                       onChange={(e) => setBatchSize(Number(e.target.value))}
-                      className="bg-slate-800 border-slate-700 text-white placeholder:text-gray-400"
+                      className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500"
                     />
-                    <p className="text-[10px] text-gray-500">Processing granularity</p>
+                    <p className="text-xs text-muted-foreground">Processing granularity</p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-gray-300">Similarity Threshold</Label>
+                    <Label className="text-sm font-medium text-foreground">Similarity Threshold</Label>
                     <Input
                       type="number"
                       min={0.8}
@@ -876,9 +896,9 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       step={0.01}
                       value={collisionThreshold}
                       onChange={(e) => setCollisionThreshold(Number(e.target.value))}
-                      className="bg-slate-800 border-slate-700 text-white placeholder:text-gray-400"
+                      className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500"
                     />
-                    <p className="text-[10px] text-gray-500">Cutoff for collision detection</p>
+                    <p className="text-xs text-muted-foreground">Cutoff for collision detection</p>
                   </div>
                 </div>
 
@@ -907,39 +927,67 @@ export const VectorStoreAnalysisPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/40 border-slate-800 backdrop-blur-sm">
+            <Card className="border-border bg-card shadow-sm">
               <CardHeader>
-                <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5 text-blue-400" />
+                <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                  <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   Security Modules
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm text-white">Dense Clusters</Label>
-                    <p className="text-[10px] text-gray-400">Detect cross-tenant poisoning</p>
+              <CardContent className="space-y-3">
+                <div
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border p-3.5 transition-all duration-200",
+                    enableClustering
+                      ? "border-blue-500 bg-blue-500/10 shadow-sm ring-1 ring-blue-500/25"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  )}
+                >
+                  <div className="min-w-0 space-y-1 pr-2">
+                    <Label className="text-sm font-semibold text-foreground">Dense Clusters</Label>
+                    <p className="text-xs leading-snug text-muted-foreground">Detect cross-tenant poisoning</p>
                   </div>
                   <Switch checked={enableClustering} onCheckedChange={setEnableClustering} />
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm text-white">Collision Detect</Label>
-                    <p className="text-[10px] text-gray-400">Topic-to-topic collisions</p>
+                <div
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border p-3.5 transition-all duration-200",
+                    enableCollision
+                      ? "border-blue-500 bg-blue-500/10 shadow-sm ring-1 ring-blue-500/25"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  )}
+                >
+                  <div className="min-w-0 space-y-1 pr-2">
+                    <Label className="text-sm font-semibold text-foreground">Collision Detect</Label>
+                    <p className="text-xs leading-snug text-muted-foreground">Topic-to-topic collisions</p>
                   </div>
                   <Switch checked={enableCollision} onCheckedChange={setEnableCollision} />
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm text-white">Outlier Scoring</Label>
-                    <p className="text-[10px] text-gray-400">Isolation Forest anomalies</p>
+                <div
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border p-3.5 transition-all duration-200",
+                    enableOutlier
+                      ? "border-blue-500 bg-blue-500/10 shadow-sm ring-1 ring-blue-500/25"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  )}
+                >
+                  <div className="min-w-0 space-y-1 pr-2">
+                    <Label className="text-sm font-semibold text-foreground">Outlier Scoring</Label>
+                    <p className="text-xs leading-snug text-muted-foreground">Isolation Forest anomalies</p>
                   </div>
                   <Switch checked={enableOutlier} onCheckedChange={setEnableOutlier} />
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm text-white">Trigger Scan</Label>
-                    <p className="text-[10px] text-gray-400">Advanced injection patterns</p>
+                <div
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border p-3.5 transition-all duration-200",
+                    enableTrigger
+                      ? "border-blue-500 bg-blue-500/10 shadow-sm ring-1 ring-blue-500/25"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  )}
+                >
+                  <div className="min-w-0 space-y-1 pr-2">
+                    <Label className="text-sm font-semibold text-foreground">Trigger Scan</Label>
+                    <p className="text-xs leading-snug text-muted-foreground">Advanced injection patterns</p>
                   </div>
                   <Switch checked={enableTrigger} onCheckedChange={setEnableTrigger} />
                 </div>
@@ -962,8 +1010,8 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                 <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
                 <Database className="w-6 h-6 text-blue-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
-              <div className="text-gray-300 font-medium">Crunching vector data...</div>
-              <div className="text-xs text-gray-500 italic max-w-xs text-center">
+              <div className="font-medium text-foreground">Crunching vector data...</div>
+              <div className="max-w-xs text-center text-xs italic text-muted-foreground">
                 Computing cosine similarities and running DBSCAN clustering on sampled neighbors.
               </div>
             </div>
@@ -971,10 +1019,10 @@ export const VectorStoreAnalysisPage: React.FC = () => {
 
           {result && (
             <div className="space-y-6">
-              <Card className="bg-slate-900/40 border-slate-800 backdrop-blur-sm">
+              <Card className="border-border bg-card backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-white flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-foreground">
                       <TrendingUp className="w-5 h-5 text-blue-400" />
                       Security Posture Summary
                     </CardTitle>
@@ -984,7 +1032,7 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                         disabled={isExporting}
                         variant="outline"
                         size="sm"
-                        className="border-slate-600 hover:border-blue-500"
+                        className="border-border text-foreground hover:border-blue-500"
                       >
                         {isExporting ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -1013,22 +1061,22 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50">
-                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Scope</div>
-                      <div className="text-2xl font-bold text-white">{result.total_vectors.toLocaleString()}</div>
-                      <div className="text-[10px] text-gray-500 mt-1">Vectors in snapshot</div>
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Total Scope</div>
+                      <div className="text-2xl font-bold text-foreground">{result.total_vectors.toLocaleString()}</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">Vectors in snapshot</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50">
-                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Confidence</div>
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Confidence</div>
                       <div className="text-2xl font-bold text-blue-400">{(result.confidence * 100).toFixed(1)}%</div>
-                      <div className="text-[10px] text-gray-500 mt-1">Analysis reliability</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">Analysis reliability</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50">
-                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Findings</div>
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Total Findings</div>
                       <div className={`text-2xl font-bold ${result.findings.length > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
                         {result.findings.length}
                       </div>
-                      <div className="text-[10px] text-gray-500 mt-1">
+                      <div className="mt-1 text-[10px] text-muted-foreground">
                         {result.poisoned_vectors && result.poisoned_vectors.length > 0
                           ? result.poisoned_vectors.length === result.findings.length
                             ? 'All require remediation'
@@ -1036,41 +1084,41 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                           : 'Detected anomalies'}
                       </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50">
-                      <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Anom. Rate</div>
-                      <div className="text-2xl font-bold text-white">{(result.summary.anomaly_rate * 100).toFixed(2)}%</div>
-                      <div className="text-[10px] text-gray-500 mt-1">Findings / Analyzed</div>
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">Anom. Rate</div>
+                      <div className="text-2xl font-bold text-foreground">{(result.summary.anomaly_rate * 100).toFixed(2)}%</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">Findings / Analyzed</div>
                     </div>
                   </div>
 
                   {result.distribution_stats && (
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-slate-800/60 rounded-xl border border-slate-700 shadow-inner">
-                          <div className="text-gray-400 mb-3 flex items-center gap-2 text-sm">
+                        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-inner">
+                          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
                             <Box className="w-4 h-4 text-blue-400" />
                             Embedding Distribution
                           </div>
                           <div className="grid grid-cols-2 gap-y-3 text-sm">
-                            <div className="text-gray-500">Mean L2 Norm:</div>
-                            <div className="text-white font-mono text-right">{result.distribution_stats.mean_norm?.toFixed(4)}</div>
-                            <div className="text-gray-500">Stability (Std):</div>
-                            <div className="text-white font-mono text-right">{result.distribution_stats.std_norm?.toFixed(4)}</div>
-                            <div className="text-gray-500">Vector Dims:</div>
-                            <div className="text-white font-mono text-right">{result.distribution_stats.dimension}</div>
+                            <div className="text-muted-foreground">Mean L2 Norm:</div>
+                            <div className="font-mono text-right text-foreground">{result.distribution_stats.mean_norm?.toFixed(4)}</div>
+                            <div className="text-muted-foreground">Stability (Std):</div>
+                            <div className="font-mono text-right text-foreground">{result.distribution_stats.std_norm?.toFixed(4)}</div>
+                            <div className="text-muted-foreground">Vector Dims:</div>
+                            <div className="font-mono text-right text-foreground">{result.distribution_stats.dimension}</div>
                           </div>
                         </div>
-                        <div className="p-4 bg-slate-800/60 rounded-xl border border-slate-700 shadow-inner">
-                          <div className="text-gray-400 mb-3 flex items-center gap-2 text-sm">
+                        <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-inner">
+                          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
                             <TrendingUp className="w-4 h-4 text-blue-400" />
                             Retrieval Integrity
                           </div>
                           <div className="grid grid-cols-2 gap-y-3 text-sm">
-                            <div className="text-gray-500">Global Similarity:</div>
-                            <div className="text-white font-mono text-right">{result.distribution_stats.avg_similarity?.toFixed(4)}</div>
-                            <div className="text-gray-500">Collision Rate:</div>
-                            <div className="text-white font-mono text-right">{(result.distribution_stats.collision_rate * 100).toFixed(3)}%</div>
-                            <div className="text-gray-500">Status:</div>
+                            <div className="text-muted-foreground">Global Similarity:</div>
+                            <div className="font-mono text-right text-foreground">{result.distribution_stats.avg_similarity?.toFixed(4)}</div>
+                            <div className="text-muted-foreground">Collision Rate:</div>
+                            <div className="font-mono text-right text-foreground">{(result.distribution_stats.collision_rate * 100).toFixed(3)}%</div>
+                            <div className="text-muted-foreground">Status:</div>
                             <div className="text-right">
                               {result.distribution_stats.collision_rate > 0.05 ?
                                 <Badge className="bg-red-500/20 text-red-400 border-red-500/50 py-0">High Collision</Badge> :
@@ -1082,8 +1130,8 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                       </div>
                       
                       {/* Visual Health Bar */}
-                      <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
-                        <div className="text-gray-400 mb-4 flex items-center gap-2 text-sm">
+                      <div className="rounded-xl border border-border bg-muted/20 p-4">
+                        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                           <BarChart className="w-4 h-4 text-blue-400" />
                           Store Health Indicators
                         </div>
@@ -1091,8 +1139,8 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                           {/* Collision Rate Bar */}
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">Collision Rate</span>
-                              <span className="text-gray-300">{(result.distribution_stats.collision_rate * 100).toFixed(2)}%</span>
+                              <span className="text-muted-foreground">Collision Rate</span>
+                              <span className="text-foreground">{(result.distribution_stats.collision_rate * 100).toFixed(2)}%</span>
                             </div>
                             <div className="h-2 bg-slate-900/60 rounded-full overflow-hidden">
                               <div 
@@ -1109,8 +1157,8 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                           {/* Anomaly Rate Bar */}
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">Anomaly Rate</span>
-                              <span className="text-gray-300">{(result.summary.anomaly_rate * 100).toFixed(2)}%</span>
+                              <span className="text-muted-foreground">Anomaly Rate</span>
+                              <span className="text-foreground">{(result.summary.anomaly_rate * 100).toFixed(2)}%</span>
                             </div>
                             <div className="h-2 bg-slate-900/60 rounded-full overflow-hidden">
                               <div 
@@ -1127,8 +1175,8 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                           {/* Confidence Bar */}
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">Analysis Confidence</span>
-                              <span className="text-gray-300">{(result.confidence * 100).toFixed(1)}%</span>
+                              <span className="text-muted-foreground">Analysis Confidence</span>
+                              <span className="text-foreground">{(result.confidence * 100).toFixed(1)}%</span>
                             </div>
                             <div className="h-2 bg-slate-900/60 rounded-full overflow-hidden">
                               <div 
@@ -1147,11 +1195,11 @@ export const VectorStoreAnalysisPage: React.FC = () => {
               {result.poisoned_vectors && result.poisoned_vectors.length > 0 && (
                 <Card className="bg-red-900/20 border-red-500/30 backdrop-blur-sm">
                   <CardHeader>
-                    <CardTitle className="text-white text-lg flex items-center gap-2">
+                    <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                       <ShieldAlert className="w-5 h-5 text-red-400" />
                       Suspicious Vectors ({result.poisoned_vectors.length} of {result.findings.length} findings)
                     </CardTitle>
-                    <CardDescription className="text-gray-400">
+                    <CardDescription className="text-muted-foreground">
                       These {result.poisoned_vectors.length} findings may contain harmful content, injection patterns, or behave unusually. Follow the steps below to fix them.
                     </CardDescription>
                   </CardHeader>
@@ -1174,19 +1222,19 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                                 {categoryLabel}
                               </Badge>
                               {ids.length > 0 && (
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-muted-foreground">
                                   {ids.length} affected: {ids.length <= 5 ? ids.join(', ') : `${ids.slice(0, 3).join(', ')} and ${ids.length - 3} more`}
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-300">{pv.description}</p>
+                            <p className="text-sm text-foreground">{pv.description}</p>
                             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                              <p className="text-xs text-emerald-300">
+                              <p className="text-xs text-emerald-700 dark:text-emerald-300">
                                 <strong>What to do:</strong> {pv.recommended_action}
                               </p>
                             </div>
                             {pv.source_doc && pv.source_doc !== 'unknown' && (
-                              <p className="text-xs text-gray-500">From: {pv.source_doc}</p>
+                              <p className="text-xs text-muted-foreground">From: {pv.source_doc}</p>
                             )}
                           </div>
                         )
@@ -1197,10 +1245,10 @@ export const VectorStoreAnalysisPage: React.FC = () => {
               )}
 
               {result.recommendations.length > 0 && (
-                <Card className="bg-slate-900/40 border-slate-800 backdrop-blur-sm">
+                <Card className="border-border bg-card backdrop-blur-sm">
                   <CardHeader>
-                    <CardTitle className="text-white text-lg">What to Do Next</CardTitle>
-                    <CardDescription className="text-gray-400">
+                    <CardTitle className="text-lg text-foreground">What to Do Next</CardTitle>
+                    <CardDescription className="text-muted-foreground">
                       Follow these steps to clean up your vector store and prevent future issues.
                     </CardDescription>
                   </CardHeader>
@@ -1211,7 +1259,7 @@ export const VectorStoreAnalysisPage: React.FC = () => {
                           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/30 text-blue-300 text-xs font-semibold flex items-center justify-center">
                             {idx + 1}
                           </span>
-                          <span className="text-sm text-gray-300">{rec}</span>
+                          <span className="text-sm text-foreground">{rec}</span>
                         </div>
                       ))}
                     </div>

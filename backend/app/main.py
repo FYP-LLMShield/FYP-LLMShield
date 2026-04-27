@@ -274,7 +274,8 @@ async def health_supabase():
     """
     from app.core.config import settings
     db_configured = bool(settings.SUPABASE_PROJECT_URL and settings.SUPABASE_SERVICE_KEY)
-    auth_configured = bool(settings.SUPABASE_PROJECT_URL and settings.SUPABASE_ANON_KEY and settings.SUPABASE_JWT_SECRET)
+    # Frontend can use Supabase Auth when project URL + anon key exist; JWTs may be HS256 (JWT secret) or ES256/RS256 (JWKS).
+    auth_configured = bool(settings.SUPABASE_PROJECT_URL and settings.SUPABASE_ANON_KEY)
     out = {
         "supabase_configured": db_configured,
         "supabase_auth_primary": auth_configured,

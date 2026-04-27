@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional, List, Any
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import AliasChoices, BaseModel, EmailStr, Field, field_validator
 from bson import ObjectId
 
 class PyObjectId(ObjectId):
@@ -219,7 +219,26 @@ class TokenData(BaseModel):
 
 # MFA Request/Response Models (keep existing)
 class MFASetupRequest(BaseModel):
-    totp_code: str
+    totp_code: str = Field(..., min_length=6, max_length=6)
+    setup_id: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("setup_id", "setupId"),
+    )
+
+    @field_validator("totp_code", mode="before")
+    @classmethod
+    def normalize_totp_code(cls, v):
+        if v is None:
+            return ""
+        return "".join(c for c in str(v) if c.isdigit())[:6]
+
+    @field_validator("setup_id", mode="before")
+    @classmethod
+    def normalize_setup_id(cls, v):
+        if v is None or v == "":
+            return None
+        s = str(v).strip()
+        return s if s else None
 
 class MFAVerifyRequest(BaseModel):
     totp_code: str
@@ -233,6 +252,7 @@ class MFASetupResponse(BaseModel):
     secret: str
     backup_url: str
     recovery_codes: List[str]
+    setup_id: str
 
 class MFAStatusResponse(BaseModel):
     mfa_enabled: bool

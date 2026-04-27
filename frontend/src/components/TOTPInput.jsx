@@ -3,6 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
+  /** Avoid re-emitting the same 6-digit code when parent re-renders (prevents setState loops). */
+  const lastEmittedRef = useRef('');
 
   useEffect(() => {
     // Focus first input on mount
@@ -11,21 +13,30 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
     }
   }, []);
 
-  // Sync internal digits state with external value prop
+  // Sync FROM parent only when we have a full 6-digit string.
+  // Do NOT clear when value is "" while the user is still typing — parent keeps totpCode empty until onComplete,
+  // so clearing on "" was wiping partial input and resetting focus to the first box every render.
+  // Skip setDigits when already identical — avoids extra renders that steal focus from the active box.
   useEffect(() => {
-    if (value === '' || value.length === 0) {
-      setDigits(['', '', '', '', '', '']);
-    } else if (value.length === 6) {
-      setDigits(value.split(''));
+    if (value && String(value).length === 6) {
+      const s = String(value);
+      setDigits((prev) => {
+        if (prev.join("") === s) return prev;
+        return s.split("");
+      });
+      lastEmittedRef.current = s;
     }
   }, [value]);
 
   useEffect(() => {
-    // Check if all digits are filled
-    if (digits.every(digit => digit !== '')) {
-      const code = digits.join('');
-      onComplete(code);
+    if (!digits.every((digit) => digit !== '')) {
+      lastEmittedRef.current = '';
+      return;
     }
+    const code = digits.join('');
+    if (lastEmittedRef.current === code) return;
+    lastEmittedRef.current = code;
+    onComplete(code);
   }, [digits, onComplete]);
 
   const handleChange = (index, value) => {
@@ -80,6 +91,7 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
   };
 
   const clearInputs = () => {
+    lastEmittedRef.current = '';
     setDigits(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
   };
@@ -98,14 +110,13 @@ const TOTPInput = ({ onComplete, loading = false, error = '', value = '' }) => {
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={handlePaste}
-            disabled={loading}
             className={`w-12 h-12 text-center text-xl font-bold border-2 rounded-lg transition-all duration-200 ${
               error
                 ? 'border-red-500 bg-red-50 text-red-900'
                 : digit
                 ? 'border-green-500 bg-green-50 text-green-900'
                 : 'border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
-            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            }`}
           />
         ))}
       </div>

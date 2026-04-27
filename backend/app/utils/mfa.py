@@ -31,11 +31,19 @@ class MFAUtils:
         return totp.now()
     
     @staticmethod
-    def verify_totp_code(secret: str, user_code: str, tolerance: int = 1) -> bool:
-        """Verify TOTP code with time tolerance - FIXED"""
-        # Use pyotp's built-in verification with window
-        totp = pyotp.TOTP(secret)
-        return totp.verify(user_code, valid_window=tolerance)
+    def verify_totp_code(secret: str, user_code: str, tolerance: int = 8) -> bool:
+        """Verify TOTP code with time tolerance (±8 steps ≈ ±4 min) for clock skew."""
+        if not user_code or not secret:
+            return False
+        clean = "".join(c for c in str(user_code).strip() if c.isdigit())
+        if len(clean) != 6:
+            return False
+        # DB / transport may add whitespace; base32 is case-insensitive for pyotp
+        sec = "".join(str(secret).split()).strip()
+        if not sec:
+            return False
+        totp = pyotp.TOTP(sec)
+        return totp.verify(clean, valid_window=tolerance)
     
     @staticmethod
     def generate_qr_code(email: str, secret: str, issuer: str = "LLMShield") -> str:

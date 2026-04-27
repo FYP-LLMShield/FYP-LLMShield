@@ -13,6 +13,7 @@ import { Textarea } from "../ui/textarea"
 import { Progress } from "../ui/progress"
 import { Switch } from "../ui/switch"
 import { Checkbox } from "../ui/checkbox"
+import { cn } from "../../lib/utils"
 import {
   AlertTriangle,
   FileText,
@@ -255,58 +256,86 @@ export const EmbeddingInspectionPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 rounded-lg p-5 text-foreground sm:p-6">
       <div className="flex items-center gap-3">
-        <Shield className="w-6 h-6 text-teal-500" />
+        <Shield className="h-6 w-6 text-teal-600 dark:text-teal-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Embedding Inspection</h1>
-          <p className="text-gray-400 text-sm">
+          <h2 className="text-xl font-bold text-foreground">Embedding Inspection</h2>
+          <p className="text-sm text-muted-foreground">
             Scan documents for adversarial/poisonous content before sending to the vector store.
           </p>
         </div>
       </div>
 
-      <Card className="bg-slate-900/70 border-slate-700">
+      <Card className="border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-white">Upload & Settings</CardTitle>
+          <CardTitle className="text-foreground">Upload & Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-              <label className="text-sm text-gray-300 block mb-1">Document</label>
-              <Input type="file" accept=".pdf,.docx,.txt,.md" onChange={handleFileChange} className="bg-slate-800 border-slate-600 text-gray-100 file:text-gray-100" />
+              <label className="mb-1 block text-sm font-medium text-foreground">Document</label>
+              <Input
+                type="file"
+                accept=".pdf,.docx,.txt,.md"
+                onChange={handleFileChange}
+                className="border border-slate-300 bg-white text-black shadow-sm file:font-medium file:text-black dark:border-slate-600 dark:bg-white dark:text-black"
+              />
             </div>
             <div>
-              <label className="text-sm text-gray-300 block mb-1">Chunk Size (words)</label>
+              <label className="mb-1 block text-sm font-medium text-foreground">Chunk Size (words)</label>
               <Input
                 type="number"
                 min={50}
                 value={chunkSize}
                 onChange={(e) => setChunkSize(Number(e.target.value))}
-                className="bg-white border-slate-400 text-gray-900 placeholder:text-gray-500"
+                className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-300 block mb-1">Chunk Overlap (words)</label>
+              <label className="mb-1 block text-sm font-medium text-foreground">Chunk Overlap (words)</label>
               <Input
                 type="number"
                 min={0}
                 value={chunkOverlap}
                 onChange={(e) => setChunkOverlap(Number(e.target.value))}
-                className="bg-white border-slate-400 text-gray-900 placeholder:text-gray-500"
+                className="border border-slate-300 bg-white text-black placeholder:text-slate-500 shadow-sm dark:border-slate-600 dark:bg-white dark:text-black dark:placeholder:text-slate-500"
               />
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <div className="text-sm text-muted-foreground">
+              Ready when you are — choose a document, tune chunking if needed, then run the scan.
+            </div>
+            <Button
+              onClick={handleInspect}
+              disabled={isLoading}
+              size="lg"
+              className="bg-teal-600 px-8 py-6 text-base font-semibold text-white shadow-lg shadow-teal-900/15 ring-1 ring-teal-700/30 hover:bg-teal-500 disabled:opacity-60 [&_svg]:text-current"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" /> Inspecting...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-5 w-5" /> Run Inspection
+                </>
+              )}
+            </Button>
+          </div>
+          {error && <div className="text-sm text-destructive">{error}</div>}
           
           {/* Chunk Size Suggestions */}
           {result && result.findings.length > 0 && (
-            <div className="border-t border-slate-700 pt-4">
-              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+            <div className="border-t border-border pt-4">
+              <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <h3 className="text-sm font-semibold text-blue-300">Chunk Size Recommendations</h3>
-                    <p className="text-xs text-blue-200">
+                    <h3 className="text-sm font-semibold text-blue-700 dark:text-blue-300">Chunk Size Recommendations</h3>
+                    <p className="text-xs text-blue-700/90 dark:text-blue-200">
                       {(() => {
                         const avgFindingsPerChunk = result.findings.length / result.total_chunks
                         const highRiskCount = result.findings.filter(f => f.risk_score >= 0.8).length
@@ -343,94 +372,74 @@ export const EmbeddingInspectionPage: React.FC = () => {
             </div>
           )}
           
-          <div className="border-t border-slate-700 pt-4">
-            <label className="text-sm text-gray-300 block mb-3 font-semibold">Pattern Categories</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="flex items-center space-x-2 bg-slate-800/50 px-3 py-2 rounded-lg">
+          <div className="border-t border-border pt-4">
+            <label className="mb-3 block text-sm font-semibold text-foreground">Pattern Categories</label>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="flex items-center space-x-2 rounded-lg bg-muted/40 px-3 py-2.5 ring-1 ring-border">
                 <Checkbox
                   id="cat-instruction"
                   checked={enabledCategories.instruction_payload}
                   onCheckedChange={() => toggleCategory("instruction_payload")}
                 />
-                <label htmlFor="cat-instruction" className="text-sm text-gray-300 cursor-pointer">
+                <label htmlFor="cat-instruction" className="cursor-pointer text-sm font-medium text-foreground">
                   Instruction Payloads
                 </label>
               </div>
-              <div className="flex items-center space-x-2 bg-slate-800/50 px-3 py-2 rounded-lg">
+              <div className="flex items-center space-x-2 rounded-lg bg-muted/40 px-3 py-2.5 ring-1 ring-border">
                 <Checkbox
                   id="cat-trigger"
                   checked={enabledCategories.trigger_phrases}
                   onCheckedChange={() => toggleCategory("trigger_phrases")}
                 />
-                <label htmlFor="cat-trigger" className="text-sm text-gray-300 cursor-pointer">
+                <label htmlFor="cat-trigger" className="cursor-pointer text-sm font-medium text-foreground">
                   Trigger Phrases
                 </label>
               </div>
-              <div className="flex items-center space-x-2 bg-slate-800/50 px-3 py-2 rounded-lg">
+              <div className="flex items-center space-x-2 rounded-lg bg-muted/40 px-3 py-2.5 ring-1 ring-border">
                 <Checkbox
                   id="cat-obfuscation"
                   checked={enabledCategories.obfuscated_tokens}
                   onCheckedChange={() => toggleCategory("obfuscated_tokens")}
                 />
-                <label htmlFor="cat-obfuscation" className="text-sm text-gray-300 cursor-pointer">
+                <label htmlFor="cat-obfuscation" className="cursor-pointer text-sm font-medium text-foreground">
                   Obfuscation
                 </label>
               </div>
-              <div className="flex items-center space-x-2 bg-slate-800/50 px-3 py-2 rounded-lg">
+              <div className="flex items-center space-x-2 rounded-lg bg-muted/40 px-3 py-2.5 ring-1 ring-border">
                 <Checkbox
                   id="cat-repetition"
                   checked={enabledCategories.extreme_repetition}
                   onCheckedChange={() => toggleCategory("extreme_repetition")}
                 />
-                <label htmlFor="cat-repetition" className="text-sm text-gray-300 cursor-pointer">
+                <label htmlFor="cat-repetition" className="cursor-pointer text-sm font-medium text-foreground">
                   Repetition
                 </label>
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleInspect}
-              disabled={isLoading}
-              size="lg"
-              className="bg-teal-600 hover:bg-teal-500 text-white font-semibold px-8 py-3 shadow-lg border-0"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> Inspecting...
-                </>
-              ) : (
-                <>
-                  <Shield className="w-5 h-5" /> Run Inspection
-                </>
-              )}
-            </Button>
-            {error && <span className="text-sm text-red-400">{error}</span>}
-          </div>
         </CardContent>
       </Card>
 
       {isLoading && (
-        <Card className="bg-slate-900/70 border-slate-800">
+        <Card className="border-border bg-card text-card-foreground">
           <CardContent className="py-6 flex items-center gap-3">
             <Loader2 className="w-5 h-5 text-teal-400 animate-spin" />
-            <span className="text-gray-200">Inspecting document...</span>
+            <span className="text-slate-700 dark:text-gray-200">Inspecting document...</span>
           </CardContent>
         </Card>
       )}
 
       {result && (
         <div className="space-y-4">
-          <Card className="bg-gradient-to-r from-slate-900/90 via-slate-800/90 to-slate-900/90 border-teal-500/30 shadow-xl">
+          <Card className="border-teal-500/30 bg-card text-card-foreground shadow-xl dark:bg-gradient-to-r dark:from-slate-900/90 dark:via-slate-800/90 dark:to-slate-900/90">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-white flex items-center gap-2 text-xl">
+                  <CardTitle className="flex items-center gap-2 text-xl text-slate-900 dark:text-white">
                     <FileText className="w-6 h-6 text-teal-400" />
                     {result.filename}
                   </CardTitle>
-                  <p className="text-sm text-gray-400 mt-1">
+                  <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
                     {formatBytes(result.file_size)} • {result.total_chunks} chunks • Scanned at {new Date(result.scan_timestamp).toLocaleString()}
                   </p>
                 </div>
@@ -440,7 +449,7 @@ export const EmbeddingInspectionPage: React.FC = () => {
                     disabled={isExporting}
                     variant="outline"
                     size="sm"
-                    className="border-slate-600 hover:border-teal-500 hover:bg-slate-800"
+                    className="border-slate-300 text-slate-900 hover:border-teal-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
                   >
                     {isExporting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -467,18 +476,18 @@ export const EmbeddingInspectionPage: React.FC = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-gray-200">
+            <CardContent className="space-y-3 text-sm text-slate-800 dark:text-gray-200">
               <div className="flex flex-wrap gap-3">
-                <Badge variant="outline" className="border-teal-500/50 text-teal-300 bg-teal-500/10 px-3 py-1">
+                <Badge variant="outline" className="border-teal-500/50 bg-teal-500/10 px-3 py-1 text-teal-700 dark:text-teal-300">
                   Chunk size: {result.chunk_size}
                 </Badge>
-                <Badge variant="outline" className="border-teal-500/50 text-teal-300 bg-teal-500/10 px-3 py-1">
+                <Badge variant="outline" className="border-teal-500/50 bg-teal-500/10 px-3 py-1 text-teal-700 dark:text-teal-300">
                   Overlap: {result.chunk_overlap}
                 </Badge>
-                <Badge variant="outline" className="border-teal-500/50 text-teal-300 bg-teal-500/10 px-3 py-1">
+                <Badge variant="outline" className="border-teal-500/50 bg-teal-500/10 px-3 py-1 text-teal-700 dark:text-teal-300">
                   Findings: {result.findings.length}
                 </Badge>
-                <Badge variant="outline" className="border-amber-500/50 text-amber-300 bg-amber-500/10 px-3 py-1">
+                <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 px-3 py-1 text-amber-800 dark:text-amber-300">
                   Scan ID: {result.scan_id.slice(0, 8)}
                 </Badge>
               </div>
@@ -493,13 +502,13 @@ export const EmbeddingInspectionPage: React.FC = () => {
 
           {/* Clear report summary and top-level recommendations when there are findings */}
           {result.findings.length > 0 && (
-            <Card className="bg-gradient-to-br from-teal-900/30 to-slate-900/90 border-teal-500/40 shadow-lg">
+            <Card className="border-teal-500/40 bg-card text-card-foreground shadow-lg dark:bg-gradient-to-br dark:from-teal-900/30 dark:to-slate-900/90">
               <CardHeader className="pb-2">
-                <CardTitle className="text-white flex items-center gap-2 text-lg">
+                <CardTitle className="flex items-center gap-2 text-lg text-slate-900 dark:text-white">
                   <FileText className="w-5 h-5 text-teal-400" />
                   Report summary — what to do
                 </CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardDescription className="text-slate-600 dark:text-gray-400">
                   We found {result.findings.length} issue{result.findings.length !== 1 ? "s" : ""} in your document. Follow the steps below to fix them before embedding.
                 </CardDescription>
               </CardHeader>
@@ -507,28 +516,28 @@ export const EmbeddingInspectionPage: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                     <span className="text-2xl font-bold text-red-400">{result.findings.filter(f => f.risk_score >= 0.8).length}</span>
-                    <span className="block text-gray-400">High risk — fix first</span>
+                    <span className="block text-slate-700 dark:text-gray-400">High risk — fix first</span>
                   </div>
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <span className="text-2xl font-bold text-amber-400">{result.findings.filter(f => f.risk_score >= 0.5 && f.risk_score < 0.8).length}</span>
-                    <span className="block text-gray-400">Medium risk</span>
+                    <span className="block text-slate-700 dark:text-gray-400">Medium risk</span>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-700/50 border border-slate-600">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-700/50">
                     <span className="text-2xl font-bold text-teal-400">{new Set(result.findings.map(f => f.chunk_id)).size}</span>
-                    <span className="block text-gray-400">Chunks affected</span>
+                    <span className="block text-slate-700 dark:text-gray-400">Chunks affected</span>
                   </div>
-                  <div className="p-3 rounded-lg bg-slate-700/50 border border-slate-600">
-                    <span className="text-2xl font-bold text-white">{result.total_chunks}</span>
-                    <span className="block text-gray-400">Total chunks scanned</span>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-700/50">
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{result.total_chunks}</span>
+                    <span className="block text-slate-700 dark:text-gray-400">Total chunks scanned</span>
                   </div>
                 </div>
-                <div className="rounded-xl bg-slate-800/60 border border-slate-600 p-4">
-                  <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-800/60">
+                  <h4 className="mb-3 flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
                     <ArrowRight className="w-4 h-4 text-teal-400" />
                     Recommended next steps
                   </h4>
-                  <ol className="space-y-2 text-gray-200 text-sm list-decimal list-inside">
-                    <li>Review each <strong className="text-white">flagged passage</strong> below and read the clear recommendation for that finding.</li>
+                  <ol className="list-inside list-decimal space-y-2 text-sm text-slate-800 dark:text-gray-200">
+                    <li>Review each <strong className="text-slate-900 dark:text-white">flagged passage</strong> below and read the clear recommendation for that finding.</li>
                     <li>Use <strong className="text-teal-300">Auto-Fix</strong> to sanitize, <strong className="text-slate-300">Mask</strong> to hide, or <strong className="text-red-300">Exclude Chunk</strong> to drop unsafe chunks.</li>
                     <li>Re-run inspection after making changes to confirm findings are resolved.</li>
                   </ol>
@@ -540,45 +549,45 @@ export const EmbeddingInspectionPage: React.FC = () => {
           {result.findings.length > 0 && (
             <div className="w-full max-w-6xl space-y-6">
                 {/* Summary Card - full width */}
-                <Card className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 border-slate-700">
+                <Card className="border-border bg-card text-card-foreground dark:border-slate-700 dark:bg-gradient-to-br dark:from-slate-900/90 dark:to-slate-800/90">
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div className="text-center p-3 rounded-lg bg-slate-800/50">
+                      <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
                         <div className="text-3xl font-bold text-red-400">
                           {result.findings.filter(f => f.risk_score >= 0.8).length}
                         </div>
-                        <div className="text-sm text-gray-400 mt-1">High Risk</div>
+                        <div className="mt-1 text-sm text-slate-700 dark:text-gray-400">High Risk</div>
                       </div>
-                      <div className="text-center p-3 rounded-lg bg-slate-800/50">
+                      <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
                         <div className="text-3xl font-bold text-amber-400">
                           {result.findings.filter(f => f.risk_score >= 0.5 && f.risk_score < 0.8).length}
                         </div>
-                        <div className="text-sm text-gray-400 mt-1">Medium Risk</div>
+                        <div className="mt-1 text-sm text-slate-700 dark:text-gray-400">Medium Risk</div>
                       </div>
-                      <div className="text-center p-3 rounded-lg bg-slate-800/50">
+                      <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
                         <div className="text-3xl font-bold text-emerald-400">
                           {result.findings.filter(f => f.risk_score < 0.5).length}
                         </div>
-                        <div className="text-sm text-gray-400 mt-1">Low Risk</div>
+                        <div className="mt-1 text-sm text-slate-700 dark:text-gray-400">Low Risk</div>
                       </div>
-                      <div className="text-center p-3 rounded-lg bg-slate-800/50">
+                      <div className="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800/50">
                         <div className="text-3xl font-bold text-teal-400">
                           {new Set(result.findings.map(f => f.chunk_id)).size}
                         </div>
-                        <div className="text-sm text-gray-400 mt-1">Affected Chunks</div>
+                        <div className="mt-1 text-sm text-slate-700 dark:text-gray-400">Affected Chunks</div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-slate-900/70 border-slate-800">
+                <Card className="border-border bg-card text-card-foreground dark:border-slate-800 dark:bg-slate-900/70">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                      <CardTitle className="text-white flex items-center gap-2 text-lg">
+                      <CardTitle className="flex items-center gap-2 text-lg text-slate-900 dark:text-white">
                         <AlertTriangle className="w-5 h-5 text-amber-400" />
                         Flagged Passages
                       </CardTitle>
-                      <p className="text-sm text-gray-400 mt-1">
+                      <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
                         Showing {topFindings(result.findings).length} findings ({filteredFindings(result.findings).length} after filters)
                       </p>
                     </div>
@@ -586,7 +595,7 @@ export const EmbeddingInspectionPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={toggleAllFindings}
-                      className="text-gray-400 hover:text-white"
+                      className="text-slate-700 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white"
                     >
                       {excludedChunkIds.size === result.findings.length ? "Deselect All" : "Select All to Exclude"}
                     </Button>
@@ -598,7 +607,17 @@ export const EmbeddingInspectionPage: React.FC = () => {
                       const isDuplicate = idx > 0 && result.findings[idx - 1]?.chunk_id === f.chunk_id
                       
                       return (
-                        <div key={`${f.chunk_id}-${idx}-${f.snippet.slice(0, 20)}`} className={`p-4 rounded-lg border transition-colors ${excludedChunkIds.has(f.chunk_id) ? 'border-red-500/50 bg-red-500/5' : isDuplicate ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-700 bg-slate-800/60'}`}>
+                        <div
+                          key={`${f.chunk_id}-${idx}-${f.snippet.slice(0, 20)}`}
+                          className={cn(
+                            "rounded-lg border p-4 transition-colors",
+                            excludedChunkIds.has(f.chunk_id)
+                              ? "border-red-500/50 bg-red-500/5"
+                              : isDuplicate
+                                ? "border-border bg-muted dark:border-slate-700/50 dark:bg-slate-800/30"
+                                : "border-border bg-card dark:border-slate-700 dark:bg-slate-800/60"
+                          )}
+                        >
                           <div className="flex items-start gap-3">
                             <Checkbox
                               id={`exclude-${f.chunk_id}-${idx}`}
@@ -609,10 +628,10 @@ export const EmbeddingInspectionPage: React.FC = () => {
                             <div className="flex-1 space-y-2">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {riskBadge(f.risk_score)}
-                                <Badge variant="outline" className="border-slate-600 text-slate-200 capitalize">
+                                <Badge variant="outline" className="border-border text-foreground capitalize dark:border-slate-600 dark:text-slate-200">
                                   {f.reason_label.replace(/_/g, " ")}
                                 </Badge>
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-muted-foreground dark:text-gray-400">
                                   Chunk {f.chunk_id} • Page {f.location.page_number} • lines {f.location.start_line}-{f.location.end_line}
                                 </span>
                                 {chunkFindings.length > 1 && !isDuplicate && (
@@ -624,26 +643,26 @@ export const EmbeddingInspectionPage: React.FC = () => {
                                   <Badge className="bg-red-900/40 text-red-400 border-red-500/50">To be excluded</Badge>
                                 )}
                               </div>
-                              <div className="text-sm text-gray-100 whitespace-pre-wrap leading-relaxed">{f.snippet}</div>
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground dark:text-gray-100">{f.snippet}</div>
                               {/* Clear recommendation for this chunk — user can act accordingly */}
                               {(() => {
                                 const rec = getFindingRecommendation(f)
                                 return (
-                                  <div className="border-t border-slate-700/50 mt-3 pt-3 space-y-3">
+                                  <div className="mt-3 space-y-3 border-t border-border pt-3 dark:border-slate-700/50">
                                     <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-4 space-y-3">
-                                      <h4 className="text-amber-200 font-semibold text-sm flex items-center gap-2">
+                                      <h4 className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
                                         <AlertTriangle className="w-4 h-4 shrink-0" />
                                         {rec.title}
                                       </h4>
                                       {/* Single clear recommended action so user may act accordingly */}
                                       <div className="rounded-md bg-teal-500/15 border border-teal-500/40 px-3 py-2.5">
-                                        <p className="text-xs font-semibold text-teal-200 uppercase tracking-wider mb-1">Recommended action for this chunk</p>
-                                        <p className="text-sm text-white font-medium leading-snug">{rec.recommendedAction}</p>
+                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-teal-900 dark:text-teal-200">Recommended action for this chunk</p>
+                                        <p className="text-sm font-medium leading-snug text-foreground dark:text-white">{rec.recommendedAction}</p>
                                       </div>
-                                      <p className="text-sm text-gray-200 leading-relaxed">{rec.explanation}</p>
+                                      <p className="text-sm leading-relaxed text-muted-foreground dark:text-gray-200">{rec.explanation}</p>
                                       <div className="mt-2">
-                                        <p className="text-xs font-medium text-amber-200/90 mb-1">Steps you can take:</p>
-                                        <ul className="list-decimal list-inside space-y-1 text-xs text-gray-300">
+                                        <p className="mb-1 text-xs font-medium text-amber-900/90 dark:text-amber-200/90">Steps you can take:</p>
+                                        <ul className="list-inside list-decimal space-y-1 text-xs text-muted-foreground dark:text-gray-300">
                                           {rec.steps.map((step, i) => (
                                             <li key={i}>{step}</li>
                                           ))}
@@ -663,7 +682,7 @@ export const EmbeddingInspectionPage: React.FC = () => {
                                           size="sm" 
                                           variant="outline"
                                           onClick={() => handleMaskFinding(f)}
-                                          className="border-slate-600 hover:bg-slate-700 h-8 text-xs"
+                                          className="h-8 border-slate-300 text-slate-900 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-700 text-xs"
                                         >
                                           <EyeOff className="w-3 h-3 mr-1" /> Mask
                                         </Button>
@@ -695,20 +714,20 @@ export const EmbeddingInspectionPage: React.FC = () => {
 
                 {/* Clear recommendations - full width below report */}
                 {result.recommendations && result.recommendations.length > 0 && (
-                  <Card className="bg-gradient-to-br from-amber-900/20 to-slate-900/90 border-amber-500/30 shadow-lg">
+                  <Card className="border-amber-500/30 bg-card text-card-foreground shadow-lg dark:bg-gradient-to-br dark:from-amber-900/20 dark:to-slate-900/90">
                     <CardHeader className="border-b border-amber-500/20 pb-3">
-                      <CardTitle className="text-white flex items-center gap-2 text-lg">
+                      <CardTitle className="flex items-center gap-2 text-lg text-slate-900 dark:text-white">
                         <AlertTriangle className="w-5 h-5 text-amber-400" />
                         Clear recommendations
                       </CardTitle>
-                      <CardDescription className="text-gray-400">
+                      <CardDescription className="text-slate-600 dark:text-gray-400">
                         Prioritized actions based on this scan
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-5">
                       <ol className="space-y-4 list-none pl-0 max-w-3xl">
                         {result.recommendations.map((rec, idx) => (
-                          <li key={idx} className="flex items-start gap-4 text-base text-gray-200 leading-relaxed">
+                          <li key={idx} className="flex items-start gap-4 text-base leading-relaxed text-slate-800 dark:text-gray-200">
                             <span className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/30 text-amber-300 font-semibold flex items-center justify-center text-sm">
                               {idx + 1}
                             </span>

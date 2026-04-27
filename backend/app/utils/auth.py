@@ -1,5 +1,6 @@
 # app/utils/auth.py - FIXED VERSION
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Optional, Tuple
 from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
@@ -16,6 +17,20 @@ import string
 
 # Security scheme - auto_error=False to handle missing tokens gracefully
 security = HTTPBearer(auto_error=False)
+
+
+def _supabase_public_origin() -> str:
+    """
+    Normalize SUPABASE_PROJECT_URL to the project origin only.
+    Strips accidental /auth/v1 or /rest/v1 suffixes so we do not build .../auth/v1/auth/v1/user.
+    """
+    raw = (settings.SUPABASE_PROJECT_URL or "").strip().rstrip("/")
+    if not raw:
+        return ""
+    for suffix in ("/auth/v1", "/rest/v1"):
+        if raw.endswith(suffix):
+            raw = raw[: -len(suffix)].rstrip("/")
+    return raw
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against its hash (72-byte safe)."""
@@ -87,19 +102,130 @@ def verify_token(token: str, token_type: str = "access"):
         )
 
 
+@lru_cache(maxsize=8)
+def _supabase_jwks_client(jwks_url: str):
+    """Cached PyJWKClient for Supabase asymmetric JWTs (ES256/RS256)."""
+    from jwt import PyJWKClient
+
+    return PyJWKClient(jwks_url)
+
+
 def _verify_supabase_jwt(token: str) -> Optional[dict]:
-    """Verify Supabase-issued JWT. Returns payload if valid, None otherwise."""
-    if not settings.SUPABASE_JWT_SECRET:
+    """
+    Verify Supabase-issued JWT. Returns payload if valid, None otherwise.
+
+    Supports:
+    - HS256 with SUPABASE_JWT_SECRET (legacy / shared-secret projects)
+    - ES256 / RS256 via JWKS at {SUPABASE_PROJECT_URL}/auth/v1/.well-known/jwks.json
+      (default for newer Supabase CLI and projects using asymmetric signing keys)
+    """
+    if not token:
         return None
+
+    import jwt as pyjwt
+
     try:
-        payload = jwt.decode(
-            token,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-        return payload
-    except JWTError:
+        header = pyjwt.get_unverified_header(token)
+    except pyjwt.PyJWTError:
+        return None
+
+    alg = header.get("alg")
+
+    if alg == "HS256" and settings.SUPABASE_JWT_SECRET:
+        try:
+            return pyjwt.decode(
+                token,
+                settings.SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+        except pyjwt.InvalidAudienceError:
+            try:
+                return pyjwt.decode(
+                    token,
+                    settings.SUPABASE_JWT_SECRET,
+                    algorithms=["HS256"],
+                    options={"verify_aud": False},
+                )
+            except pyjwt.PyJWTError:
+                return None
+        except pyjwt.PyJWTError:
+            return None
+
+    origin = _supabase_public_origin()
+    if alg in ("ES256", "RS256", "ES384", "RS384") and origin:
+        jwks_url = f"{origin}/auth/v1/.well-known/jwks.json"
+        try:
+            jwks = _supabase_jwks_client(jwks_url)
+            signing_key = jwks.get_signing_key_from_jwt(token)
+            decoded = pyjwt.decode(
+                token,
+                signing_key.key,
+                algorithms=[alg],
+                audience="authenticated",
+            )
+            return decoded
+        except pyjwt.InvalidAudienceError:
+            try:
+                return pyjwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[alg],
+                    options={"verify_aud": False},
+                )
+            except pyjwt.PyJWTError:
+                return None
+        except pyjwt.PyJWTError:
+            return None
+        except Exception:
+            return None
+
+    return None
+
+
+async def _verify_supabase_via_auth_user_endpoint(token: str) -> Optional[dict]:
+    """
+    Validate the access token by calling GoTrue GET /auth/v1/user.
+    Works for any JWT signing algorithm (ES256, HS256, future algs) because Auth verifies the token.
+    Used when local JWT verification fails (e.g. JWKS unreachable, unsupported alg, audience quirks).
+    """
+    import logging
+
+    _log = logging.getLogger(__name__)
+    origin = _supabase_public_origin()
+    apikey = settings.SUPABASE_ANON_KEY or settings.SUPABASE_SERVICE_KEY
+    if not origin or not apikey or not token:
+        return None
+    url = f"{origin}/auth/v1/user"
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": apikey,
+                },
+            )
+        if resp.status_code != 200:
+            _log.warning(
+                "Supabase Auth GET /auth/v1/user failed: status=%s body=%s",
+                resp.status_code,
+                (resp.text or "")[:400],
+            )
+            return None
+        body = resp.json() or {}
+        u = body.get("user") if isinstance(body.get("user"), dict) else body
+        if not isinstance(u, dict) or not u.get("id"):
+            return None
+        return {
+            "sub": str(u["id"]),
+            "email": u.get("email"),
+            "phone": u.get("phone"),
+            "user_metadata": u.get("user_metadata") or {},
+        }
+    except Exception:
         return None
 
 
@@ -109,6 +235,8 @@ def _user_from_supabase_payload(payload: dict) -> UserInDB:
     email = payload.get("email") or (payload.get("phone") and f"{payload['phone']}@phone") or "unknown"
     if isinstance(email, list):
         email = email[0] if email else "unknown"
+    if isinstance(email, str):
+        email = email.strip().lower()
     metadata = payload.get("user_metadata") or {}
     name = metadata.get("full_name") or metadata.get("name") or email.split("@")[0]
     username = metadata.get("username") or email.split("@")[0]
@@ -159,13 +287,19 @@ async def get_current_user(
         
         logger.debug(f"Verifying token: {token[:20]}...")
         
-        # 1) Try Supabase Auth JWT first (when Supabase Auth is primary)
+        # 1) Try Supabase Auth JWT locally (HS256 secret or ES256/RS256 via JWKS)
         supabase_payload = _verify_supabase_jwt(token)
         if supabase_payload:
             logger.debug("Token validated as Supabase Auth JWT")
             return _user_from_supabase_payload(supabase_payload)
+
+        # 2) Ask Supabase Auth to validate the session (any alg; avoids JWKS/env mismatches)
+        supabase_payload = await _verify_supabase_via_auth_user_endpoint(token)
+        if supabase_payload:
+            logger.debug("Token validated via Supabase Auth /user endpoint")
+            return _user_from_supabase_payload(supabase_payload)
         
-        # 2) Fallback: backend-issued JWT (when Supabase is down or user used fallback auth)
+        # 3) Fallback: backend-issued JWT (when Supabase is down or user used fallback auth)
         email = verify_token(token, "access")
         from app.utils.unified_user_service import unified_user_service
         user = await unified_user_service.get_user_by_email(email)
@@ -207,6 +341,9 @@ async def get_optional_user(
 
     try:
         supabase_payload = _verify_supabase_jwt(token)
+        if supabase_payload:
+            return _user_from_supabase_payload(supabase_payload)
+        supabase_payload = await _verify_supabase_via_auth_user_endpoint(token)
         if supabase_payload:
             return _user_from_supabase_payload(supabase_payload)
         email = verify_token(token, "access")

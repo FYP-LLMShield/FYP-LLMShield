@@ -1,0 +1,788 @@
+{
+  "record_labels": {
+    "tenant_A:benefits:0": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:1": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:2": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:marketing_copy:3": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:4": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:billing_invoices:5": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:6": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:7": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:security_incidents:8": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:9": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:10": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:11": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:billing_invoices:12": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:hr_policy:13": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:billing_invoices:14": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:15": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:16": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:17": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:security_incidents:18": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:marketing_copy:19": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:security_incidents:20": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:21": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:22": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:billing_invoices:23": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:24": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:25": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:26": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:27": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:28": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:29": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:30": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:marketing_copy:31": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:32": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:33": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:34": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:35": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:hr_policy:36": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:37": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:38": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:39": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:40": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:41": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:42": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:43": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:44": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:security_incidents:45": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:billing_invoices:46": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:47": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:48": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:49": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:50": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:benefits:51": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:52": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:legal_contracts:53": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:hr_policy:54": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:marketing_copy:55": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:56": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:support_faq:57": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:security_incidents:58": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:engineering_api:59": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:0": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:1": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:hr_policy:2": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:3": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:benefits:4": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:marketing_copy:5": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:legal_contracts:6": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:legal_contracts:7": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:8": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:legal_contracts:9": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:10": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:11": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:12": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:13": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:14": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:15": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:benefits:16": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:marketing_copy:17": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:marketing_copy:18": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:benefits:19": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:20": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:21": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:22": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:legal_contracts:23": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:hr_policy:24": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:25": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:benefits:26": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:27": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:marketing_copy:28": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:29": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:30": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:legal_contracts:31": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:32": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:legal_contracts:33": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:34": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:35": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:benefits:36": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:37": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:hr_policy:38": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:39": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:40": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:marketing_copy:41": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:42": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:43": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:44": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:45": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:46": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:47": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:hr_policy:48": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:marketing_copy:49": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:hr_policy:50": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:security_incidents:51": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:benefits:52": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:53": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:54": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:hr_policy:55": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:support_faq:56": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:billing_invoices:57": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:58": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_B:engineering_api:59": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:0": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:1": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:2": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:3": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:4": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:5": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:6": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:legal_contracts:7": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:8": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:9": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:marketing_copy:10": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:11": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:12": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:13": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:14": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:marketing_copy:15": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:legal_contracts:16": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:17": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:marketing_copy:18": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:19": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:20": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:21": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:22": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:23": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:24": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:25": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:26": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:27": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:28": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:29": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:30": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:31": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:32": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:33": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:34": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:legal_contracts:35": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:36": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:37": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:38": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:39": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:40": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:41": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:42": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:43": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:legal_contracts:44": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:45": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:46": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:47": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:48": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:49": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:50": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:51": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:benefits:52": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:53": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:54": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:engineering_api:55": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:support_faq:56": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:security_incidents:57": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:hr_policy:58": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_C:billing_invoices:59": {
+      "malicious": false,
+      "type": "normal"
+    },
+    "tenant_A:poison_cluster:0": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_B:poison_cluster:1": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_C:poison_cluster:2": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_A:poison_cluster:3": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_B:poison_cluster:4": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_C:poison_cluster:5": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_A:poison_cluster:6": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_B:poison_cluster:7": {
+      "malicious": true,
+      "type": "dense_cluster_poisoning"
+    },
+    "tenant_A:collision_a:0": {
+      "malicious": true,
+      "type": "high_similarity_collision"
+    },
+    "tenant_B:collision_b:0": {
+      "malicious": true,
+      "type": "high_similarity_collision"
+    },
+    "tenant_B:collision_a:1": {
+      "malicious": true,
+      "type": "high_similarity_collision"
+    },
+    "tenant_C:collision_b:1": {
+      "malicious": true,
+      "type": "high_similarity_collision"
+    },
+    "tenant_C:collision_a:2": {
+      "malicious": true,
+      "type": "high_similarity_collision"
+    },
+    "tenant_A:collision_b:2": {
+      "malicious": true,
+      "type": "high_similarity_collision"
+    },
+    "tenant_A:outlier:0": {
+      "malicious": true,
+      "type": "extreme_norm_outlier"
+    },
+    "tenant_B:outlier:1": {
+      "malicious": true,
+      "type": "extreme_norm_outlier"
+    }
+  }
+}

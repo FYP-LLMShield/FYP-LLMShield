@@ -162,6 +162,15 @@ class UnifiedUserService:
             logger.error(f"Supabase enable_mfa: {e}")
             return False
 
+    async def finalize_mfa_setup(self, email: str, secret: str, recovery_codes: list) -> bool:
+        if not self.supabase_service.is_available():
+            return False
+        try:
+            return await self.supabase_service.finalize_mfa_setup(email, secret, recovery_codes)
+        except Exception as e:
+            logger.error(f"Supabase finalize_mfa_setup: {e}")
+            return False
+
     async def disable_mfa(self, email: str) -> bool:
         if not self.supabase_service.is_available():
             return False

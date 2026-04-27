@@ -1784,7 +1784,7 @@ export function PromptInjectionPage() {
 
   return (
     <div 
-      className="w-full p-6 space-y-6" 
+      className="min-h-screen w-full space-y-6 bg-background p-6 text-foreground" 
       style={{ 
         position: 'relative', 
         minHeight: '100%',
@@ -1803,7 +1803,7 @@ export function PromptInjectionPage() {
       <div className="flex items-center justify-between">
         <div className="animate-fadeIn">
           <div className="flex items-center gap-3 mb-2">
-            <Shield className="w-8 h-8 text-teal-400" />
+            <Shield className="w-8 h-8 text-teal-500" />
             <h1 className="text-3xl font-bold text-foreground">Prompt Injection Testing</h1>
           </div>
           <p className="text-muted-foreground text-sm">Advanced AI security testing with real-time threat detection</p>
@@ -1811,7 +1811,7 @@ export function PromptInjectionPage() {
         {scanComplete && (
           <button
             onClick={resetScan}
-            className="border-blue-500/30 text-blue-400 hover:bg-blue-500/20 bg-transparent hover-lift animate-glow px-4 py-2 rounded-lg border transition-all duration-300"
+            className="rounded-lg border border-blue-500/30 bg-transparent px-4 py-2 text-blue-500 transition-all duration-300 hover:bg-blue-500/10 hover-lift animate-glow"
           >
             <Play className="mr-2 h-4 w-4" />
             New Test
@@ -1822,11 +1822,11 @@ export function PromptInjectionPage() {
       {!isScanning && !scanComplete && (
         <div className="animate-fadeIn max-w-7xl mx-auto">
           {/* Model Injection Testing Content */}
-          <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/50 backdrop-blur-md border border-slate-700/50 shadow-2xl rounded-lg p-8">
+          <div className="rounded-lg border border-border bg-card p-8 shadow-lg">
 
             {/* Step Indicator - steps turn green only when completed in sequence */}
             {(
-              <div className="mb-8 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+              <div className="mb-8 rounded-lg border border-border bg-muted p-4">
                 {(() => {
                   const step1Done = !!connectedModel
                   const step2Done = step1Done && !!testPrompt.trim()
@@ -1836,28 +1836,28 @@ export function PromptInjectionPage() {
                     <>
                       <div className="flex items-center justify-between text-sm mb-3">
                         <span className={`flex items-center gap-2 transition-colors ${
-                          step1Done ? "text-green-400 font-semibold" : currentStep === 1 ? "text-teal-400 font-semibold" : "text-gray-500"
+                          step1Done ? "text-green-500 font-semibold" : currentStep === 1 ? "text-teal-500 font-semibold" : "text-muted-foreground"
                         }`}>
                           {step1Done ? <CheckCircle className="w-4 h-4" /> : currentStep === 1 ? <span className="w-4 h-4 rounded-full border-2 border-teal-400" /> : null}
                           Step 1: Connect Model
                         </span>
                         <span className={`flex items-center gap-2 transition-colors ${
-                          step2Done ? "text-green-400 font-semibold" : currentStep === 2 ? "text-teal-400 font-semibold" : "text-gray-500"
+                          step2Done ? "text-green-500 font-semibold" : currentStep === 2 ? "text-teal-500 font-semibold" : "text-muted-foreground"
                         }`}>
                           {step2Done ? <CheckCircle className="w-4 h-4" /> : currentStep === 2 ? <span className="w-4 h-4 rounded-full border-2 border-teal-400" /> : null}
                           Step 2: Enter Prompt
                         </span>
                         <span className={`flex items-center gap-2 transition-colors ${
-                          step3Done ? "text-green-400 font-semibold" : currentStep === 3 ? "text-teal-400 font-semibold" : "text-gray-500"
+                          step3Done ? "text-green-500 font-semibold" : currentStep === 3 ? "text-teal-500 font-semibold" : "text-muted-foreground"
                         }`}>
                           {step3Done ? <CheckCircle className="w-4 h-4" /> : currentStep === 3 ? <span className="w-4 h-4 rounded-full border-2 border-teal-400" /> : null}
                           Step 3: Select Tests
                         </span>
                       </div>
                       <div className="flex gap-2">
-                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step1Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
-                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step2Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
-                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step3Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-slate-700"}`}></div>
+                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step1Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-border"}`}></div>
+                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step2Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-border"}`}></div>
+                        <div className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${step3Done ? "bg-gradient-to-r from-green-500 to-green-400" : "bg-border"}`}></div>
                       </div>
                     </>
                   )
@@ -1876,18 +1876,18 @@ export function PromptInjectionPage() {
                     >
                       {/* Connected Model Display - Enhanced */}
                       {connectedModel ? (
-                        <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/20 border-2 border-green-500/50 rounded-lg p-4 mb-6 shadow-lg shadow-green-500/10">
+                        <div className="mb-6 rounded-lg border-2 border-green-500/40 bg-green-500/10 p-4 shadow-md shadow-green-500/10">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                               <div className="relative">
-                                <CheckCircle className="h-6 w-6 text-green-400" />
+                                <CheckCircle className="h-6 w-6 text-green-500" />
                                 <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-400 rounded-full animate-pulse"></div>
                               </div>
                               <div>
-                                <p className="text-white font-semibold text-lg">{connectedModel.name}</p>
-                                <p className="text-gray-300 text-sm flex items-center gap-2">
+                                <p className="text-foreground font-semibold text-lg">{connectedModel.name}</p>
+                                <p className="text-muted-foreground text-sm flex items-center gap-2">
                                   <span>{connectedModel.providerName}</span>
-                                  <span className="text-green-400 text-xs font-medium">● Connected</span>
+                                  <span className="text-green-500 text-xs font-medium">● Connected</span>
                                 </p>
                               </div>
                             </div>
@@ -1901,12 +1901,12 @@ export function PromptInjectionPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-6">
+                        <div className="mb-6 rounded-lg border border-border bg-muted p-4">
                           <div className="flex items-center space-x-3">
                             <AlertCircle className="h-5 w-5 text-yellow-400" />
                             <div>
-                              <p className="text-gray-300 font-medium">No model connected</p>
-                              <p className="text-gray-500 text-sm">Configure a model below to start testing</p>
+                              <p className="text-foreground font-medium">No model connected</p>
+                              <p className="text-muted-foreground text-sm">Configure a model below to start testing</p>
                             </div>
                           </div>
                         </div>
@@ -1935,24 +1935,23 @@ export function PromptInjectionPage() {
 
                       {/* Test Prompt Input */}
                       <div className="space-y-2">
-                        <label className="block text-white font-medium">Test Prompt:</label>
+                        <label className="block text-foreground font-medium">Test Prompt:</label>
                         <textarea
                           value={testPrompt}
                           onChange={(e) => setTestPrompt(e.target.value)}
                           placeholder="Enter a prompt to test for injection vulnerabilities..."
-                          className="w-full h-32 bg-white border border-slate-700 rounded-lg p-3 text-black placeholder-gray-500 focus:border-teal-500 focus:outline-none resize-none"
-                          style={{ color: '#000000' }}
+                          className="w-full h-32 resize-none rounded-lg border border-border bg-background p-3 text-foreground placeholder:text-muted-foreground focus:border-teal-500 focus:outline-none"
                         />
                       </div>
 
                       {/* Quick Test Prompts - More Prominent */}
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <label className="block text-white font-medium text-sm flex items-center gap-2">
+                          <label className="block text-foreground font-medium text-sm flex items-center gap-2">
                             <Zap className="h-4 w-4 text-yellow-400" />
                             Quick Test Examples:
                           </label>
-                          <span className="text-xs text-gray-400">Click to use</span>
+                          <span className="text-xs text-muted-foreground">Click to use</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from typing import Any, List, Optional
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 # This file is at: backend/app/core/config.py
 _backend_dir = Path(__file__).resolve().parent.parent.parent  # backend/
 _repo_root = _backend_dir.parent  # FYP-LLMShield/
+# Root .env first (lowest priority for keys already in the process env).
 if (_repo_root / ".env").exists():
     load_dotenv(_repo_root / ".env", override=False)
+# backend/.env wins over repo root for the same key — put MONGODB_URL here for Atlas.
 if (_backend_dir / ".env").exists():
     load_dotenv(_backend_dir / ".env", override=True)
 if Path.cwd() / ".env" != _backend_dir / ".env" and (Path.cwd() / ".env").exists():
@@ -23,9 +25,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     PORT: int = int(os.getenv("PORT", "8000"))
 
-    # MongoDB
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "llmshield_db")
+    # MongoDB — use Field defaults so pydantic-settings reads os.environ after load_dotenv (not a one-time os.getenv at import).
+    MONGODB_URL: str = Field(default="mongodb://localhost:27017")
+    DATABASE_NAME: str = Field(default="llmshield_db")
 
     # JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "fallback_secret_key_change_in_production")

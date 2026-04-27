@@ -170,6 +170,36 @@ class VectorStoreAnomalyDetector:
         
         findings = []
         embeddings_array = np.stack(embeddings)
+
+        def _cluster_text_blob(meta_list: List[Dict[str, Any]]) -> str:
+            parts: List[str] = []
+            for m in meta_list:
+                t = (
+                    m.get("text")
+                    or m.get("chunk_text")
+                    or m.get("content")
+                    or ""
+                )
+                if t:
+                    parts.append(str(t))
+            return "\n".join(parts).lower()
+
+        def _looks_adversarial_metadata(text_blob: str) -> bool:
+            # Lightweight, fast heuristics aligned with the rest of this module's threat model.
+            # Used to allow smaller clusters to still surface obvious poisoning signals.
+            needles = (
+                "ignore previous",
+                "disregard",
+                "system override",
+                "developer mode",
+                "jailbreak",
+                "dan mode",
+                "reveal the system prompt",
+                "reveal system prompt",
+                "bypass content",
+                "base64:",
+            )
+            return any(n in text_blob for n in needles)
         
         try:
             # Cluster embeddings
@@ -204,6 +234,53 @@ class VectorStoreAnomalyDetector:
                             avg_sim = float(np.mean(sims))
                         else:
                             avg_sim = 0.0
+
+                        # --- Reduce benign cross-tenant noise (minimal scoring tweak) ---
+                        # Real poisoning often shows up as a *tight* cluster spanning tenants AND sources.
+                        # Benign multi-tenant KBs can accidentally form small DBSCAN components across tenants
+                        # for the same topic; those are usually looser (lower avg cosine-to-centroid).
+                        cluster_size = len(info["indices"])
+                        metas = (
+                            [metadata_list[i] for i in info["indices"] if metadata_list and i < len(metadata_list)]
+                            if metadata_list
+                            else []
+                        )
+                        topics = {
+                            str(m.get("topic"))
+                            for m in metas
+                            if m.get("topic") is not None and str(m.get("topic")).strip()
+                        }
+                        labels = {
+                            str(m.get("label"))
+                            for m in metas
+                            if m.get("label") is not None and str(m.get("label")).strip()
+                        }
+                        text_blob = _cluster_text_blob(metas)
+                        adversarial_meta = _looks_adversarial_metadata(text_blob)
+
+                        cross_tenant = len(info["tenants"]) > 1
+                        cross_source = len(info["sources"]) > 1
+                        multi_topic = len(topics) >= 2
+                        multi_label = len(labels) >= 2
+
+                        # Strong structural poisoning signal (still aligned to the user story)
+                        strong_cohesion = avg_sim >= 0.92
+                        large_enough = cluster_size >= 8
+
+                        # If it's cross-tenant but everyone is discussing the same topic/label,
+                        # require stronger cohesion OR a larger cluster OR adversarial metadata.
+                        if cross_tenant and not cross_source:
+                            # Same source family across tenants is often legitimate mirrored documentation.
+                            if not (strong_cohesion or large_enough or adversarial_meta):
+                                continue
+
+                        if cross_tenant and cross_source and not (multi_topic or multi_label):
+                            if not (strong_cohesion or large_enough or adversarial_meta):
+                                continue
+
+                        if cluster_size <= 4 and not (strong_cohesion or adversarial_meta):
+                            # Tiny clusters are frequently sampling noise in heterogeneous stores.
+                            continue
                         
                         findings.append({
                             "category": "dense_cluster_poisoning",

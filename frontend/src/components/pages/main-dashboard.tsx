@@ -216,17 +216,6 @@ export const MainDashboard = memo(() => {
             ]}
           />
           <HeroCard
-            title="C/C++ Code Scanning"
-            accent="yellow"
-            href="/dashboard/code-scanning"
-            artSrc="/art/code.png"
-            icon={Code}
-            kpis={[
-              { label: "Sev1/2/3", value: "45/123/89" },
-              { label: "Files Scanned", value: "2,847" },
-            ]}
-          />
-          <HeroCard
             title="Vector Embeddings Security"
             accent="teal"
             href="/dashboard/vector-security"
@@ -236,6 +225,17 @@ export const MainDashboard = memo(() => {
               { label: "Chunks/day", value: "12,430" },
               { label: "Flagged", value: "82" },
               { label: "High Risk", value: "18" },
+            ]}
+          />
+          <HeroCard
+            title="C/C++ Code Scanning"
+            accent="yellow"
+            href="/dashboard/code-scanning"
+            artSrc="/art/code.png"
+            icon={Code}
+            kpis={[
+              { label: "Sev1/2/3", value: "45/123/89" },
+              { label: "Files Scanned", value: "2,847" },
             ]}
           />
         </div>

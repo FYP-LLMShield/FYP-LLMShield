@@ -241,20 +241,22 @@ export function HistoryPage() {
     <div className="p-6 space-y-6 min-h-screen bg-background text-foreground">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Security History</h1>
-          <p className="text-muted-foreground mt-2">Audit trail and activity logs for all security operations</p>
+          <h1 className="text-3xl font-bold text-foreground">Security History</h1>
+          <p className="mt-2 text-slate-800 dark:text-muted-foreground">
+            Audit trail and activity logs for all security operations
+          </p>
         </div>
         <div className="flex items-center space-x-2">
           <Button
             onClick={() => fetchScanHistory(currentPage)}
             variant="outline"
             size="sm"
-            className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+            className="border-blue-600 text-blue-800 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400/10"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <History className="w-8 h-8 text-blue-400" />
+          <History className="h-8 w-8 text-blue-700 dark:text-blue-400" />
         </div>
       </div>
 
@@ -264,7 +266,7 @@ export function HistoryPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Total Scans</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-gray-400">Total Scans</p>
                 <p className="text-2xl font-bold text-foreground">{total}</p>
               </div>
               <Search className="w-8 h-8 text-blue-400" />
@@ -275,7 +277,7 @@ export function HistoryPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">High Risk Found</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-gray-400">High Risk Found</p>
                 <p className="text-2xl font-bold text-red-400">
                   {(scanHistory || []).reduce((sum, scan) => sum + scan.high_risk_count, 0)}
                 </p>
@@ -288,7 +290,7 @@ export function HistoryPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Medium Risk Found</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-gray-400">Medium Risk Found</p>
                 <p className="text-2xl font-bold text-yellow-400">
                   {(scanHistory || []).reduce((sum, scan) => sum + scan.medium_risk_count, 0)}
                 </p>
@@ -301,7 +303,7 @@ export function HistoryPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Clean Scans</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-gray-400">Clean Scans</p>
                 <p className="text-2xl font-bold text-green-400">
                   {(scanHistory || []).filter(scan => scan.findings_count === 0).length}
                 </p>
@@ -318,20 +320,20 @@ export function HistoryPage() {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-600 dark:text-gray-400" />
                 <Input
                   placeholder="Search history..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground dark:bg-gray-700/50 dark:border-gray-600 dark:text-white"
+                  className="border-border bg-background pl-10 text-slate-900 placeholder:text-slate-500 dark:bg-gray-700/50 dark:border-gray-600 dark:text-white dark:placeholder:text-muted-foreground"
                 />
               </div>
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-full md:w-48 bg-muted/50 border-border dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
+              <SelectTrigger className="w-full border-border bg-background text-slate-900 md:w-48 dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="border-border">
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="text">Text Scans</SelectItem>
                 <SelectItem value="file">File Scans</SelectItem>
@@ -339,10 +341,10 @@ export function HistoryPage() {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full md:w-48 bg-muted/50 border-border dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
+              <SelectTrigger className="w-full border-border bg-background text-slate-900 md:w-48 dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="border-border">
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="warning">Warning</SelectItem>
@@ -369,7 +371,7 @@ export function HistoryPage() {
       {isLoading && (
         <Card className="bg-card/95 border-border dark:bg-gray-800/50 dark:border-gray-700">
           <CardContent className="p-8">
-            <div className="flex items-center justify-center space-x-2 text-gray-400">
+            <div className="flex items-center justify-center space-x-2 text-slate-800 dark:text-gray-400">
               <Loader2 className="w-6 h-6 animate-spin" />
               <span>Loading scan history...</span>
             </div>
@@ -388,15 +390,20 @@ export function HistoryPage() {
           </CardHeader>
           <CardContent className="p-6">
             {filteredHistory.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No scan history found</p>
-                <p className="text-sm">Try performing a security scan to see results here</p>
+              <div className="py-8 text-center text-slate-800 dark:text-gray-400">
+                <Search className="mx-auto mb-4 h-12 w-12 opacity-60 dark:opacity-50" />
+                <p className="font-medium text-slate-900 dark:text-foreground">No scan history found</p>
+                <p className="mt-1 text-sm text-slate-700 dark:text-gray-400">
+                  Try performing a security scan to see results here
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {filteredHistory.map((event, index) => (
-                  <div key={event.id} className="flex items-start space-x-4 p-4 rounded-lg bg-gray-700/30 hover:bg-gray-700/50 transition-colors">
+                  <div
+                    key={event.id}
+                    className="flex items-start space-x-4 rounded-lg border border-border bg-muted/50 p-4 transition-colors hover:bg-muted dark:border-transparent dark:bg-gray-700/30 dark:hover:bg-gray-700/50"
+                  >
                     <div className={`p-2 rounded-full ${getStatusColor(event.status)}`}>
                       {getTypeIcon(event.type)}
                     </div>
@@ -405,18 +412,18 @@ export function HistoryPage() {
                         <h3 className="text-foreground font-medium">{event.title}</h3>
                         <div className="flex items-center space-x-2">
                           {getStatusIcon(event.status)}
-                          <span className="text-sm text-gray-400">
+                          <span className="text-sm text-slate-600 dark:text-gray-400">
                             {format(event.timestamp, "MMM dd, yyyy 'at' HH:mm")}
                           </span>
                         </div>
                       </div>
-                      <p className="text-muted-foreground mt-1">{event.description}</p>
+                      <p className="mt-1 text-slate-700 dark:text-muted-foreground">{event.description}</p>
                       <div className="flex items-center space-x-4 mt-2">
-                        <Badge variant="outline" className="text-xs border-gray-600 text-gray-400">
+                        <Badge variant="outline" className="border-border text-xs text-slate-800 dark:border-gray-600 dark:text-gray-400">
                           {event.module}
                         </Badge>
                         {event.details && (
-                          <div className="flex items-center space-x-2 text-xs text-gray-400">
+                          <div className="flex items-center space-x-2 text-xs text-slate-600 dark:text-gray-400">
                             {event.details.duration && (
                               <span>Duration: {event.details.duration}</span>
                             )}
@@ -443,11 +450,11 @@ export function HistoryPage() {
             disabled={currentPage <= 1}
             variant="outline"
             size="sm"
-            className="text-gray-400 border-gray-600 hover:bg-gray-700"
+            className="border-border text-slate-900 hover:bg-muted dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
           >
             Previous
           </Button>
-          <span className="flex items-center px-4 text-gray-400">
+          <span className="flex items-center px-4 text-slate-800 dark:text-gray-400">
             Page {currentPage} of {totalPages}
           </span>
           <Button
@@ -455,7 +462,7 @@ export function HistoryPage() {
             disabled={currentPage >= totalPages}
             variant="outline"
             size="sm"
-            className="text-gray-400 border-gray-600 hover:bg-gray-700"
+            className="border-border text-slate-900 hover:bg-muted dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
           >
             Next
           </Button>

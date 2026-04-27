@@ -95,10 +95,11 @@ export function SettingsPage() {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
-  // Fetch MFA status on component mount
+  // Fetch MFA status once on mount (fetchMfaStatus identity changes every AuthProvider render — do not list it as a dep)
   useEffect(() => {
     fetchMfaStatus()
-  }, [fetchMfaStatus])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Update local settings when MFA status changes
   useEffect(() => {

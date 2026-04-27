@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -10,10 +12,12 @@ from app.utils.user_service import user_service as mongo_user_service
 from app.utils.unified_user_service import unified_user_service
 from app.utils.auth import get_current_user, verify_token, create_access_token, create_refresh_token
 from app.utils.mfa import mfa_utils
+from app.utils.mfa_pending_setup import create_setup_session, peek_setup_session, pop_setup_session
 from app.core.config import settings
 
 router = APIRouter()
 security = HTTPBearer()
+_log = logging.getLogger(__name__)
 
 @router.get("/status", response_model=MFAStatusResponse)
 async def get_mfa_status(current_user: UserInDB = Depends(get_current_user)):
@@ -70,23 +74,20 @@ async def initiate_mfa_setup(current_user: UserInDB = Depends(get_current_user))
         qr_code = mfa_utils.generate_qr_code(email, secret)
         backup_url = mfa_utils.generate_backup_url(email, secret)
         recovery_codes = mfa_utils.generate_recovery_codes()
-        stored = await unified_user_service.store_temp_mfa_secret(email, secret, recovery_codes)
-        if not stored:
-            # User may exist only in Supabase and Supabase update failed; ensure they exist in MongoDB and retry
-            username = getattr(current_user, "username", None) or (email.split("@")[0] if email else "user")
-            name = getattr(current_user, "name", None) or username
-            await unified_user_service.ensure_user_in_mongo_for_mfa(email, name, username)
-            stored = await unified_user_service.store_temp_mfa_secret(email, secret, recovery_codes)
-        if not stored:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Could not save MFA setup. Please try again."
-            )
+        # Pending secret in Mongo (or memory) so /complete uses the same secret as the QR.
+        setup_id = await create_setup_session(str(email), secret, recovery_codes)
+        _log.info(
+            "MFA initiate OK email=%s setup_id=%s... secret_len=%d",
+            str(email).strip().lower(),
+            setup_id[:16],
+            len(secret or ""),
+        )
         return MFASetupResponse(
             qr_code=qr_code,
             secret=secret,
             backup_url=backup_url,
-            recovery_codes=recovery_codes
+            recovery_codes=recovery_codes,
+            setup_id=setup_id,
         )
     except HTTPException:
         raise
@@ -118,35 +119,102 @@ async def complete_mfa_setup(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="MFA is already enabled for this account"
             )
-        
+
+        email_str = str(email).strip().lower()
+        sid = setup_request.setup_id
+        db_secret_len = len((user.mfa_secret or "").strip()) if user.mfa_secret else 0
+        _log.info(
+            "MFA complete start email=%s setup_id_present=%s setup_id_prefix=%s totp_len=%d db_mfa_secret_len=%d server_unix_time=%d",
+            email_str,
+            bool(sid),
+            (sid[:16] + "...") if sid else "(none)",
+            len(setup_request.totp_code or ""),
+            db_secret_len,
+            int(time.time()),
+        )
+
+        # Preferred: verify against pending setup from /initiate (same secret as QR).
+        if sid:
+            pending = await peek_setup_session(sid, email_str)
+            if not pending:
+                _log.warning(
+                    "MFA complete REJECT no_pending_session email=%s setup_id=%s... (see MFA pending PEEK logs above)",
+                    email_str,
+                    sid[:16],
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="MFA setup expired or invalid. Please click Enable MFA again to start over.",
+                )
+            secret = pending["secret"]
+            recovery_codes = pending["recovery_codes"]
+            totp_ok = mfa_utils.verify_totp_code(secret, setup_request.totp_code)
+            if not totp_ok:
+                raw = setup_request.totp_code or ""
+                digits_only = "".join(c for c in str(raw).strip() if c.isdigit())
+                _log.warning(
+                    "MFA complete REJECT totp_mismatch path=pending email=%s setup_id=%s... secret_len=%d "
+                    "submitted_code_len=%d digits_only_len=%d (expect 6 digits; check clock skew vs server_unix_time on start line)",
+                    email_str,
+                    sid[:16],
+                    len("".join(str(secret or "").split()).strip()),
+                    len(str(raw).strip()),
+                    len(digits_only),
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid TOTP code",
+                )
+            _log.info(
+                "MFA complete TOTP OK path=pending email=%s setup_id=%s... finalizing",
+                email_str,
+                sid[:16],
+            )
+            success = await unified_user_service.finalize_mfa_setup(
+                email_str, secret, recovery_codes
+            )
+            if not success:
+                _log.error("MFA complete finalize_mfa_setup FAILED email=%s setup_id=%s...", email_str, sid[:16])
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to enable MFA",
+                )
+            await pop_setup_session(sid, email_str)
+            _log.info("MFA complete SUCCESS path=pending email=%s setup_id=%s...", email_str, sid[:16])
+            return {"message": "MFA enabled successfully", "mfa_enabled": True}
+
+        # Legacy: temp secret only in DB (older clients without setup_id).
+        _log.info("MFA complete path=legacy_db_secret (no setup_id in request)")
         if not user.mfa_secret:
+            _log.warning("MFA complete REJECT legacy no_db_secret email=%s", email_str)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="MFA setup not initiated. Please start the setup process first."
+                detail="MFA setup not initiated. Please start the setup process first.",
             )
-        
-        # Verify TOTP code
-        if not mfa_utils.verify_totp_code(user.mfa_secret, setup_request.totp_code):
+        totp_ok_legacy = mfa_utils.verify_totp_code(user.mfa_secret, setup_request.totp_code)
+        if not totp_ok_legacy:
+            _log.warning(
+                "MFA complete REJECT totp_mismatch path=legacy email=%s db_secret_len=%d server_unix_time=%d",
+                email_str,
+                db_secret_len,
+                int(time.time()),
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid TOTP code"
+                detail="Invalid TOTP code",
             )
-        
-        # Enable MFA in both Supabase and MongoDB
-        success = await unified_user_service.enable_mfa(email)
-        
+        success = await unified_user_service.enable_mfa(email_str)
         if not success:
+            _log.error("MFA complete enable_mfa FAILED path=legacy email=%s", email_str)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to enable MFA"
+                detail="Failed to enable MFA",
             )
-        
-        return {
-            "message": "MFA enabled successfully",
-            "mfa_enabled": True
-        }
+        _log.info("MFA complete SUCCESS path=legacy email=%s", email_str)
+        return {"message": "MFA enabled successfully", "mfa_enabled": True}
     
     except HTTPException as e:
+        _log.info("MFA complete HTTPException status=%s detail=%s", e.status_code, e.detail)
         raise e
     except Exception as e:
         raise HTTPException(

@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 import uuid
 import asyncio
+import hashlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
@@ -116,6 +117,7 @@ class SimulationReport:
     behavioral_impacts: List[BehavioralImpact]
     query_results: List[QueryResult]
     parameters: Dict[str, Any]
+    summary_metrics: Dict[str, Any] = field(default_factory=dict)
     
 
 class RetrievalAttackSimulator:
@@ -243,8 +245,13 @@ class RetrievalAttackSimulator:
         
         # If no query embedding provided, create a mock based on query hash
         if query_embedding is None:
-            # Create deterministic pseudo-embedding from query
-            np.random.seed(hash(query) % (2**32))
+            # Create deterministic pseudo-embedding from query.
+            #
+            # NOTE: Do NOT use Python's built-in hash() here because it is salted per-process
+            # (PYTHONHASHSEED) and would make results non-reproducible between runs.
+            digest = hashlib.sha256(query.encode("utf-8")).digest()
+            seed = int.from_bytes(digest[:4], byteorder="big", signed=False)
+            np.random.seed(seed)
             dim = embeddings.shape[1] if embeddings.ndim > 1 else len(embeddings[0])
             query_embedding = np.random.randn(dim).astype(np.float32)
             query_embedding = query_embedding / np.linalg.norm(query_embedding)
@@ -601,6 +608,66 @@ class RetrievalAttackSimulator:
         # Calculate ASR (queries with at least one finding / successful queries)
         queries_with_findings = len(set(f.query for f in all_findings))
         asr = queries_with_findings / successful if successful > 0 else 0.0
+
+        # --- "Real-life" headline metrics (less alarmist than raw ASR + huge finding lists) ---
+        # 1) Top-3 set instability: did the first screen of results change under perturbation?
+        variant_count = len(variant_types) if variant_types else 0
+        total_variant_evals = successful * variant_count if successful > 0 and variant_count > 0 else 0
+
+        top3_changed_pairs = 0
+        queries_with_any_top3_change = 0
+
+        def _top3_set(res: RetrievalResult) -> Tuple[str, ...]:
+            return tuple(res.top_k_ids[:3]) if res and res.top_k_ids else tuple()
+
+        for qr in query_results:
+            if qr.status != "success" or not qr.baseline_result:
+                continue
+            baseline_top3 = set(_top3_set(qr.baseline_result))
+            changed_any = False
+            for adv in qr.variant_results:
+                adv_top3 = set(_top3_set(adv))
+                if adv_top3 != baseline_top3:
+                    top3_changed_pairs += 1
+                    changed_any = True
+            if changed_any:
+                queries_with_any_top3_change += 1
+
+        headline_asr = (top3_changed_pairs / total_variant_evals) if total_variant_evals > 0 else 0.0
+        top3_query_rate = (queries_with_any_top3_change / successful) if successful > 0 else 0.0
+
+        # 2) Material manipulations: big rank moves / promotions with decent similarity
+        def _is_material_finding(f: ManipulationFinding) -> bool:
+            moved_into_top_k = f.baseline_rank is None and f.adversarial_rank is not None
+            if moved_into_top_k:
+                return (
+                    f.adversarial_rank < 3
+                    and f.similarity_score >= float(self.similarity_threshold)
+                )
+            if f.baseline_rank is None or f.adversarial_rank is None:
+                return False
+            return abs(int(f.rank_shift)) >= int(self.rank_shift_threshold)
+
+        material_findings = [f for f in all_findings if _is_material_finding(f)]
+        queries_with_material = len({f.query for f in material_findings})
+        material_asr = (queries_with_material / successful) if successful > 0 else 0.0
+
+        summary_metrics: Dict[str, Any] = {
+            # Legacy / noisy but still useful for power users
+            "legacy_query_asr": float(asr),
+            "legacy_queries_with_any_rank_delta": int(queries_with_findings),
+            # Headline metrics
+            "headline_variant_asr_top3_changed": float(headline_asr),
+            "headline_query_rate_top3_changed": float(top3_query_rate),
+            "top3_changed_variant_pairs": int(top3_changed_pairs),
+            "total_variant_evaluations": int(total_variant_evals),
+            "queries_with_any_top3_change": int(queries_with_any_top3_change),
+            # Materialized view of findings
+            "material_findings_count": int(len(material_findings)),
+            "material_query_asr": float(material_asr),
+            "queries_with_material_manipulation": int(queries_with_material),
+            "total_findings_raw": int(len(all_findings)),
+        }
         
         return SimulationReport(
             scan_id=scan_id,
@@ -618,7 +685,8 @@ class RetrievalAttackSimulator:
                 "rank_shift_threshold": self.rank_shift_threshold,
                 "variant_types": variant_types,
                 "enable_model_inference": enable_model_inference
-            }
+            },
+            summary_metrics=summary_metrics,
         )
 
 

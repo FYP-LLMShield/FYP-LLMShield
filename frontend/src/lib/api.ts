@@ -3,6 +3,29 @@
 
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000/api/v1"
 
+/** Turn FastAPI `detail` (string | list | object) into a single message for UI/errors. */
+function formatApiDetail(detail: unknown): string {
+  if (detail == null) return ""
+  if (typeof detail === "string") return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) return String((item as { msg: string }).msg)
+        return typeof item === "string" ? item : JSON.stringify(item)
+      })
+      .filter(Boolean)
+      .join(", ")
+  }
+  if (typeof detail === "object" && detail !== null && "msg" in detail) {
+    return String((detail as { msg: string }).msg)
+  }
+  try {
+    return JSON.stringify(detail)
+  } catch {
+    return String(detail)
+  }
+}
+
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 interface RequestOptions {
@@ -25,12 +48,31 @@ const apiClient = {
   },
 
   async request(path: string, { method = "GET", body, headers = {} }: RequestOptions = {}, retryOnAuth = true): Promise<any> {
-    const token = this.token || localStorage.getItem("access_token")
+    let token = this.token || localStorage.getItem("access_token")
     const mergedHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       ...headers,
     }
     if (token) mergedHeaders["Authorization"] = `Bearer ${token}`
+
+    // MFA routes: Bearer must match Supabase session (localStorage copy is often stale after refresh).
+    if (token && String(path).startsWith("/auth/mfa")) {
+      try {
+        const { supabase } = await import("./supabase")
+        if (supabase) {
+          const { data, error } = await supabase.auth.getSession()
+          const fresh = !error && data?.session?.access_token ? data.session.access_token : null
+          if (fresh && fresh !== token) {
+            token = fresh
+            localStorage.setItem("access_token", fresh)
+            this.setToken(fresh)
+            mergedHeaders["Authorization"] = `Bearer ${fresh}`
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
 
     const response = await fetch(`${API_BASE}${path}`, {
       method,
@@ -65,7 +107,24 @@ const apiClient = {
         }
       }
 
-      // If refresh failed or no refresh token, clear auth and return error
+      // Supabase Auth path: no backend refresh_token, but session lives in Supabase client — refresh and retry
+      if (response.status === 401) {
+        try {
+          const { supabase } = await import("./supabase")
+          if (supabase) {
+            const { data: sbData, error: sbErr } = await supabase.auth.refreshSession()
+            if (!sbErr && sbData?.session?.access_token) {
+              localStorage.setItem("access_token", sbData.session.access_token)
+              this.setToken(sbData.session.access_token)
+              return this.request(path, { method, body, headers }, false)
+            }
+          }
+        } catch (sbRefresh) {
+          console.warn("Supabase session refresh failed:", sbRefresh)
+        }
+      }
+
+      // If all refresh paths failed, clear stored auth
       if (response.status === 401) {
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
@@ -75,7 +134,8 @@ const apiClient = {
 
     const data = await response.json().catch(() => null)
     const success = response.ok
-    return success ? { success, data } : { success, error: data?.detail || response.statusText, data }
+    const errMsg = formatApiDetail(data?.detail) || response.statusText
+    return success ? { success, data } : { success, error: errMsg, data }
   },
 }
 
@@ -848,6 +908,8 @@ export interface RetrievalAttackResponse {
   successful_queries: number
   failed_queries: number
   attack_success_rate: number
+  /** Operator-facing headline metrics (top-3 instability, material shifts, etc.) */
+  summary_metrics?: Record<string, any>
   findings: RetrievalManipulationFinding[]
   behavioral_impacts: BehavioralImpactResult[]
   query_summaries: QueryResultSummary[]

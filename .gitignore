@@ -104,3 +104,9 @@ CompleteModels/
 *.bak
 *.cache
 .temp/
+
+# Generated vector-security snapshots (can be very large; regenerate locally)
+samples/realistic_vector_security/vector_store_snapshot_medium.json
+samples/realistic_vector_security/ground_truth_medium.json
+samples/realistic_vector_security/vector_store_snapshot_large.json
+samples/realistic_vector_security/ground_truth_large.json

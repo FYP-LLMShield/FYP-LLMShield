@@ -1,5 +1,23 @@
+import logging
+from urllib.parse import urlparse
+
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.core.config import settings
+
+_log = logging.getLogger(__name__)
+
+
+def _mongo_log_label(url: str) -> str:
+    """Host + db name for logs (no password)."""
+    if not url:
+        return "(empty)"
+    try:
+        p = urlparse(url)
+        host = p.hostname or p.netloc.split("@")[-1].split("/")[0] if p.netloc else "(unknown)"
+        return f"{p.scheme}://{host}"
+    except Exception:
+        return "(unparseable URL)"
+
 
 class MongoDB:
     client: AsyncIOMotorClient = None
@@ -24,7 +42,11 @@ async def connect_to_mongo():
     except ImportError:
         mongodb.client = AsyncIOMotorClient(settings.MONGODB_URL)
     mongodb.database = mongodb.client[settings.DATABASE_NAME]
-    print(f"Connected to MongoDB at {settings.MONGODB_URL}")
+    _log.info(
+        "Connected to MongoDB: %s (database=%s). Set MONGODB_URL in backend/.env to use Atlas.",
+        _mongo_log_label(settings.MONGODB_URL),
+        settings.DATABASE_NAME,
+    )
 
 async def close_mongo_connection():
     """Close database connection"""

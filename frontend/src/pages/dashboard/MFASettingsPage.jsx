@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from "react"
+import { useState, useEffect, useCallback, useRef, memo } from "react"
 import { motion } from "framer-motion"
 import { Shield, Smartphone, Key, AlertTriangle, CheckCircle, Copy, RefreshCw, Eye, EyeOff, ArrowLeft } from "lucide-react"
 import { Link } from "react-router-dom"
@@ -21,6 +21,8 @@ const MFASettingsPage = () => {
   const [showRecoveryCodes, setShowRecoveryCodes] = useState(false)
   const [showDisableMFA, setShowDisableMFA] = useState(false)
   const [currentRecoveryCodes, setCurrentRecoveryCodes] = useState([])
+  const verifyInFlightRef = useRef(false)
+  const initiateInFlightRef = useRef(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -36,6 +38,8 @@ const MFASettingsPage = () => {
   }, [])
 
   const handleEnableMFA = useCallback(async () => {
+    if (initiateInFlightRef.current) return
+    initiateInFlightRef.current = true
     setIsLoading(true)
     setError("")
     setSuccess("")
@@ -54,19 +58,30 @@ const MFASettingsPage = () => {
       setError(msg)
     } finally {
       setIsLoading(false)
+      initiateInFlightRef.current = false
     }
   }, [initiateMfaSetup])
 
+  const onTotpComplete = useCallback((code) => {
+    const digits = String(code).replace(/\D/g, "").slice(0, 6)
+    setTotpCode(digits)
+    // Do not clear error here — it was flashing away "Invalid TOTP" when this runs after a failed verify.
+  }, [])
+
   const handleVerifySetup = async () => {
-    if (totpCode.length !== 6) {
+    if (verifyInFlightRef.current) return
+    const code = String(totpCode).replace(/\D/g, "").slice(0, 6)
+    if (code.length !== 6) {
       setError("Please enter a 6-digit code")
       return
     }
 
+    verifyInFlightRef.current = true
     setIsLoading(true)
     setError("")
     try {
-      await completeMfaSetup(totpCode)
+      const setupId = setupData?.setup_id ?? setupData?.setupId ?? null
+      await completeMfaSetup(code, setupId)
       setSetupStep(3)
       setSuccess("MFA has been successfully enabled!")
       setTotpCode("")
@@ -74,6 +89,7 @@ const MFASettingsPage = () => {
       setError(err.message || "Invalid verification code")
     } finally {
       setIsLoading(false)
+      verifyInFlightRef.current = false
     }
   }
 
@@ -135,9 +151,14 @@ const MFASettingsPage = () => {
     <div className="space-y-6">
       <div className="text-center">
         <h3 className="text-xl font-semibold text-white mb-2">Scan QR Code</h3>
-        <p className="text-gray-400 mb-6">
+        <p className="text-gray-400 mb-2">
           Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
         </p>
+        {user?.email && (
+          <p className="text-amber-200/90 text-sm mb-6">
+            Use codes for this sign-in: <span className="font-mono">{user.email}</span> (must match the account in your app).
+          </p>
+        )}
       </div>
 
       <div className="flex justify-center mb-6">
@@ -190,7 +211,11 @@ const MFASettingsPage = () => {
       </div>
 
       <button
-        onClick={() => setSetupStep(2)}
+        onClick={() => {
+          setTotpCode("")
+          setError("")
+          setSetupStep(2)
+        }}
         className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
       >
         I've Added the Account
@@ -202,19 +227,22 @@ const MFASettingsPage = () => {
     <div className="space-y-6">
       <div className="text-center">
         <h3 className="text-xl font-semibold text-white mb-2">Verify Setup</h3>
-        <p className="text-gray-400 mb-6">
+        <p className="text-gray-400 mb-2">
           Enter the 6-digit code from your authenticator app to complete setup
         </p>
+        {user?.email && (
+          <p className="text-amber-200/90 text-sm mb-6">
+            Entry in your authenticator must be for: <span className="font-mono">{user.email}</span>
+          </p>
+        )}
       </div>
 
       <div className="space-y-4">
           <div className="bg-white p-6 rounded-lg">
             <TOTPInput
+              key={setupData?.secret || "totp-verify"}
               value={totpCode}
-              onComplete={(code) => {
-                setTotpCode(code)
-                setError("")
-              }}
+              onComplete={onTotpComplete}
               loading={isLoading}
               error={error}
             />
@@ -222,7 +250,11 @@ const MFASettingsPage = () => {
 
         <div className="flex space-x-3">
           <button
-            onClick={() => setSetupStep(1)}
+            onClick={() => {
+              setTotpCode("")
+              setError("")
+              setSetupStep(1)
+            }}
             className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
           >
             Back

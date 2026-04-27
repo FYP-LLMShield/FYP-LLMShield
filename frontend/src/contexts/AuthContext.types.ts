@@ -28,7 +28,7 @@ export interface AuthContextValue {
   mfaStatus: MfaStatus
   fetchMfaStatus: () => Promise<void>
   initiateMfaSetup: () => Promise<unknown>
-  completeMfaSetup: (totpCode: string) => Promise<unknown>
+  completeMfaSetup: (totpCode: string, setupId?: string | null) => Promise<unknown>
   disableMfa: (currentPassword: string, totpCode: string) => Promise<unknown>
   regenerateRecoveryCodes: () => Promise<unknown>
   validateToken: () => Promise<unknown>

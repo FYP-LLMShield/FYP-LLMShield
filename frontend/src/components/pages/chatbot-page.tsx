@@ -545,17 +545,17 @@ export const ChatbotPage: React.FC = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-b border-slate-700/50 px-8 py-5 flex items-center justify-between">
+        <div className="bg-background/95 dark:bg-gradient-to-r dark:from-slate-900/95 dark:to-slate-800/95 backdrop-blur-xl border-b border-border px-8 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-slate-300 hover:text-blue-400 transition-colors text-2xl"
+              className="text-foreground/80 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 transition-colors text-2xl"
             >
               ☰
             </button>
             <div className="flex-1">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">RAG Chatbot</h1>
-              <p className="text-slate-400 text-sm mt-1">
+              <p className="text-muted-foreground text-sm mt-1">
                 {currentConversationId
                   ? conversations.find(c => c.id === currentConversationId)?.title || 'Current Chat'
                   : 'Start a new conversation'}
@@ -611,7 +611,7 @@ export const ChatbotPage: React.FC = () => {
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Loader size={40} className="animate-spin text-green-400 mb-4 mx-auto" />
-                <p className="text-gray-300">Loading conversation...</p>
+                <p className="text-muted-foreground">Loading conversation...</p>
               </div>
             </div>
           ) : (
@@ -625,7 +625,7 @@ export const ChatbotPage: React.FC = () => {
                 className={`max-w-2xl px-5 py-4 rounded-xl transition-all duration-200 ${
                   message.role === 'user'
                     ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 rounded-br-none'
-                    : 'bg-gradient-to-br from-slate-700/80 to-slate-800/80 text-gray-50 border border-slate-600/50 shadow-lg shadow-slate-900/50 rounded-bl-none'
+                    : 'bg-muted text-foreground border border-border shadow-lg shadow-slate-900/10 rounded-bl-none dark:bg-gradient-to-br dark:from-slate-700/80 dark:to-slate-800/80 dark:text-gray-50 dark:border-slate-600/50 dark:shadow-slate-900/50'
                 }`}
               >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -765,7 +765,7 @@ export const ChatbotPage: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur-xl border-t border-slate-700/50 px-8 py-6">
+        <div className="bg-background/95 dark:bg-gradient-to-r dark:from-slate-900/95 dark:to-slate-800/95 backdrop-blur-xl border-t border-border px-8 py-6">
           <div className="flex gap-3">
             <input
               type="text"
@@ -774,7 +774,7 @@ export const ChatbotPage: React.FC = () => {
               onKeyPress={handleKeyPress}
               placeholder="Ask a question about the knowledge base..."
               disabled={loading}
-              className="flex-1 bg-slate-800/50 border border-slate-600/50 rounded-xl px-5 py-4 text-black placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 disabled:opacity-50 shadow-lg"
+              className="flex-1 bg-white border border-slate-300 rounded-xl px-5 py-4 text-black placeholder-slate-500 focus:outline-none focus:border-blue-500/50 transition-all duration-200 disabled:opacity-50 shadow-sm dark:bg-slate-800/50 dark:border-slate-600/50 dark:text-white dark:placeholder-slate-400 dark:focus:bg-slate-800"
             />
             <button
               onClick={sendMessage}

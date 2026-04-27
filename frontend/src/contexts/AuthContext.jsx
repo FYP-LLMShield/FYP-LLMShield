@@ -3,6 +3,20 @@ import { AuthStateContext, useAuth } from "./AuthStateContext"
 import { authAPI, mfaAPI } from '../lib/api'
 import { supabase, isSupabaseAuthAvailable, isSupabaseUnavailableError } from '../lib/supabase'
 
+/** Align apiClient Bearer token with Supabase session (fixes stale localStorage token → 401 / wrong user). */
+async function syncSupabaseSessionToApiClient() {
+  if (!supabase) return
+  try {
+    const { data, error } = await supabase.auth.getSession()
+    if (error || !data?.session?.access_token) return
+    const t = data.session.access_token
+    localStorage.setItem('access_token', t)
+    authAPI.setToken(t)
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 export { useAuth }
 
 export const AuthProvider = ({ children }) => {
@@ -244,6 +258,7 @@ export const AuthProvider = ({ children }) => {
 
   // MFA-related functions
   const fetchMfaStatus = async () => {
+    await syncSupabaseSessionToApiClient()
     try {
       const response = await mfaAPI.getStatus()
       if (response.success && response.data) {
@@ -269,6 +284,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const initiateMfaSetup = async () => {
+    await syncSupabaseSessionToApiClient()
     try {
       const response = await mfaAPI.initiateSetup()
       if (response.success && response.data) {
@@ -281,9 +297,12 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const completeMfaSetup = async (totpCode) => {
+  const completeMfaSetup = async (totpCode, setupId = null) => {
+    await syncSupabaseSessionToApiClient()
     try {
-      const response = await mfaAPI.completeSetup({ totp_code: totpCode })
+      const body = { totp_code: totpCode }
+      if (setupId) body.setup_id = setupId
+      const response = await mfaAPI.completeSetup(body)
       if (response.success && response.data) {
         // Refresh MFA status after successful setup
         await fetchMfaStatus()
@@ -297,6 +316,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const disableMfa = async (currentPassword, totpCode) => {
+    await syncSupabaseSessionToApiClient()
     try {
       const response = await mfaAPI.disable({ 
         current_password: currentPassword, 
@@ -315,6 +335,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const regenerateRecoveryCodes = async () => {
+    await syncSupabaseSessionToApiClient()
     try {
       const response = await mfaAPI.regenerateRecoveryCodes()
       if (response.success && response.data) {
