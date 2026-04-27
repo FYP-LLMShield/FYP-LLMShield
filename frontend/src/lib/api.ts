@@ -56,7 +56,7 @@ const apiClient = {
     if (token) mergedHeaders["Authorization"] = `Bearer ${token}`
 
     // MFA routes: Bearer must match Supabase session (localStorage copy is often stale after refresh).
-    if (token && String(path).startsWith("/auth/mfa")) {
+    if (token && (String(path).startsWith("/auth/mfa") || String(path).startsWith("/scan-history"))) {
       try {
         const { supabase } = await import("./supabase")
         if (supabase) {
@@ -139,6 +139,20 @@ const apiClient = {
   },
 }
 
+/**
+ * Use the same access token resolution as apiClient.request (in-memory + localStorage).
+ * Raw fetch() for multipart uploads used to only check apiClient.token, so scans ran
+ * without Authorization and backend skipped history (optional user = null).
+ */
+function bearerHeadersForUpload(): { Authorization: string } | undefined {
+  try {
+    const t = apiClient.token || localStorage.getItem("access_token")
+    return t ? { Authorization: `Bearer ${t}` } : undefined
+  } catch {
+    return apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined
+  }
+}
+
 // -------- Auth APIs --------
 export const authAPI = {
   setToken: (token: string | null) => apiClient.setToken(token),
@@ -147,6 +161,7 @@ export const authAPI = {
   login: (payload: any) => apiClient.request("/auth/login", { method: "POST", body: payload }),
   register: (payload: any) => apiClient.request("/auth/register", { method: "POST", body: payload }),
   getCurrentUser: () => apiClient.request("/auth/me"),
+  updateProfile: (payload: any) => apiClient.request("/auth/profile", { method: "PUT", body: payload }),
   googleSignIn: (payload: { id_token: string; mode?: "signup" | "signin" }) =>
     apiClient.request("/auth/google", { method: "POST", body: payload }),
   forgotPassword: (payload: any) => apiClient.request("/auth/forgot-password", { method: "POST", body: payload }),
@@ -175,7 +190,7 @@ export const scannerAPI = {
     return fetch(`${API_BASE}/scan/upload`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -187,7 +202,7 @@ export const scannerAPI = {
   getTextScanPDF: async (payload: any) => {
     const res = await fetch(`${API_BASE}/scan/code/pdf`, {
       method: "POST",
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
       body: JSON.stringify(payload),
     })
     const blob = await res.blob()
@@ -200,7 +215,7 @@ export const scannerAPI = {
     const res = await fetch(`${API_BASE}/scan/upload/pdf`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     })
     const blob = await res.blob()
     return res.ok ? { success: true, data: blob } : { success: false, error: res.statusText, data: blob }
@@ -208,7 +223,7 @@ export const scannerAPI = {
   getRepositoryScanPDF: async (payload: any) => {
     const res = await fetch(`${API_BASE}/scan/repo/pdf`, {
       method: "POST",
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
       body: JSON.stringify(payload),
     })
     const blob = await res.blob()
@@ -216,11 +231,32 @@ export const scannerAPI = {
   },
 }
 
+export interface ScanHistoryStats {
+  total_scans: number
+  total_findings: number
+  critical_findings: number
+  high_findings: number
+  medium_findings: number
+  low_findings: number
+  scan_types: string[]
+  latest_scan: string | null
+  clean_scans?: number
+}
+
 export const scanHistoryAPI = {
-  getHistory: (page = 1, limit = 20, inputType?: string) => {
+  /** List endpoint is GET /api/v1/scan-history/ (matches FastAPI router). */
+  getHistory: (page = 1, limit = 20, inputType?: string, scanType?: string) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (inputType) params.append("input_type", inputType)
-    return apiClient.request(`/scan/history?${params.toString()}`)
+    if (scanType) params.append("scan_type", scanType)
+    return apiClient.request(`/scan-history/?${params.toString()}`)
+  },
+  getStats: (inputType?: string, scanType?: string) => {
+    const p = new URLSearchParams()
+    if (inputType) p.set("input_type", inputType)
+    if (scanType) p.set("scan_type", scanType)
+    const q = p.toString() ? `?${p.toString()}` : ""
+    return apiClient.request(`/scan-history/stats${q}`)
   },
 }
 
@@ -274,7 +310,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/test-documents`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -293,7 +329,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/embedding-inspection`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -320,7 +356,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/vector-store-analysis`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -407,7 +443,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/vector-store-analysis-multi-source`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -465,7 +501,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/embedding-inspection/sanitize-preview`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -488,7 +524,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/embedding-inspection/reanalyze`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -550,7 +586,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/embedding-inspection/export-sanitized`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ detail: "Export failed" }))
@@ -585,7 +621,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/batch-test`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -603,7 +639,7 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/retrieval-attack-simulation`, {
       method: "POST",
       body: formData,
-      headers: apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : undefined,
+      headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
       return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
@@ -613,8 +649,8 @@ export const promptInjectionAPI = {
     return fetch(`${API_BASE}/prompt-injection/retrieval-attack-simulation/export`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...(apiClient.token ? { Authorization: `Bearer ${apiClient.token}` } : {})
+        "Content-Type": "application/json",
+        ...(bearerHeadersForUpload() || {}),
       },
       body: JSON.stringify({ scan_id: scanId, report_data: reportData, format })
     }).then(async (res) => {

@@ -108,6 +108,12 @@ class PasswordReset(BaseModel):
 class ProfileUpdate(BaseModel):
     username: Optional[str] = None
     name: Optional[str] = None
+    profile_picture: Optional[str] = None  # data URL or https URL
+    phone_number: Optional[str] = None
+    location: Optional[str] = None
+    job_role: Optional[str] = None
+    company: Optional[str] = None
+    bio: Optional[str] = None
     current_password: Optional[str] = None
     new_password: Optional[str] = None
     
@@ -167,6 +173,13 @@ class UserInDB(BaseModel):
     google_id: Optional[str] = None
     profile_picture: Optional[str] = None
     display_name: Optional[str] = ""
+
+    # User profile fields (editable; email is view-only)
+    phone_number: Optional[str] = None
+    location: Optional[str] = None
+    job_role: Optional[str] = None
+    company: Optional[str] = None
+    bio: Optional[str] = None
     
     # Account management
     verification_token: Optional[str] = None

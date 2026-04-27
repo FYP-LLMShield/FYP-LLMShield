@@ -15,15 +15,15 @@ import { Settings, User, Shield, Bell, Database, Save, RefreshCw, AlertTriangle,
 export function SettingsPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { mfaStatus, fetchMfaStatus } = useAuth()
+  const { mfaStatus, fetchMfaStatus, user } = useAuth()
   
   // Handle active tab from navigation state
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "user")
   
   const [settings, setSettings] = useState({
     // User Settings
-    displayName: "Security Admin",
-    email: "admin@company.com",
+    displayName: user?.username || user?.name || "User",
+    email: user?.email || "",
     password: "",
     newPassword: "",
     confirmPassword: "",
@@ -53,6 +53,15 @@ export function SettingsPage() {
     anomalyThreshold: 75,
     riskScoreThreshold: 80,
   })
+
+  useEffect(() => {
+    // Keep settings header in sync with logged-in user
+    setSettings((prev) => ({
+      ...prev,
+      displayName: user?.username || user?.name || prev.displayName,
+      email: user?.email || prev.email,
+    }))
+  }, [user?.username, user?.name, user?.email])
 
   const [selectedAvatar, setSelectedAvatar] = useState("robot")
 

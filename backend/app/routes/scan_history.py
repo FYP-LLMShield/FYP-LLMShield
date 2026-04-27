@@ -67,11 +67,14 @@ async def get_user_scan_history(
             limit=limit,
             skip=skip,
             scan_type=scan_type,
-            status=status
+            status=status,
+            input_type=input_type,
         )
         
         # Get total count for pagination
-        total_count = await scan_service.get_user_scan_count(str(current_user.id), scan_type, status)
+        total_count = await scan_service.get_user_scan_count(
+            str(current_user.id), scan_type, status, input_type=input_type
+        )
         total_pages = (total_count + limit - 1) // limit  # Ceiling division
         
         # Convert scan histories to the expected format
@@ -107,11 +110,15 @@ async def get_user_scan_history(
 @router.get("/stats")
 async def get_user_scan_stats(
     current_user: UserInDB = Depends(get_current_user),
-    scan_service: ScanHistoryService = Depends(get_scan_history_service)
+    scan_service: ScanHistoryService = Depends(get_scan_history_service),
+    input_type: Optional[str] = Query(None, description="Match History filter: text | file | github | other | json"),
+    scan_type: Optional[str] = Query(None, description="Filter by module: code_scanning, prompt_injection, ..."),
 ):
     """Get scan statistics for the current user"""
     try:
-        stats = await scan_service.get_user_scan_stats(str(current_user.id))
+        stats = await scan_service.get_user_scan_stats(
+            str(current_user.id), input_type=input_type, scan_type=scan_type
+        )
         return stats
     
     except Exception as e:

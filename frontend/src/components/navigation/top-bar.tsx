@@ -8,9 +8,16 @@ import { useNavigate } from "react-router-dom"
 import { useTheme } from "../../contexts/ThemeContext"
 
 export function TopBar() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
+  const displayName = user?.username || user?.name || "User"
+  const initials = (displayName || "U")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("") || "U"
 
   const handleLogout = () => {
     logout()
@@ -39,14 +46,14 @@ export function TopBar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center space-x-2 text-slate-800 dark:text-white">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src="/diverse-user-avatars.png" />
-                  <AvatarFallback className="bg-blue-600 text-white text-sm">SA</AvatarFallback>
+                  <AvatarImage src={(user?.profile_picture as string) || "/diverse-user-avatars.png"} />
+                  <AvatarFallback className="bg-blue-600 text-white text-sm">{initials}</AvatarFallback>
                 </Avatar>
-                <span className="hidden md:block">Security Admin</span>
+                <span className="hidden md:block">{displayName}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="bg-popover text-popover-foreground border border-border shadow-lg">
-              <DropdownMenuItem className="focus:bg-accent cursor-pointer">
+              <DropdownMenuItem className="focus:bg-accent cursor-pointer" onClick={() => navigate("/dashboard/profile")}>
                 <User className="mr-2" size={16} />
                 Profile
               </DropdownMenuItem>

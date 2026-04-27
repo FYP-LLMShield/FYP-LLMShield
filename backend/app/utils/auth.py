@@ -351,6 +351,9 @@ async def get_optional_user(
         return await unified_user_service.get_user_by_email(email)
     except HTTPException:
         return None
+    except Exception:
+        # Bad or non-JWT tokens must not fail the whole request for optional auth
+        return None
 
 def generate_verification_token() -> str:
     """Generate a random verification token"""

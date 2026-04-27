@@ -16,6 +16,57 @@ from app.models.scan_history import (
 )
 
 
+def _model_to_dict(obj: Any) -> Dict[str, Any]:
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return dict(obj)
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()  # type: ignore[no-untyped-call]
+    if hasattr(obj, "dict"):
+        return obj.dict()  # type: ignore[no-untyped-call]
+    return {"_value": str(obj)}
+
+
+def human_module_title(module: str) -> str:
+    return {
+        "code_scanning": "Code scan",
+        "prompt_injection": "Prompt injection",
+        "data_poisoning": "Data poisoning",
+        "vector_security": "Vector / anomaly",
+        "embedding_inspection": "Embedding inspection",
+        "retrieval_simulation": "Retrieval attack",
+    }.get(module, module.replace("_", " ").title())
+
+
+def trim_history_payload(d: Dict[str, Any], scan_module: str) -> Dict[str, Any]:
+    """Strip oversized lists before persisting to MongoDB."""
+    out = dict(d)
+    out.pop("chunks", None)
+    findings = out.get("findings")
+    if isinstance(findings, list) and len(findings) > 200:
+        out["findings"] = findings[:200]
+        out["_findings_omitted"] = len(findings) - 200
+    qs = out.get("query_summaries")
+    if isinstance(qs, list) and len(qs) > 200:
+        out["query_summaries"] = qs[:200]
+        out["_query_summaries_omitted"] = len(qs) - 200
+    beh = out.get("behavioral_impacts")
+    if isinstance(beh, list) and len(beh) > 50:
+        out["behavioral_impacts"] = beh[:50]
+    r = out.get("results")
+    if isinstance(r, list) and len(r) > 30:
+        out["results"] = r[:30]
+        out["_results_omitted"] = len(r) - 30
+    if scan_module == "embedding_inspection":
+        out.pop("chunks", None)
+    return out
+
+
+def model_to_storable_dict(obj: Any, scan_module: str) -> Dict[str, Any]:
+    return trim_history_payload(_model_to_dict(obj), scan_module)
+
+
 class ScanHistoryService:
     def __init__(self, database: AsyncIOMotorDatabase):
         self.database = database
@@ -35,24 +86,56 @@ class ScanHistoryService:
         scan_history.id = result.inserted_id
         return scan_history
 
+    def _input_type_filter_clause(self, input_type: str) -> Dict[str, Any]:
+        """Match canonical input_type (text|file|github) and legacy values stored on scan_type."""
+        if input_type == "file":
+            return {
+                "$or": [
+                    {"input_type": "file"},
+                    {"input_type": "file_upload"},
+                    {"scan_type": "file"},
+                    {"scan_type": "file_upload"},
+                ]
+            }
+        if input_type == "github":
+            return {
+                "$or": [
+                    {"input_type": "github"},
+                    {"scan_type": "github"},
+                    {"scan_type": "github_repo"},
+                ]
+            }
+        if input_type == "text":
+            return {"$or": [{"input_type": "text"}, {"scan_type": "text"}]}
+        if input_type == "json":
+            return {"$or": [{"input_type": "json"}, {"scan_type": "json"}]}
+        if input_type == "other":
+            return {"input_type": "other"}
+        return {"input_type": input_type}
+
     async def get_user_scan_history(
         self, 
         user_id: str, 
         limit: int = 50, 
         skip: int = 0,
         scan_type: Optional[str] = None,
-        status: Optional[str] = None
+        status: Optional[str] = None,
+        input_type: Optional[str] = None,
     ) -> List[ScanHistoryResponse]:
         """Get scan history for a specific user with optional filtering"""
         
         # Build query filter
-        query = {"user_id": ObjectId(user_id)}
+        query: Dict[str, Any] = {"user_id": ObjectId(user_id)}
         
         if scan_type:
             query["scan_type"] = scan_type
         
         if status:
             query["status"] = status
+
+        if input_type:
+            clause = self._input_type_filter_clause(input_type)
+            query = {"$and": [query, clause]}
         
         # Execute query with sorting (most recent first)
         cursor = self.collection.find(query).sort("timestamp", -1).skip(skip).limit(limit)
@@ -73,18 +156,23 @@ class ScanHistoryService:
         self, 
         user_id: str, 
         scan_type: Optional[str] = None,
-        status: Optional[str] = None
+        status: Optional[str] = None,
+        input_type: Optional[str] = None,
     ) -> int:
         """Get total count of scan history for a specific user with optional filtering"""
         
         # Build query filter
-        query = {"user_id": ObjectId(user_id)}
+        query: Dict[str, Any] = {"user_id": ObjectId(user_id)}
         
         if scan_type:
             query["scan_type"] = scan_type
         
         if status:
             query["status"] = status
+
+        if input_type:
+            clause = self._input_type_filter_clause(input_type)
+            query = {"$and": [query, clause]}
         
         # Get count
         count = await self.collection.count_documents(query)
@@ -109,11 +197,25 @@ class ScanHistoryService:
         
         return ScanHistoryDetailResponse(**doc)
 
-    async def get_user_scan_stats(self, user_id: str) -> Dict[str, Any]:
-        """Get scan statistics for a user"""
-        
+    async def get_user_scan_stats(
+        self,
+        user_id: str,
+        input_type: Optional[str] = None,
+        scan_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Aggregate stats; optional input_type and scan_type (module) match list filters."""
+        parts: List[Dict[str, Any]] = [{"user_id": ObjectId(user_id)}]
+        if scan_type:
+            parts.append({"scan_type": scan_type})
+        if input_type:
+            parts.append(self._input_type_filter_clause(input_type))
+        if len(parts) == 1:
+            match_q = parts[0]
+        else:
+            match_q = {"$and": parts}
+
         pipeline = [
-            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$match": match_q},
             {
                 "$group": {
                     "_id": None,
@@ -123,6 +225,9 @@ class ScanHistoryService:
                     "high_findings": {"$sum": "$high_findings"},
                     "medium_findings": {"$sum": "$medium_findings"},
                     "low_findings": {"$sum": "$low_findings"},
+                    "clean_scans": {
+                        "$sum": {"$cond": [{"$eq": ["$total_findings", 0]}, 1, 0]}
+                    },
                     "scan_types": {"$addToSet": "$scan_type"},
                     "latest_scan": {"$max": "$timestamp"}
                 }
@@ -139,6 +244,7 @@ class ScanHistoryService:
                 "high_findings": 0,
                 "medium_findings": 0,
                 "low_findings": 0,
+                "clean_scans": 0,
                 "scan_types": [],
                 "latest_scan": None
             }
@@ -179,61 +285,119 @@ class ScanHistoryService:
         return ScanHistoryDetailResponse(**doc)
 
     def extract_scan_metrics_from_results(self, scan_results: Dict[str, Any]) -> Dict[str, int]:
-        """Extract scan metrics from scan results for storage"""
-        
+        """Extract scan metrics from heterogeneous scan result payloads for storage."""
         metrics = {
             "total_findings": 0,
             "critical_findings": 0,
             "high_findings": 0,
             "medium_findings": 0,
-            "low_findings": 0
+            "low_findings": 0,
         }
-        
         if not scan_results:
             return metrics
-        
-        # Extract from findings if available
-        findings = scan_results.get("findings", [])
-        if findings:
-            metrics["total_findings"] = len(findings)
-            
-            for finding in findings:
-                severity = finding.get("severity", "").lower()
-                if severity == "critical":
-                    metrics["critical_findings"] += 1
-                elif severity == "high":
-                    metrics["high_findings"] += 1
-                elif severity == "medium":
-                    metrics["medium_findings"] += 1
-                elif severity == "low":
-                    metrics["low_findings"] += 1
-        
-        # Also check severity_distribution if available
+
+        # Severity distribution (code scanner, some vector flows)
         severity_dist = scan_results.get("severity_distribution", {})
-        if severity_dist:
-            metrics["critical_findings"] = severity_dist.get("critical", 0)
-            metrics["high_findings"] = severity_dist.get("high", 0)
-            metrics["medium_findings"] = severity_dist.get("medium", 0)
-            metrics["low_findings"] = severity_dist.get("low", 0)
-            metrics["total_findings"] = sum(severity_dist.values())
-        
+        if isinstance(severity_dist, dict) and severity_dist:
+            metrics["critical_findings"] = int(severity_dist.get("critical", 0) or 0)
+            metrics["high_findings"] = int(severity_dist.get("high", 0) or 0)
+            metrics["medium_findings"] = int(severity_dist.get("medium", 0) or 0)
+            metrics["low_findings"] = int(severity_dist.get("low", 0) or 0)
+            metrics["total_findings"] = int(sum(int(v) for v in severity_dist.values()))
+            return metrics
+
+        # Findings list (C/C++ hybrid, vector anomalies, retrieval, embedding)
+        findings = scan_results.get("findings", [])
+        if isinstance(findings, list) and findings:
+            meta = scan_results.get("summary")
+            if isinstance(meta, dict) and meta.get("severity_counts") and not any(
+                isinstance(f, dict) and f.get("severity") for f in findings
+            ):
+                sc = meta.get("severity_counts", {})
+                metrics["high_findings"] = int(sc.get("high", 0) or 0)
+                metrics["medium_findings"] = int(sc.get("medium", 0) or 0)
+                metrics["low_findings"] = int(sc.get("low", 0) or 0)
+                metrics["total_findings"] = int(meta.get("total_findings", len(findings)) or 0)
+                return metrics
+            metrics["total_findings"] = len(findings)
+            for finding in findings:
+                if not isinstance(finding, dict):
+                    continue
+                sev = (finding.get("severity") or finding.get("risk") or "").lower()
+                if sev in ("critical", "crit") or float(finding.get("severity_score", 0) or 0) >= 4.5:
+                    metrics["critical_findings"] += 1
+                elif sev == "high" or float(finding.get("severity_score", 0) or 0) >= 3.5:
+                    metrics["high_findings"] += 1
+                elif sev == "medium" or (finding.get("risk_score") is not None and 0.5 <= float(finding.get("risk_score", 0)) < 0.8):
+                    metrics["medium_findings"] += 1
+                else:
+                    metrics["low_findings"] += 1
+            if metrics["total_findings"] and (metrics["high_findings"] + metrics["medium_findings"] + metrics["low_findings"] + metrics["critical_findings"] == 0):
+                # No per-item severity: treat as medium signal count
+                metrics["medium_findings"] = metrics["total_findings"]
+            return metrics
+
+        # LLM Shield data-poisoning
+        if scan_results.get("poisoned_count") is not None:
+            try:
+                pc = int(scan_results.get("poisoned_count", 0) or 0)
+            except (TypeError, ValueError):
+                pc = 0
+            metrics["total_findings"] = pc
+            metrics["high_findings"] = pc
+            return metrics
+        if scan_results.get("is_poisoned") is True:
+            metrics["total_findings"] = 1
+            metrics["high_findings"] = 1
+            return metrics
+
+        # Prompt-injection: violations_found
+        vio = scan_results.get("violations_found")
+        if vio is not None:
+            try:
+                v = int(vio)
+            except (TypeError, ValueError):
+                v = 0
+            metrics["total_findings"] = v
+            if v > 0:
+                metrics["high_findings"] = v
+            return metrics
+
+        sm = scan_results.get("summary")
+        if isinstance(sm, dict) and sm.get("total_findings") is not None:
+            try:
+                tf = int(sm.get("total_findings", 0) or 0)
+            except (TypeError, ValueError):
+                tf = 0
+            if tf > 0:
+                metrics["total_findings"] = tf
+                sc = sm.get("severity_counts")
+                if isinstance(sc, dict) and sc:
+                    metrics["high_findings"] = int(sc.get("high", 0) or 0)
+                    metrics["medium_findings"] = int(sc.get("medium", 0) or 0)
+                    metrics["low_findings"] = int(sc.get("low", 0) or 0)
+                else:
+                    metrics["medium_findings"] = tf
+
+        if scan_results.get("total_findings") is not None and metrics["total_findings"] == 0:
+            try:
+                metrics["total_findings"] = int(scan_results.get("total_findings", 0) or 0)
+            except (TypeError, ValueError):
+                pass
+
         return metrics
 
-    def determine_scan_status(self, scan_results: Dict[str, Any]) -> str:
-        """Determine scan status based on results"""
-        
+    def determine_scan_status(
+        self, scan_results: Dict[str, Any], precomputed: Optional[Dict[str, int]] = None
+    ) -> str:
         if not scan_results:
             return "error"
-        
-        total_findings = scan_results.get("total_findings", 0)
-        critical_findings = scan_results.get("severity_distribution", {}).get("critical", 0)
-        
-        if critical_findings > 0:
-            return "error"  # Critical issues found
-        elif total_findings > 0:
-            return "warning"  # Some issues found
-        else:
-            return "success"  # No issues found
+        m = precomputed or self.extract_scan_metrics_from_results(scan_results)
+        if m.get("critical_findings", 0) > 0:
+            return "error"
+        if m.get("total_findings", 0) > 0:
+            return "warning"
+        return "success"
 
 
 # Global service instance and helper function
@@ -249,33 +413,55 @@ async def get_scan_history_service() -> ScanHistoryService:
     return _scan_history_service
 
 async def save_scan_to_history(
-    user_id: str, 
-    scan_response: Union[Dict[str, Any], Any], 
-    input_type: str, 
-    input_size: Optional[int] = None
+    user_id: str,
+    scan_response: Union[Dict[str, Any], Any],
+    input_type: str,
+    input_size: Optional[int] = None,
+    scan_module: str = "code_scanning",
 ) -> ScanHistoryInDB:
     """
-    Helper function to save scan results to history
-    This is the function that scanner endpoints will call
+    Save scan / analysis results to per-user history.
+    scan_module: e.g. code_scanning, prompt_injection, data_poisoning, vector_security, embedding_inspection, retrieval_simulation
+    input_type: channel, e.g. text, file, file_upload, github, json
     """
     service = await get_scan_history_service()
-    
-    # Convert Pydantic model to dictionary if needed
-    if hasattr(scan_response, 'dict'):
-        scan_response_dict = scan_response.dict()
-    else:
-        scan_response_dict = scan_response
-    
-    # Extract metrics from scan response
+
+    scan_response_dict = model_to_storable_dict(scan_response, scan_module)
+
     metrics = service.extract_scan_metrics_from_results(scan_response_dict)
-    status = service.determine_scan_status(scan_response_dict)
-    
-    # Create scan history data
+    status = service.determine_scan_status(scan_response_dict, metrics)
+
+    if scan_module == "code_scanning":
+        canonical_input = (
+            "text"
+            if input_type == "text"
+            else "file"
+            if input_type in ("file", "file_upload")
+            else "github"
+            if input_type in ("github", "github_repo")
+            else input_type
+        )
+    else:
+        if input_type in ("text", "file", "github", "json", "multi", "file_upload", "github_repo"):
+            canonical_input = "file" if input_type in ("file", "file_upload") else "github" if input_type in ("github", "github_repo") else input_type
+        else:
+            canonical_input = "other"
+
+    scan_id = (
+        scan_response_dict.get("scan_id")
+        or scan_response_dict.get("test_id")
+        or ""
+    )
+    short_id = (scan_id or "unknown")[:8]
+    mod_title = human_module_title(scan_module)
+    title = f"{mod_title} · {short_id}"
+
     scan_data = ScanHistoryCreate(
-        scan_id=scan_response_dict.get("scan_id", ""),
-        scan_type=input_type,
-        title=f"{input_type.replace('_', ' ').title()} Scan - {scan_response_dict.get('scan_id', 'Unknown')[:8]}",
-        description=f"Scan performed on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}",
+        scan_id=scan_id,
+        scan_type=scan_module,
+        title=title,
+        description=f"Recorded at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC",
+        input_type=canonical_input,
         input_size=input_size or 0,
         status=status,
         total_findings=metrics["total_findings"],
@@ -284,8 +470,16 @@ async def save_scan_to_history(
         medium_findings=metrics["medium_findings"],
         low_findings=metrics["low_findings"],
         scan_results=scan_response_dict,
-        executive_summary=scan_response_dict.get("executive_summary", {}).get("risk_level", "Unknown") if isinstance(scan_response_dict.get("executive_summary"), dict) else None,
-        recommendations=scan_response_dict.get("recommendations", []) if scan_response_dict.get("recommendations") else None
+        executive_summary=(
+            scan_response_dict.get("executive_summary", {}).get("risk_level", "Unknown")
+            if isinstance(scan_response_dict.get("executive_summary"), dict)
+            else (str(scan_response_dict.get("message")) if scan_response_dict.get("message") else None)
+        ),
+        recommendations=(
+            scan_response_dict.get("recommendations", [])
+            if scan_response_dict.get("recommendations")
+            else None
+        ),
     )
-    
+
     return await service.create_scan_history(user_id, scan_data)

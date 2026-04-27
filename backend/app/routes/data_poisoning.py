@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 import logging
 import io
 import asyncio
+import uuid
+from typing import Optional, Dict
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 from app.models.dataset_poisoning import (
@@ -16,11 +18,28 @@ from app.models.dataset_poisoning import (
     DatasetAnalysisResult,
 )
 from app.services.dataset_poisoning_service import get_detector
-from app.utils.auth import get_current_user
+from app.utils.auth import get_current_user, get_optional_user
 from app.models.user import UserInDB
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["dataset-poisoning"])
+
+
+async def _save_data_poisoning_history(
+    user: Optional[UserInDB], result: Dict[str, Any], input_type: str, input_size: int
+) -> None:
+    if not user or not result or result.get("success") is not True:
+        return
+    try:
+        from app.services.scan_history_service import save_scan_to_history
+        payload = dict(result)
+        if "scan_id" not in payload:
+            payload["scan_id"] = str(uuid.uuid4())
+        await save_scan_to_history(
+            str(user.id), payload, input_type, input_size, scan_module="data_poisoning"
+        )
+    except Exception as e:
+        logger.warning("Data poisoning history not saved: %s", e)
 
 
 @router.post("/analyze/text", response_model=DatasetAnalysisResult)
@@ -538,6 +557,7 @@ async def get_analysis_result(
 @router.post("/scan/text")
 async def scan_text_with_llm_shield(
     request: DatasetAnalysisRequest,
+    current_user: Optional[UserInDB] = Depends(get_optional_user),
 ):
     """
     Scan text input (single or multiple rows) for poisoning using LLM Shield MultiTaskBERT model.
@@ -565,6 +585,9 @@ async def scan_text_with_llm_shield(
             if not result.get("success", False):
                 raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))
             logger.info(f"Γ£à LLM Shield single text scan completed")
+            await _save_data_poisoning_history(
+                current_user, result, "text", len(text_content.encode("utf-8"))
+            )
             return result
 
         # Multiple rows - treat as dataset
@@ -578,6 +601,9 @@ async def scan_text_with_llm_shield(
             raise HTTPException(status_code=500, detail=result.get("error", "Scan failed"))
 
         logger.info(f"Γ£à LLM Shield text dataset scan completed")
+        await _save_data_poisoning_history(
+            current_user, result, "text", len(content_bytes)
+        )
         return result
 
     except HTTPException:
@@ -589,7 +615,8 @@ async def scan_text_with_llm_shield(
 
 @router.post("/scan/upload")
 async def scan_dataset_with_llm_shield(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user: Optional[UserInDB] = Depends(get_optional_user),
 ):
     """
     Scan a dataset file for poisoning using LLM Shield MultiTaskBERT model.
@@ -624,6 +651,9 @@ async def scan_dataset_with_llm_shield(
             )
 
         logger.info(f"Γ£à LLM Shield scan completed for {file.filename}")
+        await _save_data_poisoning_history(
+            current_user, result, "file", len(content)
+        )
         return result
 
     except HTTPException:

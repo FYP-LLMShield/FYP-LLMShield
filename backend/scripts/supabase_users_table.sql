@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS users (
   -- Google OAuth fields
   google_id VARCHAR(255) UNIQUE,
   profile_picture TEXT,
+
+  -- User profile fields (editable)
+  phone_number VARCHAR(50),
+  location VARCHAR(255),
+  job_role VARCHAR(255),
+  company VARCHAR(255),
+  bio TEXT,
   
   -- Email verification
   verification_token VARCHAR(255),
@@ -84,10 +91,18 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create trigger to auto-update updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Safe migration for existing tables (idempotent)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS job_role VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS company VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
 
 -- Add comments
 COMMENT ON TABLE users IS 'User accounts for LLMShield - Primary database (Supabase)';
