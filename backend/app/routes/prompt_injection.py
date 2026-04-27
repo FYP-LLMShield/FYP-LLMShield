@@ -51,34 +51,32 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from fastapi.responses import Response, StreamingResponse
 
-# Import authentication dependencies
-from app.utils.auth import get_current_user
+# Import authentication dependencies (use shared optional auth: Supabase JWT + backend JWT)
+from app.utils.auth import get_current_user, get_optional_user
 from app.models.user import UserInDB
 from ..services.model_validator import model_validator
 from app.core.config import settings
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Optional authentication for development
-security_optional = HTTPBearer(auto_error=False)
 
-async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)
-) -> Optional[UserInDB]:
-    """
-    Optional authentication dependency.
-    Returns user if token is valid, None otherwise.
-    """
-    if not credentials:
-        return None
+async def persist_prompt_scan_history(
+    user: Optional[UserInDB],
+    response: Any,
+    *,
+    input_type: str,
+    input_size: Optional[int],
+    scan_module: str,
+) -> None:
+    """Store dashboard history when a user is signed in. Never fails the main request."""
+    if not user:
+        return
     try:
-        from app.utils.auth import verify_token
-        email = verify_token(credentials.credentials)
-        from app.utils.user_service import user_service
-        from app.utils.unified_user_service import unified_user_service
-        user = await unified_user_service.get_user_by_email(email)
-        return user
-    except Exception:
-        return None
+        from app.services.scan_history_service import save_scan_to_history
+        await save_scan_to_history(
+            str(user.id), response, input_type, input_size, scan_module=scan_module
+        )
+    except Exception as e:
+        logger.warning("Scan history not saved (%s): %s", scan_module, e)
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -1357,7 +1355,7 @@ async def test_model(request: TestRequest, current_user: Optional[UserInDB] = De
             "categories_tested": list(set(r.category for r in results))
         }
         
-        return TestResponse(
+        response = TestResponse(
             test_id=test_id,
             status="completed",
             message=f"Testing completed. Found {violations_found} potential violations out of {len(all_probes)} probes.",
@@ -1378,6 +1376,12 @@ async def test_model(request: TestRequest, current_user: Optional[UserInDB] = De
                 "probes_per_second": len(all_probes) / total_time if total_time > 0 else 0
             }
         )
+        await persist_prompt_scan_history(
+            current_user, response, input_type="text",
+            input_size=sum(len(str(p[0])) for p in all_probes) if all_probes else 0,
+            scan_module="prompt_injection",
+        )
+        return response
         
     except Exception as e:
         logger.error(f"Error during prompt injection testing: {str(e)}", exc_info=True)
@@ -1453,7 +1457,7 @@ async def scan_document(
                     "description": "High-risk content that could compromise system security"
                 })
         
-        return DocumentScanResult(
+        dsr = DocumentScanResult(
             scan_id=scan_id,
             filename=file.filename,
             file_type=file.content_type,
@@ -1468,6 +1472,11 @@ async def scan_document(
             threat_level="high" if any(f.severity in ["critical", "high"] for f in findings) else "low",
             threat_types=list(set(f.type for f in findings))
         )
+        await persist_prompt_scan_history(
+            current_user, dsr, input_type="file", input_size=len(content),
+            scan_module="prompt_injection",
+        )
+        return dsr
         
     except Exception as e:
         logger.error(f"Error during document scanning: {str(e)}")
@@ -1484,7 +1493,10 @@ async def scan_document(
         )
 
 @router.post("/test-documents")
-async def test_documents(request: Request):
+async def test_documents(
+    request: Request,
+    current_user: Optional[UserInDB] = Depends(get_optional_user),
+):
     """Test uploaded documents for prompt injection vulnerabilities using connected model"""
     
     test_id = str(uuid.uuid4())
@@ -1597,7 +1609,7 @@ async def test_documents(request: Request):
         }
         
         # Return the test result with document context
-        return TestResponse(
+        tr = TestResponse(
             test_id=test_id,
             status="completed",
             message=f"Document scanning completed. Found {violations_found} potential violations in {len(extracted_texts)} document(s).",
@@ -1619,6 +1631,12 @@ async def test_documents(request: Request):
                 "scanning_method": "pattern_matching"
             }
         )
+        await persist_prompt_scan_history(
+            current_user, tr, input_type="file",
+            input_size=sum(len(doc["content"]) for doc in extracted_texts) if extracted_texts else 0,
+            scan_module="prompt_injection",
+        )
+        return tr
         
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in form data: {str(e)}")
@@ -3055,7 +3073,10 @@ async def embedding_inspection(
             chunks=chunks,
             recommendations=recommendations
         )
-        
+        await persist_prompt_scan_history(
+            current_user, response, input_type="file", input_size=len(content),
+            scan_module="embedding_inspection",
+        )
         return response
     
     except HTTPException:
@@ -4101,7 +4122,10 @@ async def analyze_vector_store(
             poisoned_vectors=poisoned_vectors_list if poisoned_vectors_list else None,
             sampling_info=sampling_info
         )
-        
+        await persist_prompt_scan_history(
+            current_user, response, input_type="json", input_size=len(content),
+            scan_module="vector_security",
+        )
         return response
     
     except HTTPException:
@@ -4937,7 +4961,10 @@ async def analyze_vector_store_multi_source(
             poisoned_vectors=poisoned_vectors_list if poisoned_vectors_list else None,
             sampling_info=sampling_info
         )
-        
+        await persist_prompt_scan_history(
+            current_user, response, input_type="json", input_size=vectors_analyzed,
+            scan_module="vector_security",
+        )
         return response
     
     except HTTPException:
@@ -5173,7 +5200,7 @@ async def run_retrieval_attack_simulation(
         if not recommendations:
             recommendations.append("No critical vulnerabilities detected. Retrieval pipeline appears robust.")
         
-        return RetrievalAttackResponse(
+        rar = RetrievalAttackResponse(
             scan_id=report.scan_id,
             timestamp=report.timestamp,
             total_queries=report.total_queries,
@@ -5187,6 +5214,12 @@ async def run_retrieval_attack_simulation(
             parameters=report.parameters,
             recommendations=recommendations
         )
+        await persist_prompt_scan_history(
+            current_user, rar, input_type="json",
+            input_size=len(content) if content is not None else len(query_list),
+            scan_module="retrieval_simulation",
+        )
+        return rar
     
     except HTTPException:
         raise

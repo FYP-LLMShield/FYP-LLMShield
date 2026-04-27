@@ -22,12 +22,13 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { format } from "date-fns"
-import { scanHistoryAPI } from "../../lib/api"
+import { scanHistoryAPI, type ScanHistoryStats } from "../../lib/api"
 
 interface ScanHistoryItem {
   id: string
   scan_id: string
-  input_type: string
+  scan_type?: string
+  input_type?: string
   input_size: number
   scan_duration: number
   findings_count: number
@@ -49,67 +50,19 @@ interface HistoryEvent {
   details?: Record<string, any>
 }
 
-const mockHistory: HistoryEvent[] = [
-  {
-    id: "1",
-    type: "scan",
-    title: "Prompt Injection Scan Completed",
-    description: "Comprehensive scan found 3 critical vulnerabilities",
-    timestamp: new Date(2024, 0, 15, 14, 30),
-    user: "admin@company.com",
-    status: "warning",
-    module: "Prompt Injection",
-    details: { vulnerabilities: 3, duration: "2m 45s" },
-  },
-  {
-    id: "2",
-    type: "alert",
-    title: "High Severity Alert Triggered",
-    description: "Buffer overflow detected in main.cpp",
-    timestamp: new Date(2024, 0, 15, 13, 15),
-    user: "system",
-    status: "error",
-    module: "Code Scanning",
-    details: { severity: "High", file: "main.cpp", line: 45 },
-  },
-  {
-    id: "3",
-    type: "action",
-    title: "Security Rule Updated",
-    description: "Modified prompt injection detection threshold",
-    timestamp: new Date(2024, 0, 15, 12, 0),
-    user: "security@company.com",
-    status: "success",
-    module: "Settings",
-    details: { threshold: "25%" },
-  },
-  {
-    id: "4",
-    type: "scan",
-    title: "Vector Embedding Health Check",
-    description: "All embeddings passed health validation",
-    timestamp: new Date(2024, 0, 15, 10, 45),
-    user: "admin@company.com",
-    status: "success",
-    module: "Vector Embedding",
-    details: { embeddings: 1247, passed: 1247 },
-  },
-  {
-    id: "5",
-    type: "login",
-    title: "User Login",
-    description: "Successful authentication from 192.168.1.100",
-    timestamp: new Date(2024, 0, 15, 9, 30),
-    user: "admin@company.com",
-    status: "info",
-    module: "Authentication",
-    details: { ip: "192.168.1.100", location: "San Francisco, CA" },
-  },
-]
+const MODULE_LABELS: Record<string, string> = {
+  code_scanning: "Code / hybrid",
+  prompt_injection: "Prompt injection",
+  data_poisoning: "Data poisoning",
+  vector_security: "Vector / anomaly",
+  embedding_inspection: "Embedding inspection",
+  retrieval_simulation: "Retrieval attack",
+}
 
 export function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
+  const [filterModule, setFilterModule] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
   const [dateRange, setDateRange] = useState<Date | undefined>(new Date())
   
@@ -120,23 +73,35 @@ export function HistoryPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [stats, setStats] = useState<ScanHistoryStats | null>(null)
 
-  // Fetch scan history data
+  // Fetch scan history + aggregate stats (backend: GET /scan-history/)
   const fetchScanHistory = async (page: number = 1) => {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const inputType = filterType === "all" ? undefined : filterType
-      const response = await scanHistoryAPI.getHistory(page, 20, inputType)
-      
+      const scanType = filterModule === "all" ? undefined : filterModule
+      const [response, statsResponse] = await Promise.all([
+        scanHistoryAPI.getHistory(page, 20, inputType, scanType),
+        scanHistoryAPI.getStats(inputType, scanType),
+      ])
+
       if (response.success && response.data) {
-        setScanHistory(response.data.scans)
-        setTotalPages(response.data.total_pages)
-        setTotal(response.data.total)
-        setCurrentPage(response.data.page)
+        setScanHistory(response.data.scans ?? [])
+        setTotalPages(response.data.total_pages ?? 1)
+        setTotal(response.data.total ?? 0)
+        setCurrentPage(response.data.page ?? page)
       } else {
+        setScanHistory([])
         setError(response.error || "Failed to fetch scan history")
+      }
+
+      if (statsResponse.success && statsResponse.data) {
+        setStats(statsResponse.data as ScanHistoryStats)
+      } else if (response.success) {
+        setStats(null)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch scan history")
@@ -148,16 +113,29 @@ export function HistoryPage() {
   // Load data on component mount and when filters change
   useEffect(() => {
     fetchScanHistory(1)
-  }, [filterType])
+  }, [filterType, filterModule])
 
   // Convert scan history to display format
   const convertScanToHistoryEvent = (scan: ScanHistoryItem): HistoryEvent => {
     const status = scan.high_risk_count > 0 ? "error" : 
                   scan.medium_risk_count > 0 ? "warning" : "success"
-    
-    const inputTypeDisplay = scan.input_type === "text" ? "Text Scan" :
-                            scan.input_type === "file" ? "File Scan" :
-                            scan.input_type === "github" ? "GitHub Scan" : "Scan"
+
+    const it = scan.input_type || ""
+    const st = scan.scan_type || "code_scanning"
+    const moduleLabel = MODULE_LABELS[st] || st.replace(/_/g, " ")
+
+    const inputTypeDisplay =
+      it === "text" || st === "text"
+        ? "Text"
+        : it === "file" || it === "file_upload" || st === "file" || st === "file_upload"
+          ? "File"
+          : it === "github" || st === "github" || st === "github_repo"
+            ? "GitHub"
+            : it === "json"
+              ? "JSON / snapshot"
+              : it === "other"
+                ? "Other"
+                : "Mixed"
     
     const description = scan.findings_count > 0 
       ? `Found ${scan.findings_count} findings (${scan.high_risk_count} high, ${scan.medium_risk_count} medium, ${scan.low_risk_count} low risk)`
@@ -166,12 +144,12 @@ export function HistoryPage() {
     return {
       id: scan.id,
       type: "scan",
-      title: `${inputTypeDisplay} Completed`,
+      title: `${moduleLabel} · ${inputTypeDisplay}`,
       description,
       timestamp: new Date(scan.created_at),
       user: "current_user", // We could get this from auth context
       status,
-      module: inputTypeDisplay,
+      module: moduleLabel,
       details: {
         scan_id: scan.scan_id,
         duration: `${Math.round(scan.scan_duration)}s`,
@@ -230,9 +208,11 @@ export function HistoryPage() {
   }
 
   const filteredHistory = historyEvents.filter((event) => {
+    const q = searchTerm.toLowerCase()
     const matchesSearch =
-      event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchTerm.toLowerCase())
+      event.title.toLowerCase().includes(q) ||
+      event.description.toLowerCase().includes(q) ||
+      event.module.toLowerCase().includes(q)
     const matchesStatus = filterStatus === "all" || event.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -279,7 +259,8 @@ export function HistoryPage() {
               <div>
                 <p className="text-sm font-medium text-slate-900 dark:text-gray-400">High Risk Found</p>
                 <p className="text-2xl font-bold text-red-400">
-                  {(scanHistory || []).reduce((sum, scan) => sum + scan.high_risk_count, 0)}
+                  {stats?.high_findings ??
+                    (scanHistory || []).reduce((sum, scan) => sum + scan.high_risk_count, 0)}
                 </p>
               </div>
               <AlertTriangle className="w-8 h-8 text-red-400" />
@@ -292,7 +273,8 @@ export function HistoryPage() {
               <div>
                 <p className="text-sm font-medium text-slate-900 dark:text-gray-400">Medium Risk Found</p>
                 <p className="text-2xl font-bold text-yellow-400">
-                  {(scanHistory || []).reduce((sum, scan) => sum + scan.medium_risk_count, 0)}
+                  {stats?.medium_findings ??
+                    (scanHistory || []).reduce((sum, scan) => sum + scan.medium_risk_count, 0)}
                 </p>
               </div>
               <AlertTriangle className="w-8 h-8 text-yellow-400" />
@@ -305,7 +287,8 @@ export function HistoryPage() {
               <div>
                 <p className="text-sm font-medium text-slate-900 dark:text-gray-400">Clean Scans</p>
                 <p className="text-2xl font-bold text-green-400">
-                  {(scanHistory || []).filter(scan => scan.findings_count === 0).length}
+                  {stats?.clean_scans ??
+                    (scanHistory || []).filter((scan) => scan.findings_count === 0).length}
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-400" />
@@ -331,13 +314,27 @@ export function HistoryPage() {
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-full border-border bg-background text-slate-900 md:w-48 dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
-                <SelectValue placeholder="Filter by type" />
+                <SelectValue placeholder="Input channel" />
               </SelectTrigger>
               <SelectContent className="border-border">
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="text">Text Scans</SelectItem>
-                <SelectItem value="file">File Scans</SelectItem>
-                <SelectItem value="github">GitHub Scans</SelectItem>
+                <SelectItem value="all">All channels</SelectItem>
+                <SelectItem value="text">Text</SelectItem>
+                <SelectItem value="file">File</SelectItem>
+                <SelectItem value="github">GitHub</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterModule} onValueChange={setFilterModule}>
+              <SelectTrigger className="w-full border-border bg-background text-slate-900 md:w-56 dark:bg-gray-700/50 dark:border-gray-600 dark:text-white">
+                <SelectValue placeholder="Module" />
+              </SelectTrigger>
+              <SelectContent className="border-border max-h-72">
+                <SelectItem value="all">All modules</SelectItem>
+                <SelectItem value="code_scanning">Code / hybrid</SelectItem>
+                <SelectItem value="prompt_injection">Prompt injection</SelectItem>
+                <SelectItem value="data_poisoning">Data poisoning</SelectItem>
+                <SelectItem value="vector_security">Vector / anomaly</SelectItem>
+                <SelectItem value="embedding_inspection">Embedding inspection</SelectItem>
+                <SelectItem value="retrieval_simulation">Retrieval attack</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
