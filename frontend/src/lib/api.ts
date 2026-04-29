@@ -243,7 +243,31 @@ export interface ScanHistoryStats {
   clean_scans?: number
 }
 
-export const scanHistoryAPI = {
+interface SaveHistoryPayload {
+  scan_id: string
+  scan_type: string
+  title: string
+  status: string
+  total_findings: number
+  high_findings?: number
+  medium_findings?: number
+  low_findings?: number
+  critical_findings?: number
+  input_type?: string
+  input_size?: number
+  scan_results?: Record<string, any>
+  executive_summary?: string
+  recommendations?: string[]
+  description?: string
+}
+
+interface ScanHistoryAPI {
+  getHistory: (page?: number, limit?: number, inputType?: string, scanType?: string) => Promise<any>
+  getStats: (inputType?: string, scanType?: string) => Promise<any>
+  saveHistory: (payload: SaveHistoryPayload) => Promise<any>
+}
+
+export const scanHistoryAPI: ScanHistoryAPI = {
   /** List endpoint is GET /api/v1/scan-history/ (matches FastAPI router). */
   getHistory: (page = 1, limit = 20, inputType?: string, scanType?: string) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
@@ -263,23 +287,7 @@ export const scanHistoryAPI = {
    * Uses apiClient.request so the Supabase token is always refreshed for /scan-history paths.
    * This is the reliable fallback when backend auto-save might silently fail.
    */
-  saveHistory: (payload: {
-    scan_id: string
-    scan_type: string
-    title: string
-    status: string
-    total_findings: number
-    high_findings?: number
-    medium_findings?: number
-    low_findings?: number
-    critical_findings?: number
-    input_type?: string
-    input_size?: number
-    scan_results?: Record<string, any>
-    executive_summary?: string
-    recommendations?: string[]
-    description?: string
-  }) => apiClient.request("/scan-history/", { method: "POST", body: payload }),
+  saveHistory: (payload) => apiClient.request("/scan-history/", { method: "POST", body: payload }),
 }
 
 // -------- Prompt Injection APIs --------
