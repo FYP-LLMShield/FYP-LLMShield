@@ -20,12 +20,41 @@ def _model_to_dict(obj: Any) -> Dict[str, Any]:
     if obj is None:
         return {}
     if isinstance(obj, dict):
-        return dict(obj)
+        return _make_bson_safe(dict(obj))
     if hasattr(obj, "model_dump"):
-        return obj.model_dump()  # type: ignore[no-untyped-call]
+        # mode='json' ensures all types (datetime, Enum, etc.) are JSON-serialisable
+        # so Motor/BSON can store them without TypeErrors.
+        try:
+            return _make_bson_safe(obj.model_dump(mode="json"))  # type: ignore[no-untyped-call]
+        except TypeError:
+            return _make_bson_safe(obj.model_dump())  # type: ignore[no-untyped-call]
     if hasattr(obj, "dict"):
-        return obj.dict()  # type: ignore[no-untyped-call]
+        return _make_bson_safe(obj.dict())  # type: ignore[no-untyped-call]
     return {"_value": str(obj)}
+
+
+def _make_bson_safe(obj: Any) -> Any:
+    """Recursively convert any non-BSON-safe types to plain Python primitives."""
+    import enum
+    from datetime import datetime, date
+    if obj is None or isinstance(obj, (bool, int, float, str, bytes)):
+        return obj
+    if isinstance(obj, (datetime, date)):
+        return obj
+    if isinstance(obj, enum.Enum):
+        return obj.value
+    if isinstance(obj, dict):
+        return {str(k): _make_bson_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_make_bson_safe(i) for i in obj]
+    if hasattr(obj, "model_dump"):
+        try:
+            return _make_bson_safe(obj.model_dump(mode="json"))
+        except TypeError:
+            return _make_bson_safe(obj.model_dump())
+    if hasattr(obj, "dict"):
+        return _make_bson_safe(obj.dict())
+    return str(obj)
 
 
 def human_module_title(module: str) -> str:

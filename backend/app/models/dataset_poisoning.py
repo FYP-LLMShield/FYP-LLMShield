@@ -96,7 +96,10 @@ class DatasetAnalysisRequest(BaseModel):
     # For HuggingFace dataset
     huggingface_dataset_id: Optional[str] = Field(None, description="HF dataset ID (e.g., user/dataset-name)")
     huggingface_config: Optional[str] = Field(None, description="HF dataset config/split")
-    jsonl_file: Optional[str] = Field(None, description="Specific .jsonl or .json file to scan in HuggingFace dataset")
+    jsonl_file: Optional[str] = Field(
+        None,
+        description="Specific .jsonl, .json, or .parquet file in the Hub dataset to scan",
+    )
 
     # Analysis options
     sample_size: Optional[int] = Field(None, description="Max samples to analyze (for large datasets)")

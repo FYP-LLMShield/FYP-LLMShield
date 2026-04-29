@@ -3,6 +3,7 @@ LLM Shield Scanner Service for detecting data poisoning using MultiTaskBERT
 Classifies each row as Safe or Poisoned based on pre-trained model
 """
 
+import io
 import logging
 import os
 import json
@@ -14,11 +15,43 @@ from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
-# Resolve model paths
+# Resolve model paths (llm_shield_model is beside backend/, tokenizer+weights may be gitignored)
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'llm_shield_model'))
 BERT_LOCAL_PATH = os.path.join(BASE_DIR, 'bert_local')
 CUSTOM_MODEL_WEIGHTS = os.path.join(BASE_DIR, 'llm_shield_multitask.bin')
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# When bert_local/ is missing (fresh clone), fall back to HF bert-base-uncased for tokenizer + BERT backbone.
+_DEFAULT_PUBLIC_BERT = "bert-base-uncased"
+
+
+def _bert_local_has_tokenizer(path: str) -> bool:
+    if not os.path.isdir(path):
+        return False
+    return os.path.isfile(os.path.join(path, "tokenizer_config.json")) or os.path.isfile(
+        os.path.join(path, "vocab.txt")
+    )
+
+
+def resolve_bert_pretrained_id_or_path() -> str:
+    """Prefer explicit env, then populated bert_local/, else public BERT weights."""
+    explicit = os.environ.get("LLM_SHIELD_BERT_PRETRAINED", "").strip()
+    if explicit:
+        return explicit
+    if _bert_local_has_tokenizer(BERT_LOCAL_PATH):
+        return BERT_LOCAL_PATH
+    logger.warning(
+        "llm_shield_model/bert_local/ is missing tokenizer files; using %s. "
+        "To use a local snapshot, add vocab.txt + tokenizer_config.json (or run "
+        "`huggingface-cli download google-bert/bert-base-uncased --local-dir llm_shield_model/bert_local`).",
+        _DEFAULT_PUBLIC_BERT,
+    )
+    return _DEFAULT_PUBLIC_BERT
+
+
+def resolve_multitask_weights_path() -> str:
+    p = os.environ.get("LLM_SHIELD_WEIGHTS", "").strip()
+    return os.path.abspath(p) if p else CUSTOM_MODEL_WEIGHTS
 
 
 class MultiTaskBERT(nn.Module):
@@ -57,19 +90,30 @@ class LLMShieldScannerService:
             return
 
         try:
-            logger.info(f"🔄 Loading LLM Shield model from {BERT_LOCAL_PATH}")
+            pretrained = resolve_bert_pretrained_id_or_path()
+            weights_path = resolve_multitask_weights_path()
 
-            # Load tokenizer
-            self.tokenizer = BertTokenizer.from_pretrained(BERT_LOCAL_PATH)
+            logger.info(
+                "Loading LLM Shield: BERT backbone from %s, fine-tuned weights from %s",
+                pretrained,
+                weights_path,
+            )
 
-            # Load model
-            self.model = MultiTaskBERT(BERT_LOCAL_PATH).to(DEVICE)
+            if not os.path.isfile(weights_path):
+                raise FileNotFoundError(
+                    f"MultiTaskBERT checkpoint not found at {weights_path}. "
+                    "Train one from the bundled JSONL sets: "
+                    "`python llm_shield_model/train_checkpoint.py` "
+                    "(writes llm_shield_multitask.bin next to safe_dataset.jsonl), "
+                    "or set LLM_SHIELD_WEIGHTS to an existing .bin path."
+                )
 
-            # Load pre-trained weights
-            self.model.load_state_dict(torch.load(CUSTOM_MODEL_WEIGHTS, map_location=DEVICE))
+            self.tokenizer = BertTokenizer.from_pretrained(pretrained)
+            self.model = MultiTaskBERT(pretrained).to(DEVICE)
+            self.model.load_state_dict(torch.load(weights_path, map_location=DEVICE))
             self.model.eval()
 
-            logger.info(f"✅ LLM Shield model loaded successfully")
+            logger.info("LLM Shield model loaded successfully")
             self.initialized = True
 
         except Exception as e:
@@ -166,6 +210,23 @@ class LLMShieldScannerService:
                         # Use first column
                         texts = df.iloc[:, 0].astype(str).tolist()
 
+                elif file_ext == '.parquet':
+                    df = pd.read_parquet(io.BytesIO(content))
+                    if len(df) == 0:
+                        raise ValueError("No valid rows found in Parquet")
+                    if "text" in df.columns:
+                        texts = df["text"].astype(str).tolist()
+                    elif "question" in df.columns and "context" in df.columns:
+                        texts = (
+                            df["question"].astype(str) + " [SEP] " + df["context"].astype(str)
+                        ).tolist()
+                    elif "instruction" in df.columns and "output" in df.columns:
+                        texts = (
+                            df["instruction"].astype(str) + " [SEP] " + df["output"].astype(str)
+                        ).tolist()
+                    else:
+                        texts = df.iloc[:, 0].astype(str).tolist()
+
                 elif file_ext == '.json':
                     # JSON format (could be array, object, or JSONL)
                     content_str = content.decode('utf-8')
@@ -249,7 +310,10 @@ class LLMShieldScannerService:
                                                 text_found = True
 
                 else:
-                    raise ValueError(f"Unsupported file format: {file_ext}. Only .jsonl, .json and .csv are supported")
+                    raise ValueError(
+                        f"Unsupported file format: {file_ext}. "
+                        "Only .jsonl, .json, .csv and .parquet are supported"
+                    )
 
             except Exception as e:
                 logger.error(f"❌ Failed to parse file: {e}")

@@ -1634,6 +1634,14 @@ async def scan_text(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
 
+@router.post("/code", response_model=ScanResponse)
+async def scan_code_alias(
+    request: TextScanRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Alias for /text — used by the frontend code-scanning page."""
+    return await scan_text(request, current_user)
+
 @router.post("/upload", response_model=ScanResponse)
 async def scan_upload(
     file: UploadFile = File(...),
@@ -2052,6 +2060,14 @@ async def scan_github(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"GitHub scan failed: {str(e)[:200]}")
+
+@router.post("/repo", response_model=ScanResponse)
+async def scan_repo_alias(
+    request: RepoScanRequest,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """Alias for /github — used by the frontend code-scanning page."""
+    return await scan_github(request, current_user)
 
 @router.post("/github/pdf")
 async def scan_github_pdf(

@@ -47,6 +47,32 @@ async def connect_to_mongo():
         _mongo_log_label(settings.MONGODB_URL),
         settings.DATABASE_NAME,
     )
+    await _ensure_indexes(mongodb.database)
+
+
+async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:
+    """Create indexes for the scan_history collection (idempotent — safe to run on every start)."""
+    try:
+        from pymongo import ASCENDING, DESCENDING
+        coll = db.scan_history
+        await coll.create_index(
+            [("user_id", ASCENDING), ("timestamp", DESCENDING)],
+            name="user_timestamp",
+            background=True,
+        )
+        await coll.create_index(
+            [("user_id", ASCENDING), ("scan_type", ASCENDING)],
+            name="user_scan_type",
+            background=True,
+        )
+        await coll.create_index(
+            [("user_id", ASCENDING), ("status", ASCENDING)],
+            name="user_status",
+            background=True,
+        )
+        _log.info("scan_history indexes ensured.")
+    except Exception as exc:
+        _log.warning("Could not create scan_history indexes: %s", exc)
 
 async def close_mongo_connection():
     """Close database connection"""

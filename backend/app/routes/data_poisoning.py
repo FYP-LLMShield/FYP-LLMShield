@@ -10,7 +10,7 @@ import logging
 import io
 import asyncio
 import uuid
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 from app.models.dataset_poisoning import (
@@ -25,15 +25,56 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["dataset-poisoning"])
 
 
+# Hub datasets often ship as Parquet only (e.g. rajpurkar/squad).
+HF_DATA_FILE_SUFFIXES = (".jsonl", ".json", ".parquet")
+
+
+def _format_huggingface_hub_error(exc: BaseException) -> str:
+    """
+    Map urllib/DNS failures to a short, actionable message.
+    Squad URL etc. are fine when this fires — the host cannot reach huggingface.co.
+    """
+    raw = str(exc)
+    lower = raw.lower()
+    if (
+        "getaddrinfo failed" in raw
+        or "failed to resolve" in lower
+        or "nameresolutionerror" in lower
+        or "name or service not known" in lower
+        or "temporary failure in name resolution" in lower
+        or "errno 11001" in raw
+        or "errno -2" in raw
+        or "errno -5" in raw
+    ):
+        return (
+            "Cannot reach huggingface.co (DNS or network error). "
+            "Check internet connection, VPN, firewall, and DNS. "
+            "If you are offline, use Upload File with a local JSON or JSONL file instead."
+        )
+    if "max retries exceeded" in lower and (
+        "connection" in lower or "remote" in lower or "failed to establish" in lower
+    ):
+        return (
+            "Connection to Hugging Face failed after retries. "
+            "Check firewall/proxy settings or try again later."
+        )
+    return raw
+
+
 async def _save_data_poisoning_history(
     user: Optional[UserInDB], result: Dict[str, Any], input_type: str, input_size: int
 ) -> None:
-    if not user or not result or result.get("success") is not True:
+    """Persist a data-poisoning scan result to MongoDB history. Never raises."""
+    if not user or not result:
+        return
+    # Allow saving even when success is absent (e.g. DatasetAnalysisResult Pydantic models)
+    success_flag = result.get("success")
+    if success_flag is False:
         return
     try:
         from app.services.scan_history_service import save_scan_to_history
         payload = dict(result)
-        if "scan_id" not in payload:
+        if "scan_id" not in payload or not payload["scan_id"]:
             payload["scan_id"] = str(uuid.uuid4())
         await save_scan_to_history(
             str(user.id), payload, input_type, input_size, scan_module="data_poisoning"
@@ -62,6 +103,12 @@ async def analyze_text_dataset(
             sample_size=request.sample_size,
         )
 
+        await _save_data_poisoning_history(
+            current_user,
+            result.dict() if hasattr(result, "dict") else dict(result),
+            "text",
+            len((request.text_content or "").encode("utf-8")),
+        )
         return result
 
     except ValueError as e:
@@ -103,6 +150,12 @@ async def analyze_file_dataset(
             dataset_content=text_content,
         )
 
+        await _save_data_poisoning_history(
+            current_user,
+            result.dict() if hasattr(result, "dict") else dict(result),
+            "file",
+            len(content),
+        )
         return result
 
     except HTTPException:
@@ -117,16 +170,16 @@ async def list_huggingface_jsonl_files(
     request: DatasetAnalysisRequest,
 ):
     """
-    List all .jsonl and .json files in a HuggingFace dataset.
+    List tabular dataset files on the Hub: .jsonl, .json, .parquet.
 
-    Returns: List of available .jsonl and .json files
+    Returns: jsonl_files (same key for compatibility) — list of filenames
     """
     try:
         if not request.huggingface_dataset_id:
             raise HTTPException(status_code=400, detail="HuggingFace dataset ID or URL required")
 
         dataset_id = request.huggingface_dataset_id.strip()
-        logger.info(f"≡ƒôï Listing .jsonl and .json files in: {dataset_id}")
+        logger.info(f"Listing Hub data files ({', '.join(HF_DATA_FILE_SUFFIXES)}) in: {dataset_id}")
 
         # Extract dataset ID from URL if provided
         if "huggingface.co" in dataset_id:
@@ -141,18 +194,21 @@ async def list_huggingface_jsonl_files(
 
         try:
             files = list_repo_files(repo_id=dataset_id, repo_type="dataset")
-            json_files = [f for f in files if f.endswith(('.jsonl', '.json'))]
+            json_files = [f for f in files if f.endswith(HF_DATA_FILE_SUFFIXES)]
 
-            logger.info(f"≡ƒôé All files: {files}")
-            logger.info(f"≡ƒôï Filtered JSON files: {json_files}")
+            logger.info(f"All files: {files}")
+            logger.info(f"Filtered data files: {json_files}")
 
             if not json_files:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"No .jsonl or .json files found in dataset '{dataset_id}'. Available files: {', '.join(files[:5])}{'...' if len(files) > 5 else ''}"
+                    detail=(
+                        f"No .jsonl, .json, or .parquet files found in dataset '{dataset_id}'. "
+                        f"Available files: {', '.join(files[:8])}{'...' if len(files) > 8 else ''}"
+                    ),
                 )
 
-            logger.info(f"Γ£à Found {len(json_files)} file(s): {json_files}")
+            logger.info(f"Found {len(json_files)} file(s): {json_files}")
 
             return {
                 "success": True,
@@ -167,14 +223,17 @@ async def list_huggingface_jsonl_files(
             logger.error(f"Γ¥î HF list error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Could not access dataset files: {str(e)}"
+                detail=f"Could not access dataset files: {_format_huggingface_hub_error(e)}"
             )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Γ¥î HF list error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list files: {_format_huggingface_hub_error(e)}",
+        )
 
 
 @router.post("/preview/huggingface")
@@ -182,7 +241,7 @@ async def preview_huggingface_jsonl_dataset(
     request: DatasetAnalysisRequest,
 ):
     """
-    Preview a specific .jsonl or .json file from a HuggingFace dataset.
+    Preview a tabular file from a HuggingFace dataset (.jsonl, .json, .parquet).
 
     Returns: First 10 sample rows for preview
     """
@@ -194,9 +253,9 @@ async def preview_huggingface_jsonl_dataset(
         jsonl_filename = request.text_content.strip() if request.text_content else None
 
         if not jsonl_filename:
-            raise HTTPException(status_code=400, detail="JSON/JSONL filename required for preview")
+            raise HTTPException(status_code=400, detail="Dataset filename required for preview")
 
-        logger.info(f"≡ƒæü∩╕Å Previewing: {dataset_id}/{jsonl_filename}")
+        logger.info(f"Previewing: {dataset_id}/{jsonl_filename}")
 
         # Extract dataset ID from URL if provided
         if "huggingface.co" in dataset_id:
@@ -210,15 +269,30 @@ async def preview_huggingface_jsonl_dataset(
         from huggingface_hub import hf_hub_download
 
         try:
-            logger.info(f"≡ƒôÑ Downloading for preview: {jsonl_filename}")
+            logger.info(f"Downloading for preview: {jsonl_filename}")
             file_path = hf_hub_download(repo_id=dataset_id, repo_type="dataset", filename=jsonl_filename)
 
-            # Read and parse first 10 rows with encoding handling
             import json
             preview_rows = []
             total_rows = 0
 
-            # Try different encodings
+            if jsonl_filename.lower().endswith(".parquet"):
+                import pandas as pd
+
+                df = pd.read_parquet(file_path)
+                total_rows = len(df)
+                preview_rows = json.loads(df.head(10).to_json(orient="records", default_handler=str))
+                logger.info(f"Preview loaded from Parquet: {len(preview_rows)} rows shown (Total: {total_rows})")
+                return {
+                    "success": True,
+                    "dataset_id": dataset_id,
+                    "jsonl_file": jsonl_filename,
+                    "total_rows": total_rows,
+                    "preview_rows": preview_rows,
+                    "preview_count": len(preview_rows),
+                }
+
+            # JSON / JSONL: line-delimited JSON
             encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']
             file_opened = False
 
@@ -260,14 +334,17 @@ async def preview_huggingface_jsonl_dataset(
             logger.error(f"Γ¥î HF preview error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Could not access file: {str(e)}"
+                detail=f"Could not access file: {_format_huggingface_hub_error(e)}"
             )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Γ¥î HF preview error: {e}")
-        raise HTTPException(status_code=500, detail=f"Preview failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Preview failed: {_format_huggingface_hub_error(e)}",
+        )
 
 
 @router.post("/scan/huggingface")
@@ -275,17 +352,16 @@ async def scan_huggingface_jsonl_dataset(
     request: DatasetAnalysisRequest,
 ):
     """
-    Scan a HuggingFace dataset for .jsonl files and analyze them with LLM Shield.
+    Scan a Hub dataset file (.jsonl, .json, or .parquet) with LLM Shield MultiTaskBERT.
 
-    Accepts: HuggingFace dataset URL or dataset ID
-    Automatically detects and scans .jsonl files
+    Accepts dataset URL or ID; lists candidate files and scans the selected path.
     """
     try:
         if not request.huggingface_dataset_id:
             raise HTTPException(status_code=400, detail="HuggingFace dataset ID or URL required")
 
         dataset_id = request.huggingface_dataset_id.strip()
-        logger.info(f"≡ƒöì Checking for .jsonl files in: {dataset_id}")
+        logger.info(f"Checking for Hub data files in: {dataset_id}")
 
         # Extract dataset ID from URL if provided
         if "huggingface.co" in dataset_id:
@@ -300,26 +376,29 @@ async def scan_huggingface_jsonl_dataset(
             # Remove trailing slashes
             dataset_id = dataset_id.rstrip("/")
 
-        # Check for .jsonl and .json files in the dataset
         from huggingface_hub import list_repo_files
 
         try:
             files = list_repo_files(repo_id=dataset_id, repo_type="dataset")
-            json_files = [f for f in files if f.endswith(('.jsonl', '.json'))]
+            json_files = [f for f in files if f.endswith(HF_DATA_FILE_SUFFIXES)]
 
             if not json_files:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"No .jsonl or .json files found in dataset '{dataset_id}'. Available files: {', '.join(files[:5])}{'...' if len(files) > 5 else ''}"
+                    detail=(
+                        f"No .jsonl, .json, or .parquet files found in dataset '{dataset_id}'. "
+                        f"Available files: {', '.join(files[:8])}{'...' if len(files) > 8 else ''}"
+                    ),
                 )
 
-            logger.info(f"Γ£à Found {len(json_files)} file(s): {json_files}")
+            logger.info(f"Found {len(json_files)} file(s): {json_files}")
 
-            # Download and scan the selected file (or first file if none specified)
             from huggingface_hub import hf_hub_download
 
-            # Try to get filename from jsonl_file or text_content (for backward compatibility)
-            selected_file = request.jsonl_file or (request.text_content if request.text_content and request.text_content.endswith(('.jsonl', '.json')) else None)
+            _tc = (request.text_content or "").strip()
+            selected_file = request.jsonl_file or (
+                _tc if _tc.lower().endswith(HF_DATA_FILE_SUFFIXES) else None
+            )
 
             if selected_file and selected_file in json_files:
                 json_file = selected_file
@@ -352,14 +431,17 @@ async def scan_huggingface_jsonl_dataset(
             logger.error(f"Γ¥î HF .jsonl detection error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Could not access dataset files: {str(e)}"
+                detail=f"Could not access dataset files: {_format_huggingface_hub_error(e)}"
             )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Γ¥î HF scan error: {e}")
-        raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scan failed: {_format_huggingface_hub_error(e)}",
+        )
 
 
 @router.post("/analyze/huggingface", response_model=DatasetAnalysisResult)

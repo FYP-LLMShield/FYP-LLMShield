@@ -116,6 +116,26 @@ body {
   color: var(--foreground);
 }
 
+/* High-contrast text/background for URL fields on dark dashboards (avoids inherited light text on white) */
+input.llm-hf-url-input,
+select.llm-hf-url-input {
+  color: #171717 !important;
+  -webkit-text-fill-color: #171717 !important;
+  background-color: #ffffff !important;
+  caret-color: #171717;
+}
+input.llm-hf-url-input::placeholder {
+  color: #737373 !important;
+  -webkit-text-fill-color: #737373 !important;
+  opacity: 1;
+}
+input.llm-hf-url-input:-webkit-autofill,
+input.llm-hf-url-input:-webkit-autofill:hover,
+input.llm-hf-url-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #171717 !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+}
+
 /* Matrix effect styles */
 .matrix-bg {
   position: relative;

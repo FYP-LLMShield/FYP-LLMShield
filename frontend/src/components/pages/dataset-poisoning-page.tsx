@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { scanHistoryAPI } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -231,6 +232,24 @@ export function DatasetPoisoningPage() {
         const result = await response.json();
         setAnalysisProgress(100);
 
+        // Persist to history
+        try {
+          const poisoned = result.poisoned_count ?? (result.is_poisoned ? 1 : 0)
+          await scanHistoryAPI.saveHistory({
+            scan_id: result.scan_id || `dp-${Date.now()}`,
+            scan_type: "data_poisoning",
+            title: `Data Poisoning · ${new Date().toLocaleTimeString()}`,
+            status: poisoned > 0 ? "warning" : "success",
+            total_findings: poisoned,
+            high_findings: poisoned,
+            input_type: "text",
+            scan_results: result,
+            description: `Scan at ${new Date().toISOString()}`,
+          })
+        } catch (histErr) {
+          console.warn("History save failed (non-critical):", histErr)
+        }
+
         setTimeout(() => {
           setAnalysisResult(result);
           setAnalysisPhase("results");
@@ -263,6 +282,7 @@ export function DatasetPoisoningPage() {
           {
             method: "POST",
             body: formData,
+            headers: token ? { "Authorization": `Bearer ${token}` } : {},
           }
         );
 
@@ -275,6 +295,24 @@ export function DatasetPoisoningPage() {
 
         const result = await response.json();
         setAnalysisProgress(100);
+
+        // Persist to history
+        try {
+          const poisoned = result.poisoned_count ?? (result.is_poisoned ? 1 : 0)
+          await scanHistoryAPI.saveHistory({
+            scan_id: result.scan_id || `dp-${Date.now()}`,
+            scan_type: "data_poisoning",
+            title: `Data Poisoning · ${new Date().toLocaleTimeString()}`,
+            status: poisoned > 0 ? "warning" : "success",
+            total_findings: poisoned,
+            high_findings: poisoned,
+            input_type: "file",
+            scan_results: result,
+            description: `Scan at ${new Date().toISOString()}`,
+          })
+        } catch (histErr) {
+          console.warn("History save failed (non-critical):", histErr)
+        }
 
         setTimeout(() => {
           setAnalysisResult(result);
