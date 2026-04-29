@@ -46,6 +46,7 @@ reportlab>=4.2.0
 # numpy: chromadb/sentence-transformers need <3.0.0, scipy>=1.16.1 needs >=2.3.0
 numpy>=2.3.0,<3.0.0
 pandas>=2.0.0
+pyarrow>=14.0.0
 scipy>=1.16.1
 scikit-learn>=1.3.2
 

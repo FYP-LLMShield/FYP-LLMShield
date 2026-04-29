@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import {
   promptInjectionAPI,
+  scanHistoryAPI,
   EmbeddingInspectionResponse,
   EmbeddingFinding,
   ReanalysisResponse
@@ -156,6 +157,25 @@ export const EmbeddingInspectionPage: React.FC = () => {
       })
       if (response.success && response.data) {
         setResult(response.data as EmbeddingInspectionResponse)
+        // Persist to history
+        try {
+          const d = response.data as any
+          const findings = d.findings?.length ?? 0
+          await scanHistoryAPI.saveHistory({
+            scan_id: d.scan_id || `ei-${Date.now()}`,
+            scan_type: "embedding_inspection",
+            title: `Embedding Inspection · ${new Date().toLocaleTimeString()}`,
+            status: findings > 0 ? "warning" : "success",
+            total_findings: findings,
+            high_findings: findings,
+            input_type: "file",
+            input_size: file ? file.size : 0,
+            scan_results: { scan_id: d.scan_id, total_chunks: d.total_chunks, findings_count: findings },
+            description: `Scan at ${new Date().toISOString()}`,
+          })
+        } catch (histErr) {
+          console.warn("History save failed (non-critical):", histErr)
+        }
       } else {
         setError(response.error || "Inspection failed.")
       }

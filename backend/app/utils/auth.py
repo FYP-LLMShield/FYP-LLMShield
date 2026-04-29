@@ -183,6 +183,48 @@ def _verify_supabase_jwt(token: str) -> Optional[dict]:
     return None
 
 
+def _looks_like_supabase_token(token: str) -> bool:
+    """
+    Best-effort check to decide whether we should ask Supabase Auth to validate a token.
+
+    Why: backend-issued JWTs will fail Supabase `/auth/v1/user` with `bad_jwt` and create noisy logs.
+    We only call Supabase when the token plausibly originates from Supabase (issuer/audience/claims).
+    """
+    if not token:
+        return False
+    try:
+        import jwt as pyjwt
+
+        header = pyjwt.get_unverified_header(token) or {}
+        alg = (header.get("alg") or "").upper()
+
+        # Asymmetric tokens (ES*/RS*) are strongly indicative of Supabase Auth.
+        if alg.startswith("ES") or alg.startswith("RS"):
+            return True
+
+        # For HS256, inspect claims (iss/aud) to avoid calling Supabase for backend JWTs.
+        payload = pyjwt.decode(token, options={"verify_signature": False}) or {}
+        iss = str(payload.get("iss") or "")
+        aud = payload.get("aud")
+
+        origin = _supabase_public_origin()
+        if origin and origin in iss:
+            return True
+
+        if aud == "authenticated":
+            return True
+        if isinstance(aud, (list, tuple)) and "authenticated" in aud:
+            return True
+
+        # Supabase often includes these claims; treat them as a weak signal.
+        if "role" in payload and ("sub" in payload or "email" in payload):
+            return True
+
+        return False
+    except Exception:
+        return False
+
+
 async def _verify_supabase_via_auth_user_endpoint(token: str) -> Optional[dict]:
     """
     Validate the access token by calling GoTrue GET /auth/v1/user.
@@ -209,7 +251,9 @@ async def _verify_supabase_via_auth_user_endpoint(token: str) -> Optional[dict]:
                 },
             )
         if resp.status_code != 200:
-            _log.warning(
+            # Non-supabase tokens (e.g., backend JWT) commonly return 403 bad_jwt.
+            # This should not be noisy in logs because we fall back to backend auth.
+            _log.debug(
                 "Supabase Auth GET /auth/v1/user failed: status=%s body=%s",
                 resp.status_code,
                 (resp.text or "")[:400],
@@ -294,10 +338,11 @@ async def get_current_user(
             return _user_from_supabase_payload(supabase_payload)
 
         # 2) Ask Supabase Auth to validate the session (any alg; avoids JWKS/env mismatches)
-        supabase_payload = await _verify_supabase_via_auth_user_endpoint(token)
-        if supabase_payload:
-            logger.debug("Token validated via Supabase Auth /user endpoint")
-            return _user_from_supabase_payload(supabase_payload)
+        if _looks_like_supabase_token(token):
+            supabase_payload = await _verify_supabase_via_auth_user_endpoint(token)
+            if supabase_payload:
+                logger.debug("Token validated via Supabase Auth /user endpoint")
+                return _user_from_supabase_payload(supabase_payload)
         
         # 3) Fallback: backend-issued JWT (when Supabase is down or user used fallback auth)
         email = verify_token(token, "access")
@@ -343,9 +388,10 @@ async def get_optional_user(
         supabase_payload = _verify_supabase_jwt(token)
         if supabase_payload:
             return _user_from_supabase_payload(supabase_payload)
-        supabase_payload = await _verify_supabase_via_auth_user_endpoint(token)
-        if supabase_payload:
-            return _user_from_supabase_payload(supabase_payload)
+        if _looks_like_supabase_token(token):
+            supabase_payload = await _verify_supabase_via_auth_user_endpoint(token)
+            if supabase_payload:
+                return _user_from_supabase_payload(supabase_payload)
         email = verify_token(token, "access")
         from app.utils.unified_user_service import unified_user_service
         return await unified_user_service.get_user_by_email(email)

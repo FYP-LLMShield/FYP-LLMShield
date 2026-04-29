@@ -404,10 +404,10 @@ class SupabaseUserService:
             result = self.client.table("users").insert(payload).execute()
             
             if result.data and len(result.data) > 0:
-                user_data_dict = result.data[0]
-                user_data_dict["_id"] = user_data_dict.get("id")
                 logger.info(f"Google user created in Supabase: {user_data['email']}")
-                return UserInDB(**user_data_dict)
+                # Convert Supabase UUID `id` into a deterministic Mongo-style ObjectId
+                # so downstream code relying on `UserInDB` continues to work.
+                return self._convert_supabase_to_userindb(result.data[0])
             fetched = await self.get_user_by_email(user_data["email"])
             if fetched:
                 return fetched

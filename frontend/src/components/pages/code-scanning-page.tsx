@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { scannerAPI } from '../../lib/api';
+import { scannerAPI, scanHistoryAPI } from '../../lib/api';
 import { ScanResultsDisplay } from '../scanner/ScanResultsDisplay';
 
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -143,6 +143,38 @@ export function CodeScanningPage() {
       
       clearInterval(progressInterval)
       setScanProgress(100)
+
+      // Persist to MongoDB history
+      try {
+        const data = result.data || {}
+        const sevDist = data.severity_distribution || {}
+        const total = data.total_findings ?? (data.findings?.length ?? 0)
+        await scanHistoryAPI.saveHistory({
+          scan_id: data.scan_id || `cs-${Date.now()}`,
+          scan_type: "code_scanning",
+          title: `C/C++ Scan · ${new Date().toLocaleTimeString()}`,
+          status: total > 0 ? (sevDist.critical > 0 ? "error" : "warning") : "success",
+          total_findings: total,
+          high_findings: sevDist.high ?? 0,
+          medium_findings: sevDist.medium ?? 0,
+          low_findings: sevDist.low ?? 0,
+          critical_findings: sevDist.critical ?? 0,
+          input_type: inputMethod === "code" ? "text" : inputMethod === "file" ? "file" : "github",
+          input_size: inputMethod === "code" ? codeInput.length : 0,
+          scan_results: {
+            scan_id: data.scan_id,
+            total_findings: total,
+            severity_distribution: sevDist,
+            executive_summary: data.executive_summary,
+            method: data.method,
+          },
+          executive_summary: data.executive_summary?.risk_level ?? (total > 0 ? "High" : "Safe"),
+          recommendations: Array.isArray(data.recommendations) ? data.recommendations.slice(0, 5) : [],
+          description: `Scan at ${new Date().toISOString()}`,
+        })
+      } catch (histErr) {
+        console.warn("History save failed (non-critical):", histErr)
+      }
       
       setTimeout(() => {
         const convertedVulnerabilities = result.data?.findings?.map((finding: any) => ({
@@ -153,9 +185,9 @@ export function CodeScanningPage() {
           line: finding.line,
           column: finding.column,
           description: finding.message,
-          codeSnippet: finding.snippet, // Changed from finding.code_snippet
-          recommendation: finding.remediation, // Changed from finding.recommendation
-          cwe: finding.cwe?.[0] || "", // Get first CWE or empty string
+          codeSnippet: finding.snippet,
+          recommendation: finding.remediation,
+          cwe: finding.cwe?.[0] || "",
         })) || []
         
         setVulnerabilities(convertedVulnerabilities)

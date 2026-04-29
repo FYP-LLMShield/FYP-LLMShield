@@ -14,7 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # --- 1. CONFIGURATION ---
-BERT_LOCAL_PATH = './bert_local' 
+BERT_LOCAL_PATH = './bert_local'
 CUSTOM_MODEL_WEIGHTS = 'llm_shield_multitask.bin'
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -28,25 +28,26 @@ class MultiTaskBERT(nn.Module):
         self.drop = nn.Dropout(p=0.3)
         self.security_out = nn.Linear(768, 2)
         self.sentiment_out = nn.Linear(768, 3)
-        
+
     def forward(self, input_ids, attention_mask):
         # Extract the pooled output (CLS token)
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         pooled_output = outputs.pooler_output
-        
+
         # Apply dropout and branching heads
         dropped = self.drop(pooled_output)
         sec_logits = self.security_out(dropped)
         sent_logits = self.sentiment_out(dropped)
-        
+
         return sec_logits, sent_logits
+
 
 # --- 3. INITIALIZATION ---
 def initialize_system():
     try:
         tokenizer = BertTokenizer.from_pretrained(BERT_LOCAL_PATH)
         model = MultiTaskBERT(BERT_LOCAL_PATH).to(DEVICE)
-        
+
         # Load the weights you downloaded from Colab
         model.load_state_dict(torch.load(CUSTOM_MODEL_WEIGHTS, map_location=DEVICE))
         model.eval()
@@ -61,24 +62,25 @@ def initialize_system():
 def run_scan(file_path, model, tokenizer, batch_size=32):
     file_extension = os.path.splitext(file_path)[1].lower()
     df = None
-    
+
     # --- 1. SMART FILE LOADING ---
     try:
         if file_extension in ['.json', '.jsonl']:
             try:
                 # Try reading as JSON Lines first
                 df = pd.read_json(file_path, lines=True)
-                if df.empty or len(df.columns) < 1: raise ValueError
+                if df.empty or len(df.columns) < 1:
+                    raise ValueError
                 print("💡 JSONL (lines) format detected.")
-            except:
+            except Exception:
                 # Fallback to standard JSON
                 df = pd.read_json(file_path, lines=False)
                 print("💡 Standard JSON (array) format detected.")
-        
+
         elif file_extension == '.csv':
             df = pd.read_csv(file_path)
             print("📊 CSV format detected.")
-            
+
         elif file_extension == '.txt':
             with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
                 df = pd.DataFrame([line.strip() for line in f if line.strip()], columns=['text'])
@@ -86,7 +88,7 @@ def run_scan(file_path, model, tokenizer, batch_size=32):
 
     except Exception as e:
         print(f"❌ Critical Read Error: {e}")
-        return pd.DataFrame() # Return empty DF instead of None to prevent crash
+        return pd.DataFrame()  # Return empty DF instead of None to prevent crash
 
     # --- 2. TEXT EXTRACTION ---
     if df is None or df.empty:
@@ -107,7 +109,7 @@ def run_scan(file_path, model, tokenizer, batch_size=32):
     model.eval()
     with torch.no_grad():
         for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
+            batch = texts[i: i + batch_size]
             inputs = tokenizer(batch, return_tensors="pt", truncation=True, padding=True, max_length=128).to(DEVICE)
             s_logits, m_logits = model(input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'])
             all_sec.extend(torch.argmax(s_logits, dim=1).cpu().numpy())
@@ -118,26 +120,35 @@ def run_scan(file_path, model, tokenizer, batch_size=32):
     # Fixed mapping: 0=Neg, 1=Neutral, 2=Pos (Change if your training was different!)
     sent_map = {0: 'Negative 😡', 1: 'Neutral 😐', 2: 'Positive 😃'}
     df['Sentiment_Label'] = [sent_map[s] for s in all_sent]
-    
+
     plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1); sns.countplot(data=df, x='Security_Status', palette='RdYlGn'); plt.title('Security')
-    plt.subplot(1, 2, 2); sns.countplot(data=df, x='Sentiment_Label', palette='magma'); plt.title('Sentiment')
+    plt.subplot(1, 2, 1)
+    sns.countplot(data=df, x='Security_Status', palette='RdYlGn')
+    plt.title('Security')
+    plt.subplot(1, 2, 2)
+    sns.countplot(data=df, x='Sentiment_Label', palette='magma')
+    plt.title('Sentiment')
     plt.show()
-    
+
     return df
+
+
 # --- 5. EXECUTION ---
 model, tokenizer = initialize_system()
 
 if model and tokenizer:
     # Open local file picker
-    root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-    path = filedialog.askopenfilename(title="Select .jsonl dataset"); root.destroy()
-    
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    path = filedialog.askopenfilename(title="Select .jsonl dataset")
+    root.destroy()
+
     if path:
         results_df = run_scan(path, model, tokenizer)
         print("\n📝 TOP RESULTS PREVIEW:")
         # Display relevant columns
         cols = [c for c in ['text', 'instruction', 'Security_Status', 'Sentiment_Label'] if c in results_df.columns]
-        display(results_df[cols].head(10))
+        print(results_df[cols].head(10))
     else:
         print("❌ No file selected.")

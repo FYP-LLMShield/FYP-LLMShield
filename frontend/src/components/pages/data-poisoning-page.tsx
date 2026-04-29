@@ -1,11 +1,10 @@
 import React, { useState } from "react";
+import { scanHistoryAPI } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { Switch } from "../ui/switch";
 import {
   Database,
   Zap,
@@ -13,7 +12,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Search,
-  Lock,
   Loader,
   Shield,
   TrendingUp,
@@ -59,7 +57,6 @@ export function DataPoisoningPage() {
   const [inputMode, setInputMode] = useState<"url" | "file">("url");
   const [modelUrl, setModelUrl] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [runTests, setRunTests] = useState<boolean>(true);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +122,7 @@ export function DataPoisoningPage() {
       const files = data.jsonl_files.map((name: string) => ({ name }));
 
       if (files.length === 0) {
-        throw new Error("No JSONL or JSON files found in this dataset");
+        throw new Error("No JSONL, JSON, or Parquet files found in this dataset");
       }
 
       setHFFiles(files);
@@ -315,6 +312,7 @@ export function DataPoisoningPage() {
           {
             method: "POST",
             body: formData,
+            headers: token ? { "Authorization": `Bearer ${token}` } : {},
           }
         );
       }
@@ -329,6 +327,28 @@ export function DataPoisoningPage() {
       const result = await response.json();
       console.log("Scan result from backend:", result);
       setScanProgress(100);
+
+      // Persist to MongoDB history
+      try {
+        const poisoned = result.poisoned_count ?? (result.is_poisoned ? 1 : 0)
+        await scanHistoryAPI.saveHistory({
+          scan_id: result.scan_id || `dp-${Date.now()}`,
+          scan_type: "data_poisoning",
+          title: `Data Poisoning · ${new Date().toLocaleTimeString()}`,
+          status: poisoned > 0 ? "warning" : "success",
+          total_findings: poisoned,
+          high_findings: poisoned,
+          medium_findings: 0,
+          low_findings: 0,
+          input_type: inputMode === "url" ? "json" : "file",
+          input_size: 0,
+          scan_results: result,
+          executive_summary: poisoned > 0 ? "High" : "Safe",
+          description: `Scan at ${new Date().toISOString()}`,
+        })
+      } catch (histErr) {
+        console.warn("History save failed (non-critical):", histErr)
+      }
 
       setTimeout(() => {
         setScanResult(result);
@@ -422,10 +442,10 @@ export function DataPoisoningPage() {
                   <h1 className="text-5xl font-bold gradient-text-cyber mb-2 animate-pulse-glow" style={{lineHeight: '1.1', paddingBottom: '4px'}}>
                     Data Poisoning Detection
                   </h1>
-                  <p className="text-slate-600 dark:text-gray-300 text-base font-semibold">Advanced behavioral analysis for Hugging Face models</p>
+                  <p className="text-slate-600 dark:text-gray-300 text-base font-semibold">MultiTaskBERT scan for Hugging Face datasets</p>
                 </div>
               </div>
-              <p className="text-slate-600 dark:text-gray-400 text-sm ml-0 max-w-2xl">Detect malicious data injection, backdoors, and behavioral manipulations using file safety checks and black-box behavioral tests.</p>
+              <p className="text-slate-600 dark:text-gray-400 text-sm ml-0 max-w-2xl">Upload a dataset or pick a JSONL, JSON, or Parquet file from the Hub; each row is classified as safe or poisoned, then aggregated into risk scores.</p>
             </div>
             {scanPhase !== "setup" && (
               <Button
@@ -501,12 +521,12 @@ export function DataPoisoningPage() {
                             value={modelUrl}
                             onChange={(e) => setModelUrl(e.target.value)}
                             placeholder="https://huggingface.co/datasets/user/dataset"
-                            className="w-full border border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 dark:text-white dark:placeholder:text-gray-400 dark:focus:border-blue-500/50 transition-all duration-300 py-3 px-4 rounded-lg"
+                            className="llm-hf-url-input w-full rounded-lg border border-neutral-200 py-3 px-4 shadow-xs transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                           />
                         </div>
                         <p className="text-muted-foreground text-sm flex items-center gap-2">
                           <span>💡</span>
-                          Example: https://huggingface.co/datasets/openwebtext/openwebtext
+                          Example: https://huggingface.co/datasets/rajpurkar/squad (Parquet splits under plain_text/)
                         </p>
                       </div>
                     )}
@@ -566,28 +586,6 @@ export function DataPoisoningPage() {
                       </div>
                     )}
 
-                    {/* Behavioral Tests Toggle - only for file upload mode */}
-                    {inputMode === "file" && (
-                      <div className="space-y-4 border-t border-border dark:border-blue-500/30 pt-8">
-                        <div className="flex items-center justify-between p-6 bg-muted rounded-xl border-2 border-border hover:border-indigo-400/80 transition-all dark:bg-gradient-to-r dark:from-indigo-950/50 dark:to-blue-950/30 dark:border-indigo-500/50 dark:hover:border-indigo-400">
-                          <div className="flex-1">
-                            <Label className="text-base font-semibold block mb-2 flex items-center gap-2">
-                              <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                              Advanced Behavioral Tests
-                            </Label>
-                            <p className="text-muted-foreground dark:text-gray-300 text-base">Run comprehensive black-box tests to detect backdoors, manipulation triggers, and poisoning patterns</p>
-                          </div>
-                          <Switch
-                            checked={runTests}
-                            onCheckedChange={setRunTests}
-                            className="accent-blue-500 ml-4 scale-150"
-                          />
-                        </div>
-                        <p className={`text-sm ml-4 font-semibold transition-colors ${runTests ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-400"}`}>
-                          {runTests ? "✓ Enabled - More thorough analysis (takes longer)" : "○ Disabled - File safety checks only"}
-                        </p>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -605,21 +603,21 @@ export function DataPoisoningPage() {
                     <CardContent className="space-y-4 pt-6">
                       <div className="p-4 rounded-lg border border-border bg-muted hover:border-blue-400/80 transition-all dark:bg-gradient-to-br dark:from-blue-950/50 dark:to-blue-900/30 dark:border-blue-500/40 dark:hover:border-blue-400">
                         <p className="font-semibold mb-2 text-sm flex items-center gap-2 dark:text-blue-200">
-                          <Activity className="w-4 h-4" /> File Safety
+                          <Activity className="w-4 h-4" /> Row extraction
                         </p>
-                        <p className="text-muted-foreground dark:text-gray-300 text-xs">Format, serialization, code</p>
+                        <p className="text-muted-foreground dark:text-gray-300 text-xs">Parse JSONL/CSV and pull text fields per row</p>
                       </div>
                       <div className="p-4 rounded-lg border border-border bg-muted hover:border-indigo-400/80 transition-all dark:bg-gradient-to-br dark:from-indigo-950/50 dark:to-indigo-900/30 dark:border-indigo-500/40 dark:hover:border-indigo-400">
                         <p className="font-semibold mb-2 text-sm flex items-center gap-2 dark:text-indigo-200">
-                          <TrendingUp className="w-4 h-4" /> Behavioral Tests
+                          <TrendingUp className="w-4 h-4" /> BERT classification
                         </p>
-                        <p className="text-muted-foreground dark:text-gray-300 text-xs">Safety, triggers, consistency</p>
+                        <p className="text-muted-foreground dark:text-gray-300 text-xs">MultiTaskBERT labels each row Safe vs Poisoned</p>
                       </div>
                       <div className="p-4 rounded-lg border border-border bg-muted hover:border-purple-400/80 transition-all dark:bg-gradient-to-br dark:from-purple-950/50 dark:to-purple-900/30 dark:border-purple-500/40 dark:hover:border-purple-400">
                         <p className="font-semibold mb-2 text-sm flex items-center gap-2 dark:text-purple-200">
-                          <AlertTriangle className="w-4 h-4" /> Risk Scoring
+                          <AlertTriangle className="w-4 h-4" /> Aggregate risk
                         </p>
-                        <p className="text-muted-foreground dark:text-gray-300 text-xs">System & behavior risks</p>
+                        <p className="text-muted-foreground dark:text-gray-300 text-xs">Counts, percentages, and sample rows</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -682,7 +680,7 @@ export function DataPoisoningPage() {
                       <select
                         value={selectedHFFile}
                         onChange={(e) => setSelectedHFFile(e.target.value)}
-                        className="w-full rounded-lg border border-input bg-background py-3 px-4 text-foreground transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10 dark:text-white dark:focus:border-blue-500/50"
+                        className="llm-hf-url-input w-full rounded-lg border border-neutral-200 py-3 px-4 transition-all duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                       >
                         {hfFiles.map(file => (
                           <option key={file.name} value={file.name}>
@@ -764,22 +762,10 @@ export function DataPoisoningPage() {
                         <p className="text-muted-foreground dark:text-gray-400 text-xs mt-3">Total rows in file: {filePreviewData.total_rows}</p>
                       </div>
 
-                      {/* Behavioral Tests Toggle */}
-                      <div className="space-y-4 border-t border-border dark:border-blue-500/30 pt-8">
-                        <div className="flex items-center justify-between rounded-xl border-2 border-border bg-muted p-6 transition-all hover:border-indigo-400/80 dark:bg-gradient-to-r dark:from-indigo-950/50 dark:to-blue-950/30 dark:border-indigo-500/50 dark:hover:border-indigo-400">
-                          <div className="flex-1">
-                            <Label className="text-base font-semibold block mb-2 flex items-center gap-2 dark:text-blue-100">
-                              <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                              Run BERT Model Scan
-                            </Label>
-                            <p className="text-muted-foreground dark:text-gray-300 text-base">Scan with trained BERT model for poisoning detection</p>
-                          </div>
-                          <Switch
-                            checked={runTests}
-                            onCheckedChange={setRunTests}
-                            className="accent-blue-500 ml-4 scale-150"
-                          />
-                        </div>
+                      <div className="space-y-2 border-t border-border dark:border-blue-500/30 pt-8">
+                        <p className="text-sm text-muted-foreground dark:text-gray-400">
+                          <span className="font-semibold text-foreground dark:text-gray-200">Next:</span> Start Scan runs the backend MultiTaskBERT classifier on extracted text (no optional modes).
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -863,24 +849,9 @@ export function DataPoisoningPage() {
                           <p className="text-muted-foreground dark:text-gray-400 text-xs mt-3">Total rows in file: {previewData.total_rows}</p>
                         </div>
 
-                        {/* Behavioral Tests Toggle */}
-                        <div className="space-y-4 border-t border-border dark:border-blue-500/30 pt-8">
-                          <div className="flex items-center justify-between rounded-xl border-2 border-border bg-muted p-6 transition-all hover:border-indigo-400/80 dark:bg-gradient-to-r dark:from-indigo-950/50 dark:to-blue-950/30 dark:border-indigo-500/50 dark:hover:border-indigo-400">
-                            <div className="flex-1">
-                              <Label className="text-base font-semibold block mb-2 flex items-center gap-2 dark:text-blue-100">
-                                <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                                Run Behavioral Tests
-                              </Label>
-                              <p className="text-muted-foreground dark:text-gray-300 text-base">Advanced testing with trained BERT model</p>
-                            </div>
-                            <Switch
-                              checked={runTests}
-                              onCheckedChange={setRunTests}
-                              className="accent-blue-500 ml-4 scale-150"
-                            />
-                          </div>
-                          <p className={`text-sm ml-4 font-semibold transition-colors ${runTests ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-400"}`}>
-                            {runTests ? "✓ Enabled - Full BERT analysis" : "○ Disabled - Quick scan"}
+                        <div className="space-y-2 border-t border-border dark:border-blue-500/30 pt-8">
+                          <p className="text-sm text-muted-foreground dark:text-gray-400">
+                            <span className="font-semibold text-foreground dark:text-gray-200">Scan:</span> The server loads the selected file and classifies each extracted row with MultiTaskBERT (same path whether you preview here or not).
                           </p>
                         </div>
                       </div>
@@ -943,7 +914,7 @@ export function DataPoisoningPage() {
                     <Database className="h-8 w-8 text-blue-600 dark:text-blue-300" />
                   </div>
                 </div>
-                <p className="text-center text-lg text-muted-foreground dark:text-gray-300">Listing JSONL and JSON files...</p>
+                <p className="text-center text-lg text-muted-foreground dark:text-gray-300">Listing JSON and Parquet files...</p>
               </CardContent>
             </Card>
           </div>
@@ -991,7 +962,7 @@ export function DataPoisoningPage() {
                       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-7xl font-black text-transparent dark:from-blue-400 dark:to-indigo-400">
                         {scanProgress}%
                       </div>
-                      <div className="mt-2 text-sm font-semibold text-slate-800 dark:text-blue-300">analyzing model</div>
+                      <div className="mt-2 text-sm font-semibold text-slate-800 dark:text-blue-300">classifying rows</div>
                     </div>
                   </div>
                 </div>
@@ -1001,24 +972,22 @@ export function DataPoisoningPage() {
                   <div className={`flex items-start gap-3 rounded-lg border p-4 transition-all ${scanProgress >= 30 ? "border-blue-300 bg-blue-500/10 dark:bg-blue-500/15 dark:border-blue-500/40" : "border-border bg-muted dark:bg-slate-500/10 dark:border-slate-500/30"}`}>
                     <div className="text-lg">{scanProgress >= 30 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className={`font-medium ${scanProgress >= 30 ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-300"}`}>File Safety Analysis</p>
-                      <p className="text-sm text-muted-foreground dark:text-gray-400">{scanProgress >= 30 ? "✓ Checking formats, serialization, code patterns" : "Pending..."}</p>
+                      <p className={`font-medium ${scanProgress >= 30 ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-300"}`}>Parse & extract text</p>
+                      <p className="text-sm text-muted-foreground dark:text-gray-400">{scanProgress >= 30 ? "✓ Reading rows and pulling text fields" : "Pending..."}</p>
                     </div>
                   </div>
-                  {runTests && (
-                    <div className={`flex items-start gap-3 rounded-lg border p-4 transition-all ${scanProgress >= 60 ? "border-blue-300 bg-blue-500/10 dark:bg-blue-500/15 dark:border-blue-500/40" : "border-border bg-muted dark:bg-slate-500/10 dark:border-slate-500/30"}`}>
-                      <div className="text-lg">{scanProgress >= 60 ? "✓" : "○"}</div>
-                      <div className="flex-1">
-                        <p className={`font-medium ${scanProgress >= 60 ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-300"}`}>Behavioral Tests</p>
-                        <p className="text-sm text-muted-foreground dark:text-gray-400">{scanProgress >= 60 ? "✓ Testing safety, triggers, consistency" : "Pending..."}</p>
-                      </div>
+                  <div className={`flex items-start gap-3 rounded-lg border p-4 transition-all ${scanProgress >= 60 ? "border-blue-300 bg-blue-500/10 dark:bg-blue-500/15 dark:border-blue-500/40" : "border-border bg-muted dark:bg-slate-500/10 dark:border-slate-500/30"}`}>
+                    <div className="text-lg">{scanProgress >= 60 ? "✓" : "○"}</div>
+                    <div className="flex-1">
+                      <p className={`font-medium ${scanProgress >= 60 ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-300"}`}>BERT inference</p>
+                      <p className="text-sm text-muted-foreground dark:text-gray-400">{scanProgress >= 60 ? "✓ Safe vs poisoned per row" : "Pending..."}</p>
                     </div>
-                  )}
+                  </div>
                   <div className={`flex items-start gap-3 rounded-lg border p-4 transition-all ${scanProgress >= 85 ? "border-blue-300 bg-blue-500/10 dark:bg-blue-500/15 dark:border-blue-500/40" : "border-border bg-muted dark:bg-slate-500/10 dark:border-slate-500/30"}`}>
                     <div className="text-lg">{scanProgress >= 85 ? "✓" : "○"}</div>
                     <div className="flex-1">
-                      <p className={`font-medium ${scanProgress >= 85 ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-300"}`}>Risk Assessment</p>
-                      <p className="text-sm text-muted-foreground dark:text-gray-400">{scanProgress >= 85 ? "✓ Computing risk scores and recommendation" : "Pending..."}</p>
+                      <p className={`font-medium ${scanProgress >= 85 ? "text-blue-600 dark:text-blue-300" : "text-muted-foreground dark:text-gray-300"}`}>Aggregate results</p>
+                      <p className="text-sm text-muted-foreground dark:text-gray-400">{scanProgress >= 85 ? "✓ Counts, percentages, samples" : "Pending..."}</p>
                     </div>
                   </div>
                 </div>

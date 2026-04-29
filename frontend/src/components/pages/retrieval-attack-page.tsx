@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { promptInjectionAPI, RetrievalAttackResponse, RetrievalManipulationFinding, RetrievalAttackParams } from "../../lib/api"
+import { promptInjectionAPI, scanHistoryAPI, RetrievalAttackResponse, RetrievalManipulationFinding, RetrievalAttackParams } from "../../lib/api"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
@@ -120,6 +120,25 @@ export const RetrievalAttackPage: React.FC = () => {
             if (response.success && response.data) {
                 setResult(response.data as RetrievalAttackResponse)
                 setActiveTab("results")
+                // Persist to history
+                try {
+                    const d = response.data as any
+                    const findings = d.query_summaries?.length ?? 0
+                    await scanHistoryAPI.saveHistory({
+                        scan_id: d.scan_id || `ra-${Date.now()}`,
+                        scan_type: "retrieval_simulation",
+                        title: `Retrieval Attack · ${new Date().toLocaleTimeString()}`,
+                        status: findings > 0 ? "warning" : "success",
+                        total_findings: findings,
+                        high_findings: findings,
+                        input_type: "file",
+                        input_size: file ? file.size : 0,
+                        scan_results: { scan_id: d.scan_id, queries_tested: d.total_queries, findings_count: findings },
+                        description: `Scan at ${new Date().toISOString()}`,
+                    })
+                } catch (histErr) {
+                    console.warn("History save failed (non-critical):", histErr)
+                }
             } else {
                 setError(response.error || "Simulation failed.")
             }

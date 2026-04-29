@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Upload, Zap, Settings, Play, RotateCcw, CheckCircle, AlertCircle, Loader2, Shield, Target, Brain, Eye, Download, Trash2, X, Link, MessageCircle, AlertTriangle, Key, Globe, ChevronDown, ChevronUp, Copy, MessageSquare, Bot, BookOpen, Database, User, Search, BarChart2, Activity, Layers, Terminal } from "lucide-react"
-import { promptInjectionAPI, ModelConfig, profileAPI, ModelConfigurationResponse, ProfileResponse, ProfileWithConfigs, RobustDetectionResult } from "../../lib/api"
+import { promptInjectionAPI, scanHistoryAPI, ModelConfig, profileAPI, ModelConfigurationResponse, ProfileResponse, ProfileWithConfigs, RobustDetectionResult } from "../../lib/api"
 import apiClient from "../../lib/api"
 import { useAuth } from "../../contexts/AuthContext"
 
@@ -253,26 +253,7 @@ export function PromptInjectionPage() {
     custom_prompts: []
   })
 
-  // Category preset configurations
-  const categoryPresets = {
-    quick: {
-      name: "Quick Scan",
-      description: "Essential tests only (faster)",
-      categories: ["prompt_injection", "jailbreak"]
-    },
-    standard: {
-      name: "Standard Scan",
-      description: "Recommended tests (balanced)",
-      categories: ["prompt_injection", "jailbreak"]
-    },
-    comprehensive: {
-      name: "Comprehensive Scan",
-      description: "All test categories (thorough)",
-      categories: ["prompt_injection", "jailbreak"]
-    }
-  }
-
-  const [selectedPreset, setSelectedPreset] = useState<"quick" | "standard" | "comprehensive" | "custom">("standard")
+  // Category preset scan modes removed (they were redundant in the UI).
 
   // Available providers and their models
   const providers = {
@@ -1050,6 +1031,36 @@ export function PromptInjectionPage() {
         setScanComplete(true)
         setIsScanning(false)
         setScanProgress(100)
+
+        // Persist to MongoDB history — use apiClient so the Supabase token is refreshed
+        try {
+          const violations = data.violations_found || 0
+          await scanHistoryAPI.saveHistory({
+            scan_id: data.test_id || `pi-${Date.now()}`,
+            scan_type: "prompt_injection",
+            title: `Prompt Injection · ${(data.test_id || "unknown").slice(0, 8)}`,
+            status: violations > 0 ? "warning" : "success",
+            total_findings: violations,
+            high_findings: violations,
+            medium_findings: 0,
+            low_findings: 0,
+            input_type: "text",
+            input_size: 0,
+            scan_results: {
+              test_id: data.test_id,
+              violations_found: violations,
+              total_probes: data.total_probes || 0,
+              completed_probes: data.completed_probes || data.total_probes || 0,
+              status: data.status,
+              model_info: data.model_info,
+              summary: data.summary,
+            },
+            executive_summary: violations > 0 ? "High" : "Safe",
+            description: `Scan at ${new Date().toISOString()}`,
+          })
+        } catch (histErr) {
+          console.warn("History save failed (non-critical):", histErr)
+        }
       } else {
         console.error('Test failed:', response)
         setError('Failed to start test')
@@ -1940,7 +1951,7 @@ export function PromptInjectionPage() {
                           value={testPrompt}
                           onChange={(e) => setTestPrompt(e.target.value)}
                           placeholder="Enter a prompt to test for injection vulnerabilities..."
-                          className="w-full h-32 resize-none rounded-lg border border-border bg-background p-3 text-foreground placeholder:text-muted-foreground focus:border-teal-500 focus:outline-none"
+                          className="w-full h-32 resize-none rounded-lg border border-border bg-white p-3 text-black placeholder:text-gray-500 focus:border-teal-500 focus:outline-none"
                         />
                       </div>
 
@@ -1985,39 +1996,14 @@ export function PromptInjectionPage() {
                           <span className="text-xs text-gray-400">{testConfig.probe_categories.length} selected</span>
                         </div>
 
-                        {/* Preset Selection */}
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          {Object.entries(categoryPresets).map(([key, preset]) => (
-                            <button
-                              key={key}
-                              onClick={() => {
-                                setSelectedPreset(key as "quick" | "standard" | "comprehensive")
-                                setTestConfig(prev => ({
-                                  ...prev,
-                                  probe_categories: preset.categories
-                                }))
-                              }}
-                              className={`p-2 rounded-lg border text-xs transition-all ${selectedPreset === key
-                                ? "bg-teal-600/20 border-teal-500 text-teal-300"
-                                : "bg-slate-800/50 border-slate-600 text-gray-300 hover:border-slate-500"
-                                }`}
-                              title={preset.description}
-                            >
-                              <div className="font-medium">{preset.name}</div>
-                              <div className="text-xs opacity-75 mt-1">{preset.categories.length} tests</div>
-                            </button>
-                          ))}
-                        </div>
-
                         {/* Custom Category Selection */}
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-400">Custom Selection:</span>
                             <button
-                              onClick={() => setSelectedPreset("custom")}
                               className="text-xs text-teal-400 hover:text-teal-300"
                             >
-                              {selectedPreset === "custom" ? "Custom Mode" : "Customize"}
+                              Customize
                             </button>
                           </div>
                           <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
@@ -2027,7 +2013,6 @@ export function PromptInjectionPage() {
                                   type="checkbox"
                                   checked={testConfig.probe_categories.includes(category.id)}
                                   onChange={(e) => {
-                                    setSelectedPreset("custom")
                                     if (e.target.checked) {
                                       setTestConfig(prev => ({
                                         ...prev,

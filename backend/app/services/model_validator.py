@@ -209,6 +209,42 @@ class ModelValidator:
                 )
             
             provider_config = self.supported_providers[provider]
+
+            def _normalize_base_url(raw: Optional[str], *, default: Optional[str]) -> str:
+                """
+                Normalize a base URL coming from UI/config.
+                - Falls back to provider default when empty
+                - Ensures scheme exists (http/https) to avoid httpx InvalidURL
+                """
+                val = (raw or "").strip()
+                if not val:
+                    val = (default or "").strip()
+                val = val.rstrip("/")
+                if val and not re.match(r"^https?://", val, flags=re.IGNORECASE):
+                    # Most cloud providers are https; local models will usually provide http:// explicitly.
+                    val = f"https://{val}"
+                return val
+
+            def _normalize_model_name(p: str, name: Optional[str]) -> str:
+                """
+                Map UI-friendly model names to provider-required IDs.
+                This prevents avoidable 404s when providers require versioned model IDs.
+                """
+                n = (name or "").strip()
+                if not n:
+                    return n
+                if p == "anthropic":
+                    aliases = {
+                        # UI sometimes provides unversioned names
+                        "claude-3-opus": "claude-3-opus-20240229",
+                        "claude-3-haiku": "claude-3-haiku-20240307",
+                        # Best-effort mapping for "sonnet" when unversioned
+                        "claude-3-sonnet": "claude-3-5-sonnet-20241022",
+                        "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
+                        "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
+                    }
+                    return aliases.get(n, n)
+                return n
             
             # For Ollama, we don't need API key, just check base_url
             if provider == "ollama":
@@ -233,7 +269,7 @@ class ModelValidator:
                         error_message=f"Connection failed: {response.status_code}"
                     )
             
-            # For other providers, use API key
+            # For other providers, use API key (or provider-specific auth)
             api_key = config.get("credentials", {}).get("api_key")
             
             if not api_key:
@@ -243,12 +279,67 @@ class ModelValidator:
                     error_message="API key is required"
                 )
             
-            # Test with a simple request
-            headers = self._get_headers(provider, api_key)
-            test_endpoint = self._get_test_endpoint(provider)
-            
+            # Provider-specific connectivity checks.
+            # IMPORTANT: Some providers (e.g. Anthropic) do not allow GET on /messages (405),
+            # so we use the minimal valid request shape per provider.
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(test_endpoint, headers=headers)
+                if provider == "openai":
+                    headers = self._get_headers(provider, api_key)
+                    # Allow overriding base URL from UI (parameters.base_url or base_url)
+                    base_url = _normalize_base_url(
+                        (config.get("base_url") or config.get("parameters", {}).get("base_url")),
+                        default=provider_config.get("base_url"),
+                    )
+                    test_endpoint = f"{base_url}/models" if base_url else self._get_test_endpoint(provider)  # GET /models
+                    response = await client.get(test_endpoint, headers=headers)
+                elif provider == "anthropic":
+                    headers = self._get_headers(provider, api_key)
+                    # Allow overriding base URL from UI; accept either https://api.anthropic.com or https://api.anthropic.com/v1
+                    base_url = _normalize_base_url(
+                        (config.get("base_url") or config.get("parameters", {}).get("base_url")),
+                        default=provider_config.get("base_url"),
+                    )
+                    if base_url.endswith("/v1"):
+                        test_endpoint = f"{base_url}/messages"
+                    else:
+                        test_endpoint = f"{base_url}/v1/messages"
+                    model_name = _normalize_model_name(provider, config.get("model_name")) or "claude-3-haiku-20240307"
+                    payload = {
+                        "model": model_name,
+                        "max_tokens": 1,
+                        "messages": [{"role": "user", "content": "ping"}],
+                    }
+                    response = await client.post(test_endpoint, headers=headers, json=payload)
+                elif provider == "google":
+                    # Google Gemini uses API key in query string.
+                    # GET /models?key=... is a light connectivity check.
+                    base_url = _normalize_base_url(
+                        (config.get("base_url") or config.get("parameters", {}).get("base_url")),
+                        default=(provider_config.get("base_url") or "https://generativelanguage.googleapis.com/v1beta"),
+                    )
+                    test_endpoint = f"{base_url}/models"
+                    response = await client.get(test_endpoint, params={"key": api_key})
+                elif provider == "custom":
+                    # Assume OpenAI-compatible API for custom base URL.
+                    base_url = _normalize_base_url(
+                        (config.get("base_url") or config.get("parameters", {}).get("base_url")),
+                        default=None,
+                    )
+                    if not base_url:
+                        return ConnectionTestResult(
+                            connected=False,
+                            response_time_ms=0,
+                            error_message="Base URL is required for custom providers"
+                        )
+                    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                    # Prefer /v1/models if present; it's non-destructive and lightweight.
+                    test_endpoint = f"{base_url}/v1/models"
+                    response = await client.get(test_endpoint, headers=headers)
+                else:
+                    # Fallback: try provider's configured test endpoint with GET
+                    headers = self._get_headers(provider, api_key)
+                    test_endpoint = self._get_test_endpoint(provider)
+                    response = await client.get(test_endpoint, headers=headers)
                 
             response_time = (time.time() - start_time) * 1000
             
@@ -385,8 +476,18 @@ class ModelValidator:
         """Execute a single API request attempt"""
         try:
             
-            model_name = config.get("model_name", "")
+            model_name = (config.get("model_name", "") or "").strip()
             parameters = config.get("parameters", {})
+
+            # Normalize model name aliases (mainly for providers requiring versioned IDs).
+            if provider == "anthropic" and model_name:
+                model_name = {
+                    "claude-3-opus": "claude-3-opus-20240229",
+                    "claude-3-haiku": "claude-3-haiku-20240307",
+                    "claude-3-sonnet": "claude-3-5-sonnet-20241022",
+                    "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
+                    "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
+                }.get(model_name, model_name)
             
             # Handle Ollama and Local providers differently
             if provider in ["ollama", "local"]:

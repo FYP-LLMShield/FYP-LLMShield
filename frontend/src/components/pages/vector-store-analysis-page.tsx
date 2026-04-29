@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react"
-import { promptInjectionAPI, VectorStoreAnalysisResponse, AnomalyFinding } from "../../lib/api"
+import { promptInjectionAPI, scanHistoryAPI, VectorStoreAnalysisResponse, AnomalyFinding } from "../../lib/api"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
@@ -336,6 +336,25 @@ export const VectorStoreAnalysisPage: React.FC = () => {
       if (response.success && response.data) {
         setResult(response.data as VectorStoreAnalysisResponse)
         setActiveTab("results")
+        // Persist to history
+        try {
+          const d = response.data as any
+          const findings = d.findings?.length ?? d.total_vectors_analyzed ?? 0
+          await scanHistoryAPI.saveHistory({
+            scan_id: d.scan_id || `vs-${Date.now()}`,
+            scan_type: "vector_security",
+            title: `Vector Store Analysis · ${new Date().toLocaleTimeString()}`,
+            status: findings > 0 ? "warning" : "success",
+            total_findings: findings,
+            high_findings: findings,
+            input_type: "file",
+            input_size: 0,
+            scan_results: { scan_id: d.scan_id, total_vectors: d.total_vectors_analyzed, findings_count: findings },
+            description: `Scan at ${new Date().toISOString()}`,
+          })
+        } catch (histErr) {
+          console.warn("History save failed (non-critical):", histErr)
+        }
       } else {
         setError(response.error || "Analysis failed.")
       }
