@@ -3,7 +3,7 @@ Scan History Service
 Handles saving and retrieving scan history for users
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any, Union
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -74,8 +74,46 @@ class ScanHistoryService:
 
     async def create_scan_history(self, user_id: str, scan_data: ScanHistoryCreate) -> ScanHistoryInDB:
         """Create a new scan history entry for a user"""
+        user_oid = ObjectId(user_id)
+
+        # Idempotency guard: when scan_id is present, treat same user+module+scan_id as one run.
+        scan_id = (scan_data.scan_id or "").strip()
+        if scan_id:
+            existing = await self.collection.find_one(
+                {
+                    "user_id": user_oid,
+                    "scan_type": scan_data.scan_type,
+                    "scan_id": scan_id,
+                },
+                sort=[("timestamp", -1)],
+            )
+            if existing:
+                return ScanHistoryInDB(**existing)
+
+        # Fallback dedupe for legacy/empty scan_id flows.
+        # If backend auto-save and frontend saveHistory fire for the same run, they arrive seconds apart
+        # with near-identical metrics. Collapse only very-recent duplicates to avoid double history rows.
+        now = datetime.utcnow()
+        recent_duplicate = await self.collection.find_one(
+            {
+                "user_id": user_oid,
+                "scan_type": scan_data.scan_type,
+                "input_type": scan_data.input_type,
+                "status": scan_data.status,
+                "total_findings": scan_data.total_findings,
+                "critical_findings": scan_data.critical_findings,
+                "high_findings": scan_data.high_findings,
+                "medium_findings": scan_data.medium_findings,
+                "low_findings": scan_data.low_findings,
+                "timestamp": {"$gte": now - timedelta(seconds=8)},
+            },
+            sort=[("timestamp", -1)],
+        )
+        if recent_duplicate:
+            return ScanHistoryInDB(**recent_duplicate)
+
         scan_history = ScanHistoryInDB(
-            user_id=ObjectId(user_id),
+            user_id=user_oid,
             **scan_data.dict()
         )
         
