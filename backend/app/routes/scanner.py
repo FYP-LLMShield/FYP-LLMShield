@@ -2296,3 +2296,4 @@ async def scanner_health():
             "📊 Enhanced reporting visuals"
         ]
     }
+
