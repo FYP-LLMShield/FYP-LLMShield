@@ -182,7 +182,8 @@ export const scannerAPI = {
   scanText: (payload: any) => apiClient.request("/scan/code", { method: "POST", body: payload }),
   uploadFiles: (files: File[], categories?: string[], useCache?: boolean, maxFileSize?: number, maxFiles?: number) => {
     const formData = new FormData()
-    files.forEach((file) => formData.append("files", file))
+    // Backend expects multipart field name `file` (even for multiple uploads).
+    files.forEach((file) => formData.append("file", file))
     if (categories && categories.length) categories.forEach((cat) => formData.append("categories", cat))
     if (typeof useCache === "boolean") formData.append("use_cache", String(useCache))
     if (typeof maxFileSize === "number") formData.append("max_file_size", String(maxFileSize))
@@ -193,7 +194,8 @@ export const scannerAPI = {
       headers: bearerHeadersForUpload(),
     }).then(async (res) => {
       const data = await res.json().catch(() => null)
-      return res.ok ? { success: true, data } : { success: false, error: data?.detail || res.statusText, data }
+      const errMsg = formatApiDetail(data?.detail) || res.statusText
+      return res.ok ? { success: true, data } : { success: false, error: errMsg, data }
     })
   },
   scanRepository: (payload: any) => apiClient.request("/scan/repo", { method: "POST", body: payload }),
