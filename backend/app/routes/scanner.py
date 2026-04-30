@@ -35,7 +35,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 # Import authentication dependencies
-from app.utils.auth import get_current_user
+from app.utils.auth import get_current_user, get_optional_user
 from app.models.user import UserInDB
 from app.services.scan_history_service import save_scan_to_history
 from app.core.config import settings
@@ -1585,7 +1585,7 @@ async def scanner_info():
 @router.post("/text", response_model=ScanResponse)
 async def scan_text(
     request: TextScanRequest,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: Optional[UserInDB] = Depends(get_optional_user)
 ):
     """Scan pasted text content."""
     if not request.content.strip():
@@ -1603,7 +1603,7 @@ async def scan_text(
             "lines_scanned": len(request.content.splitlines()),
             "content_size_bytes": len(request.content.encode('utf-8')),
             "scan_method": "text_paste",
-            "user": current_user.email
+            "user": current_user.email if current_user else "anonymous"
         }
         
         response = create_enhanced_response(
@@ -1614,21 +1614,22 @@ async def scan_text(
             start_time=start_time
         )
         
-        # Save scan to history
-        print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
-        try:
-            await save_scan_to_history(
-                user_id=str(current_user.id),
-                scan_response=response,
-                input_type="text",
-                input_size=len(request.content.encode('utf-8'))
-            )
-            print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
-        except Exception as history_error:
-            print(f"Warning: Failed to save scan to history: {str(history_error)}")
-            import traceback
-            traceback.print_exc()
-            # Continue with the response even if history saving fails
+        # Save scan to history (only when authenticated)
+        if current_user:
+            print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
+            try:
+                await save_scan_to_history(
+                    user_id=str(current_user.id),
+                    scan_response=response,
+                    input_type="text",
+                    input_size=len(request.content.encode('utf-8'))
+                )
+                print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
+            except Exception as history_error:
+                print(f"Warning: Failed to save scan to history: {str(history_error)}")
+                import traceback
+                traceback.print_exc()
+                # Continue with the response even if history saving fails
         
         return response
     except Exception as e:
@@ -1637,19 +1638,21 @@ async def scan_text(
 @router.post("/code", response_model=ScanResponse)
 async def scan_code_alias(
     request: TextScanRequest,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: Optional[UserInDB] = Depends(get_optional_user)
 ):
     """Alias for /text — used by the frontend code-scanning page."""
     return await scan_text(request, current_user)
 
 @router.post("/upload", response_model=ScanResponse)
 async def scan_upload(
-    file: UploadFile = File(...),
+    # Multipart field name is `file` (repeatable for multiple uploads).
+    file: List[UploadFile] = File(...),
     scan_types: str = "secrets,cpp_vulns",
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: Optional[UserInDB] = Depends(get_optional_user)
 ):
-    """Upload and scan file or ZIP archive."""
-    if not file.filename:
+    """Upload and scan one or more files (or ZIP archives)."""
+    upload_list = list(file or [])
+    if any(not f.filename for f in upload_list):
         raise HTTPException(status_code=400, detail="Filename required")
     
     scan_types_list = [t.strip() for t in scan_types.split(",") if t.strip()]
@@ -1662,75 +1665,93 @@ async def scan_upload(
     
     try:
         start_time = datetime.now()
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            uploaded_file = temp_path / file.filename
-            
-            content = await file.read()
-            uploaded_file.write_bytes(content)
-            
-            findings = []
-            stats = {"file_size": len(content), "upload_filename": file.filename}
-            
-            if uploaded_file.suffix.lower() == ".zip":
-                try:
-                    with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
-                        extract_path = temp_path / "extracted"
-                        zip_ref.extractall(extract_path)
-                        
-                        # Collect files to scan
-                        files_to_scan = []
-                        for root, _, files in os.walk(extract_path):
-                            for fname in files:
-                                fpath = Path(root) / fname
-                                if fpath.suffix.lower() in ALL_EXTS and fpath.stat().st_size < MAX_FILE_SIZE:
-                                    files_to_scan.append((fpath, extract_path, scan_types_list, 1.0))
-                        
-                        # Parallel scanning for better performance
-                        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                            results = executor.map(scan_file_parallel, files_to_scan)
-                            for file_findings in results:
-                                findings.extend(file_findings)
-                        
-                        stats["archive_type"] = "zip"
-                        stats["files_scanned"] = len(files_to_scan)
-                        stats["total_files_in_archive"] = sum(1 for _ in extract_path.rglob("*") if _.is_file())
-                except zipfile.BadZipFile:
-                    raise HTTPException(status_code=400, detail="Invalid ZIP file")
-            else:
-                if not is_binary_file(content):
-                    text = content.decode('utf-8', errors='ignore')
-                    findings = scan_text_content(text, file.filename, scan_types_list)
-                    stats["lines_scanned"] = len(text.splitlines())
+
+            all_findings: List[FindingModel] = []
+            total_bytes = 0
+            total_lines = 0
+            files_scanned = 0
+            archives_scanned = 0
+            total_files_in_archives = 0
+
+            for up in upload_list:
+                uploaded_file = temp_path / up.filename
+                content = await up.read()
+                total_bytes += len(content)
+                uploaded_file.write_bytes(content)
+
+                if uploaded_file.suffix.lower() == ".zip":
+                    try:
+                        with zipfile.ZipFile(uploaded_file, "r") as zip_ref:
+                            extract_path = temp_path / f"extracted_{archives_scanned}"
+                            zip_ref.extractall(extract_path)
+
+                            files_to_scan = []
+                            for root, _, fnames in os.walk(extract_path):
+                                for fname in fnames:
+                                    fpath = Path(root) / fname
+                                    try:
+                                        if fpath.suffix.lower() in ALL_EXTS and fpath.stat().st_size < MAX_FILE_SIZE:
+                                            files_to_scan.append((fpath, extract_path, scan_types_list, 1.0))
+                                    except Exception:
+                                        continue
+
+                            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                                results = executor.map(scan_file_parallel, files_to_scan)
+                                for file_findings in results:
+                                    all_findings.extend(file_findings)
+
+                            archives_scanned += 1
+                            files_scanned += len(files_to_scan)
+                            try:
+                                total_files_in_archives += sum(1 for _p in extract_path.rglob("*") if _p.is_file())
+                            except Exception:
+                                pass
+                    except zipfile.BadZipFile:
+                        raise HTTPException(status_code=400, detail=f"Invalid ZIP file: {up.filename}")
                 else:
-                    raise HTTPException(status_code=400, detail="Binary files not supported")
-                stats["is_binary"] = False
-                stats["files_scanned"] = 1
+                    if is_binary_file(content):
+                        raise HTTPException(status_code=400, detail=f"Binary files not supported: {up.filename}")
+                    text = content.decode("utf-8", errors="ignore")
+                    total_lines += len(text.splitlines())
+                    all_findings.extend(scan_text_content(text, up.filename, scan_types_list))
+                    files_scanned += 1
+
+            stats = {
+                "upload_filenames": [f.filename for f in upload_list],
+                "content_size_bytes": total_bytes,
+                "lines_scanned": total_lines,
+                "files_scanned": files_scanned,
+                "archives_scanned": archives_scanned,
+                "total_files_in_archives": total_files_in_archives,
+            }
             
             response = create_enhanced_response(
                 method="upload",
                 scan_types=scan_types_list,
-                findings=findings,
+                findings=all_findings,
                 stats=stats,
                 start_time=start_time
             )
             
-            # Save scan to history
-            print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
-            try:
-                await save_scan_to_history(
-                    user_id=str(current_user.id),
-                    scan_response=response,
-                    input_type="file_upload",
-                    input_size=len(content)
-                )
-                print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
-            except Exception as history_error:
-                print(f"Warning: Failed to save scan to history: {str(history_error)}")
-                import traceback
-                traceback.print_exc()
-                # Continue with the response even if history saving fails
+            # Save scan to history (only when authenticated)
+            if current_user:
+                print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
+                try:
+                    await save_scan_to_history(
+                        user_id=str(current_user.id),
+                        scan_response=response,
+                        input_type="file_upload",
+                        input_size=len(content)
+                    )
+                    print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
+                except Exception as history_error:
+                    print(f"Warning: Failed to save scan to history: {str(history_error)}")
+                    import traceback
+                    traceback.print_exc()
+                    # Continue with the response even if history saving fails
             
             return response
     except HTTPException:
@@ -1876,7 +1897,7 @@ async def scan_upload_pdf(
 @router.post("/github", response_model=ScanResponse)
 async def scan_github(
     request: RepoScanRequest,
-    current_user: UserInDB = Depends(get_current_user)
+    current_user: Optional[UserInDB] = Depends(get_optional_user)
 ):
     """Clone and scan GitHub repository - HIGHLY OPTIMIZED VERSION."""
     if not _GIT_OK:
@@ -2039,20 +2060,21 @@ async def scan_github(
             cache_key = get_repo_cache_key(request.repo_url, request.branch, request.scan_types)
             cache_scan(cache_key, scan_response.dict())
 
-        # Save scan to history
-        print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
-        try:
-            await save_scan_to_history(
-                user_id=str(current_user.id),
-                scan_response=scan_response,
-                input_type="github_repo",
-                input_size=len(request.repo_url)
-            )
-            print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
-        except Exception as e:
-            print(f"Warning: Failed to save scan to history: {e}")
-            import traceback
-            traceback.print_exc()
+        # Save scan to history (only when authenticated)
+        if current_user:
+            print(f"DEBUG: Attempting to save scan to history for user {current_user.id}")
+            try:
+                await save_scan_to_history(
+                    user_id=str(current_user.id),
+                    scan_response=scan_response,
+                    input_type="github_repo",
+                    input_size=len(request.repo_url)
+                )
+                print(f"DEBUG: Successfully saved scan to history for user {current_user.id}")
+            except Exception as e:
+                print(f"Warning: Failed to save scan to history: {e}")
+                import traceback
+                traceback.print_exc()
 
         return scan_response
 
