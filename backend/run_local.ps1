@@ -14,8 +14,9 @@ try {
     else { $python = "python" }
 
     Write-Host "Using: $python"
-    Write-Host "Installing dependencies (pip install -r requirements.txt)..."
-    & $python -m pip install -r requirements.txt -q
+    Write-Host "Installing dependencies (pip install -U -r requirements.txt)..."
+    # Use -U so dependency pins (e.g., motor/pymongo) take effect even if an older version is already installed.
+    & $python -m pip install -U -r requirements.txt -q
     if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
     Write-Host "Starting server (python run.py)..."
     & $python run.py
