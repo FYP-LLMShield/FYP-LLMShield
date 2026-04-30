@@ -2255,6 +2255,8 @@ async def clear_cache():
         "timestamp": datetime.now().isoformat()
     }
 
+
+
 @router.get("/cache/stats")
 async def cache_stats():
     """Get cache statistics."""
