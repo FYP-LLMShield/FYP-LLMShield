@@ -110,6 +110,19 @@ class UnifiedUserService:
             logger.error(f"Failed to create Google user in Supabase: {e}", exc_info=True)
         return None, False
 
+    async def create_github_user(self, user_data: dict) -> Tuple[Optional[UserInDB], bool]:
+        """Create GitHub OAuth user in Supabase public.users only."""
+        if not self.supabase_service.is_available():
+            return None, False
+        try:
+            user = await self.supabase_service.create_github_user(user_data)
+            if user:
+                logger.info("GitHub user created in Supabase: %s", user_data.get("email"))
+                return user, True
+        except Exception as e:
+            logger.error("Failed to create GitHub user in Supabase: %s", e, exc_info=True)
+        return None, False
+
     async def ensure_supabase_auth_for_google(
         self,
         email: str,

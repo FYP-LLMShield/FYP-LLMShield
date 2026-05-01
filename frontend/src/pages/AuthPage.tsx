@@ -8,6 +8,8 @@ import PasswordRequirements from '../components/auth/PasswordRequirements';
 import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { linkGoogleIdTokenToSupabaseAuth } from '../lib/googleSupabaseLink';
+import { startGitHubOAuthRedirect, GITHUB_AUTH_MODE_KEY } from '../lib/githubSupabaseOAuth';
+import { resetDashboardOnboardingSession } from '../lib/dashboardOnboarding';
 
 // Helper to turn unknown error shapes into user-friendly strings
 const formatErrorMessage = (err: any): string => {
@@ -53,8 +55,41 @@ const formatErrorMessage = (err: any): string => {
 
 /** Shown on sign-up after Google login when no account exists (survives redirect). */
 const SIGNUP_BANNER_KEY = 'llmshield_signup_banner';
-const SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE =
-  'Create an account first. Use this form or Continue with Google to register.';
+const SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE =
+  'Create an account first. Use this form or Continue with Google or GitHub to register.';
+/** Prevents duplicate GitHub exchange under React Strict Mode. */
+const GITHUB_EXCHANGE_LOCK_KEY = 'llmshield_github_exchange_started';
+
+/**
+ * Supabase redirects here with ?error=&error_description= when OAuth fails before a session exists.
+ */
+function userMessageFromSupabaseOAuthCallback(search: string): string {
+  const params = new URLSearchParams(search);
+  const descRaw = (params.get('error_description') || '').replace(/\+/g, ' ');
+  let decoded = descRaw;
+  try {
+    decoded = decodeURIComponent(descRaw);
+  } catch {
+    /* keep decoded as descRaw */
+  }
+  const lower = decoded.toLowerCase();
+  if (lower.includes('multiple accounts') && lower.includes('same email')) {
+    return (
+      'Supabase found more than one Authentication user with this email, so GitHub sign-in was blocked. ' +
+      'Open Supabase → Authentication → Users, search this email, delete duplicate auth users (keep the one you use), then try again. ' +
+      'If you already sign in with Google on this email, use that until duplicates are removed.'
+    );
+  }
+  if (decoded) {
+    return decoded.length > 280 ? `${decoded.slice(0, 277)}…` : decoded;
+  }
+  const code = params.get('error_code') || '';
+  const err = params.get('error') || '';
+  if (err === 'server_error' && code) {
+    return `Sign-in failed (${code}). Please try again or use email/password.`;
+  }
+  return err ? `Sign-in failed: ${err}` : 'Sign-in failed. Please try again.';
+}
 
 const AuthPage: React.FC = memo(() => {
   const location = useLocation();
@@ -80,19 +115,22 @@ const AuthPage: React.FC = memo(() => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showResendButton, setShowResendButton] = useState(false);
+  const [githubLoading, setGithubLoading] = useState(false);
+
+  // Check for OAuth token in URL immediately (Google hash) or pending GitHub return
+  const hasOAuthToken =
+    typeof window !== 'undefined' && window.location.hash.includes('id_token');
+  const hasGithubOAuthPending =
+    typeof window !== 'undefined' && !!sessionStorage.getItem(GITHUB_AUTH_MODE_KEY);
+
+  // Track OAuth redirect in progress
+  const [oauthRedirecting, setOauthRedirecting] = useState(hasOAuthToken || hasGithubOAuthPending);
 
   // Show overlay when user is logging in / signing up (until redirect)
-  const authInProgress = (isInitialized && isLoading) || mfaVerifying;
+  const authInProgress = (isInitialized && isLoading) || mfaVerifying || githubLoading;
 
   // Track verification attempts to prevent duplicate API calls
   const verificationAttemptedRef = useRef(false);
-
-  // Check for OAuth token in URL immediately
-  const hasOAuthToken = typeof window !== 'undefined' &&
-    window.location.hash.includes('id_token');
-
-  // Track OAuth redirect in progress
-  const [oauthRedirecting, setOauthRedirecting] = useState(hasOAuthToken);
   const handleGoogleSuccess = useCallback(
     (response: any) => {
       console.log('Google button/popup response:', JSON.stringify(response, null, 2));
@@ -120,9 +158,14 @@ const AuthPage: React.FC = memo(() => {
         };
         localStorage.setItem('user', JSON.stringify(userData));
 
-        // Update auth context
+        // Tokens are already backend JWTs — do not call login(email, ''): that runs
+        // signInWithPassword on Supabase and throws "Invalid login credentials".
         setUser(userData);
-        login(response.user.email, '');
+        authAPI.setToken(response.access_token);
+
+        if (response.is_new_user) {
+          resetDashboardOnboardingSession();
+        }
 
         // Redirect
         setTimeout(() => navigate('/dashboard'), 1500);
@@ -130,17 +173,17 @@ const AuthPage: React.FC = memo(() => {
         setLoginError('Authentication response invalid. Please try again.');
       }
     },
-    [navigate, setUser, login]
+    [navigate, setUser]
   );
 
   const handleGoogleError = useCallback((error: any) => {
     console.error('Google Sign-In error:', error);
     const msg = error?.message || String(error);
-    const noAccount = /no account found|sign up first/i.test(msg);
+    const noAccount = /no account found|sign up first|github email/i.test(msg);
     if (!isSignUp && noAccount) {
-      sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+      sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
       setLoginError('');
-      setSignupError(SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+      setSignupError(SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
       navigate('/auth?signup=true', { replace: true });
       return;
     }
@@ -156,7 +199,41 @@ const AuthPage: React.FC = memo(() => {
     onError: handleGoogleError,
   });
 
+  const handleGitHubError = useCallback(
+    (error: any) => {
+      const msg = error?.message || String(error);
+      const noAccount = /no account found|sign up first|github email/i.test(msg);
+      if (!isSignUp && noAccount) {
+        sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
+        setLoginError('');
+        setSignupError(SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
+        navigate('/auth?signup=true', { replace: true });
+        return;
+      }
+      if (isSignUp) {
+        setSignupError(msg || 'GitHub sign-in failed. Please try again.');
+      } else {
+        setLoginError(msg || 'GitHub sign-in failed. Please try again.');
+      }
+    },
+    [isSignUp, navigate]
+  );
 
+  const openGitHubOAuthFlow = useCallback(
+    async (flowMode: 'signup' | 'signin') => {
+      setLoginError('');
+      setSignupError('');
+      setGithubLoading(true);
+      try {
+        await startGitHubOAuthRedirect(flowMode);
+      } catch (err: any) {
+        handleGitHubError(err);
+      } finally {
+        setGithubLoading(false);
+      }
+    },
+    [handleGitHubError]
+  );
 
   // Handle OAuth callback with id_token in URL
   useEffect(() => {
@@ -211,6 +288,10 @@ const AuthPage: React.FC = memo(() => {
               // Update API client with token
               authAPI.setToken(response.data.access_token);
 
+              if (response.data.is_new_user) {
+                resetDashboardOnboardingSession();
+              }
+
               // Clear URL hash
               window.history.replaceState({}, document.title, '/auth');
 
@@ -235,12 +316,13 @@ const AuthPage: React.FC = memo(() => {
             sessionStorage.removeItem('llmshield_google_auth_mode');
             const errText = response.error || 'Google Sign-In failed';
             const noAccount =
-              googleMode === 'signin' && /no account found|sign up first/i.test(errText);
+              googleMode === 'signin' &&
+              /no account found|sign up first|github email/i.test(errText);
             window.history.replaceState({}, document.title, '/auth');
             setOauthRedirecting(false);
             if (noAccount) {
-              sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
-              setSignupError(SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+              sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
+              setSignupError(SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
               navigate('/auth?signup=true', { replace: true });
             } else {
               setLoginError(errText);
@@ -258,6 +340,95 @@ const AuthPage: React.FC = memo(() => {
 
     handleOAuthCallback();
   }, [navigate, setUser]);
+
+  // After Supabase GitHub OAuth redirect: exchange Supabase session for app JWT
+  useEffect(() => {
+    if (!isInitialized) return;
+    const modeRaw = sessionStorage.getItem(GITHUB_AUTH_MODE_KEY);
+    if (!modeRaw) return;
+    if (sessionStorage.getItem(GITHUB_EXCHANGE_LOCK_KEY) === '1') return;
+    sessionStorage.setItem(GITHUB_EXCHANGE_LOCK_KEY, '1');
+
+    const finish = async () => {
+      setOauthRedirecting(true);
+      try {
+        const { supabase, isSupabaseAuthAvailable } = await import('../lib/supabase');
+        if (!isSupabaseAuthAvailable() || !supabase) {
+          sessionStorage.removeItem(GITHUB_AUTH_MODE_KEY);
+          setSignupError(
+            'GitHub sign-in requires Supabase. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.'
+          );
+          setOauthRedirecting(false);
+          return;
+        }
+        let session = (await supabase.auth.getSession()).data.session;
+        if (!session?.access_token) {
+          await new Promise((r) => setTimeout(r, 900));
+          session = (await supabase.auth.getSession()).data.session;
+        }
+        if (!session?.access_token) {
+          sessionStorage.removeItem(GITHUB_AUTH_MODE_KEY);
+          setLoginError('Could not complete GitHub sign-in. Please try again from the login page.');
+          setOauthRedirecting(false);
+          return;
+        }
+        const identities = session.user.identities || [];
+        const hasGithub = identities.some((i: { provider?: string }) => i.provider === 'github');
+        if (!hasGithub) {
+          sessionStorage.removeItem(GITHUB_AUTH_MODE_KEY);
+          setOauthRedirecting(false);
+          return;
+        }
+        authAPI.setToken(session.access_token);
+        const githubMode = modeRaw === 'signin' ? 'signin' : undefined;
+        const response = await authAPI.githubOAuthComplete(
+          githubMode ? { mode: githubMode } : {}
+        );
+        sessionStorage.removeItem(GITHUB_AUTH_MODE_KEY);
+
+        if (response.success && response.data) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            /* non-fatal */
+          }
+          window.history.replaceState({}, document.title, '/auth');
+          setOauthRedirecting(false);
+          if (response.data.access_token) {
+            authAPI.setToken(response.data.access_token);
+          }
+          if (response.data.mfa_required || response.data.access_token) {
+            handleGoogleSuccess(response.data);
+          } else {
+            setLoginError('Authentication response invalid. Please try again.');
+          }
+        } else {
+          const errText = response.error || 'GitHub sign-in failed';
+          const noAccount =
+            modeRaw === 'signin' &&
+            /no account found|sign up first|github email/i.test(errText);
+          window.history.replaceState({}, document.title, '/auth');
+          setOauthRedirecting(false);
+          if (noAccount) {
+            sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
+            setSignupError(SIGNUP_OAUTH_NO_ACCOUNT_MESSAGE);
+            navigate('/auth?signup=true', { replace: true });
+          } else {
+            setLoginError(errText);
+          }
+        }
+      } catch (err: any) {
+        sessionStorage.removeItem(GITHUB_AUTH_MODE_KEY);
+        window.history.replaceState({}, document.title, '/auth');
+        setOauthRedirecting(false);
+        setLoginError(err?.message || 'GitHub authentication failed. Please try again.');
+      } finally {
+        sessionStorage.removeItem(GITHUB_EXCHANGE_LOCK_KEY);
+      }
+    };
+
+    void finish();
+  }, [isInitialized, navigate, handleGoogleSuccess]);
 
   // Load remembered email if exists, otherwise clear fields
   useEffect(() => {
@@ -473,6 +644,27 @@ const AuthPage: React.FC = memo(() => {
     }
   }, [location]);
 
+  // Supabase OAuth error redirect (?error=server_error&error_description=...)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.get('error')) return;
+
+    const msg = userMessageFromSupabaseOAuthCallback(location.search);
+    const wantSignup = params.get('signup') === 'true';
+    sessionStorage.removeItem(GITHUB_AUTH_MODE_KEY);
+    sessionStorage.removeItem(GITHUB_EXCHANGE_LOCK_KEY);
+    setOauthRedirecting(false);
+    if (wantSignup) {
+      setIsSignUp(true);
+      setSignupError(msg);
+      setLoginError('');
+    } else {
+      setLoginError(msg);
+      setSignupError('');
+    }
+    navigate(wantSignup ? '/auth?signup=true' : '/auth', { replace: true });
+  }, [location.search, navigate]);
+
   // Handle email verification link (?verify=1&token=...)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -525,6 +717,7 @@ const AuthPage: React.FC = memo(() => {
     if (email && password && name && username) {
       try {
         await signup(name, username, email, password);
+        resetDashboardOnboardingSession();
         setSignupSuccess('Created account successfully. Please log in below.');
         setTimeout(() => {
           setIsSignUp(false);
@@ -672,6 +865,8 @@ const AuthPage: React.FC = memo(() => {
                           submitting={isInitialized && isLoading}
                           onGoogleSignIn={() => openGoogleOAuthFlow('signup')}
                           googleLoading={googleLoading}
+                          onGitHubSignIn={() => void openGitHubOAuthFlow('signup')}
+                          githubLoading={githubLoading}
                         />
                     ) : showMfaVerification ? (
                       <MfaVerificationForm
@@ -700,6 +895,8 @@ const AuthPage: React.FC = memo(() => {
                         submitting={isInitialized && isLoading}
                         onGoogleSignIn={() => openGoogleOAuthFlow('signin')}
                         googleLoading={googleLoading}
+                        onGitHubSignIn={() => void openGitHubOAuthFlow('signin')}
+                        githubLoading={githubLoading}
                       />
                     )}
                   </motion.div>
@@ -872,6 +1069,8 @@ interface AuthFormProps {
   submitting?: boolean;
   onGoogleSignIn?: () => void;
   googleLoading?: boolean;
+  onGitHubSignIn?: () => void;
+  githubLoading?: boolean;
 }
 
 const LoginForm: React.FC<AuthFormProps> = memo(({
@@ -892,8 +1091,11 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
   submitting = false,
   onGoogleSignIn,
   googleLoading = false,
+  onGitHubSignIn,
+  githubLoading = false,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const oauthBusy = googleLoading || githubLoading;
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
@@ -1064,7 +1266,7 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
           <button
             type="button"
             onClick={onGoogleSignIn}
-            disabled={googleLoading || submitting}
+            disabled={oauthBusy || submitting}
             className="w-full min-h-[44px] flex items-center justify-center gap-3 rounded-md bg-white text-gray-800 font-medium hover:bg-gray-50 transition-all px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {googleLoading ? (
@@ -1087,6 +1289,31 @@ const LoginForm: React.FC<AuthFormProps> = memo(({
               </>
             )}
           </button>
+          {onGitHubSignIn && (
+            <button
+              type="button"
+              onClick={onGitHubSignIn}
+              disabled={oauthBusy || submitting}
+              className="mt-2 w-full min-h-[44px] flex items-center justify-center gap-3 rounded-md bg-[#24292f] text-white font-medium hover:bg-[#1a1e24] transition-all px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {githubLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Signing in…</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                  </svg>
+                  <span>Continue with GitHub</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <p className="pt-4 text-center text-sm text-white/60">
@@ -1121,6 +1348,8 @@ const SignUpForm = memo(({
   submitting = false,
   onGoogleSignIn,
   googleLoading = false,
+  onGitHubSignIn,
+  githubLoading = false,
 }: AuthFormProps) => {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -1129,6 +1358,7 @@ const SignUpForm = memo(({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const oauthBusy = googleLoading || githubLoading;
 
   const validatePassword = (password: string) => {
     const errors = [];
@@ -1472,7 +1702,7 @@ const SignUpForm = memo(({
           <button
             type="button"
             onClick={onGoogleSignIn}
-            disabled={googleLoading || submitting}
+            disabled={oauthBusy || submitting}
             className="w-full min-h-[44px] flex items-center justify-center gap-3 rounded-md bg-white text-gray-800 font-medium hover:bg-gray-50 transition-all px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {googleLoading ? (
@@ -1495,6 +1725,31 @@ const SignUpForm = memo(({
               </>
             )}
           </button>
+          {onGitHubSignIn && (
+            <button
+              type="button"
+              onClick={onGitHubSignIn}
+              disabled={oauthBusy || submitting}
+              className="mt-2 w-full min-h-[44px] flex items-center justify-center gap-3 rounded-md bg-[#24292f] text-white font-medium hover:bg-[#1a1e24] transition-all px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {githubLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Signing up…</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                  </svg>
+                  <span>Continue with GitHub</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <p className="pt-4 text-center text-sm text-white/60">

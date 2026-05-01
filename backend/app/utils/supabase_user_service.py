@@ -610,6 +610,56 @@ class SupabaseUserService:
         except Exception as e:
             logger.error(f"Error creating Google user in Supabase: {e}", exc_info=True)
             return None
+
+    async def create_github_user(self, user_data: dict) -> Optional[UserInDB]:
+        """Create a new GitHub OAuth user in public.users (Supabase GitHub session)."""
+        try:
+            if not self.is_available():
+                logger.warning("Supabase not available, skipping GitHub user create")
+                return None
+
+            existing = await self.get_user_by_email(user_data["email"])
+            if existing:
+                return existing
+
+            payload = {
+                "email": user_data["email"],
+                "username": user_data["username"],
+                "name": user_data.get("name") or "User",
+                "display_name": user_data.get("display_name") or "",
+                "is_verified": user_data.get("is_verified", True),
+                "is_active": user_data.get("is_active", True),
+                "mfa_enabled": user_data.get("mfa_enabled", False),
+                "mfa_setup_complete": user_data.get("mfa_setup_complete", False),
+                "recovery_codes": user_data.get("recovery_codes") if isinstance(user_data.get("recovery_codes"), list) else [],
+                "trusted_devices": user_data.get("trusted_devices") if isinstance(user_data.get("trusted_devices"), list) else [],
+                "current_subscription_tier": user_data.get("current_subscription_tier") or "premium",
+                "subscription_status": user_data.get("subscription_status") or "active",
+                "created_at": user_data.get("created_at") or datetime.utcnow().isoformat(),
+                "updated_at": user_data.get("updated_at") or datetime.utcnow().isoformat(),
+            }
+            if user_data.get("github_id") is not None:
+                payload["github_id"] = user_data["github_id"]
+            if user_data.get("profile_picture") is not None:
+                payload["profile_picture"] = user_data["profile_picture"]
+            if user_data.get("last_login") is not None:
+                payload["last_login"] = user_data["last_login"]
+
+            payload["hashed_password"] = user_data.get("hashed_password") or ""
+
+            result = self.client.table("users").insert(payload).execute()
+
+            if result.data and len(result.data) > 0:
+                logger.info("GitHub user created in Supabase: %s", user_data["email"])
+                return self._convert_supabase_to_userindb(result.data[0])
+            fetched = await self.get_user_by_email(user_data["email"])
+            if fetched:
+                return fetched
+            return None
+
+        except Exception as e:
+            logger.error("Error creating GitHub user in Supabase: %s", e, exc_info=True)
+            return None
     
     async def update_google_user(self, email: str, update_data: dict) -> bool:
         """Update Google user information"""

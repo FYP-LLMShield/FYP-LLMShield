@@ -17,6 +17,11 @@ class GoogleUserInfo(BaseModel):
     picture: Optional[str] = None
     sub: str  # Google user ID
     
+class GithubOAuthCompleteRequest(BaseModel):
+    """After Supabase signInWithOAuth(github), frontend exchanges session for app JWT."""
+    mode: Optional[str] = None  # "signin" | "signup" (default signup / create-if-missing)
+
+
 class GoogleSignInResponse(BaseModel):
     """Model for Google Sign-In response"""
     message: str

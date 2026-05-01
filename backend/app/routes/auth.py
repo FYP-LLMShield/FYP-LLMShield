@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -7,7 +8,7 @@ from app.models.user import (
     PasswordResetRequest, PasswordReset, ProfileUpdate
 )
 from app.models.password_reset import ForgotPasswordRequest, ResetPasswordRequest
-from app.models.google_auth import GoogleSignInRequest, GoogleSignInResponse
+from app.models.google_auth import GoogleSignInRequest, GoogleSignInResponse, GithubOAuthCompleteRequest
 from app.utils.user_service import user_service as mongo_user_service
 from app.utils.unified_user_service import unified_user_service
 from app.utils.auth import (
@@ -26,6 +27,31 @@ from app.core.database import get_database
 
 router = APIRouter()
 security = HTTPBearer()
+
+
+def _github_profile_from_supabase_user(sup_user: dict) -> Optional[dict]:
+    """Parse GitHub identity from Supabase GET /auth/v1/user payload (identities list)."""
+    identities = sup_user.get("identities") or []
+    for ident in identities:
+        if not isinstance(ident, dict) or ident.get("provider") != "github":
+            continue
+        idata = ident.get("identity_data") or {}
+        email = (sup_user.get("email") or idata.get("email") or "").strip().lower()
+        sub = str(idata.get("sub") or ident.get("identity_id") or ident.get("id") or "").strip()
+        login = (idata.get("user_name") or idata.get("preferred_username") or "").strip()
+        name = (idata.get("name") or idata.get("full_name") or login or "").strip()
+        avatar = idata.get("avatar_url") or (sup_user.get("user_metadata") or {}).get("avatar_url")
+        if not email or not sub:
+            return None
+        return {
+            "email": email,
+            "github_sub": sub,
+            "login": login or email.split("@")[0],
+            "name": name or login or email.split("@")[0],
+            "avatar": avatar,
+        }
+    return None
+
 
 @router.post("/register", response_model=dict)
 async def register(user_data: UserRegistration):
@@ -761,6 +787,165 @@ async def google_signin(request: GoogleSignInRequest, response: Response):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Google Sign-In failed: {str(e)}"
+        )
+
+
+@router.post("/github/oauth-complete", response_model=dict)
+async def github_oauth_complete(
+    request: GithubOAuthCompleteRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    After Supabase signInWithOAuth({ provider: 'github' }), exchange the Supabase access token
+    for an app JWT and public.users row (same behavior as /auth/google for MFA and sessions).
+
+    Authorization: Bearer <Supabase access_token>
+    Body: optional { "mode": "signin" } — signin only logs in existing users; default creates if missing.
+    """
+    try:
+        if not credentials or not credentials.credentials:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+            )
+        token = credentials.credentials
+        sup_user = await _verify_supabase_via_auth_user_endpoint(token)
+        if not sup_user or not sup_user.get("sub"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired Supabase session",
+            )
+        profile = _github_profile_from_supabase_user(sup_user)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="GitHub sign-in did not return a usable email or identity. "
+                "Ensure your GitHub account has a verified email and grant email access to the OAuth app.",
+            )
+
+        is_signin_only = (request.mode or "").strip().lower() == "signin"
+        _log = logging.getLogger(__name__)
+
+        if is_signin_only:
+            existing_user = await unified_user_service.get_user_by_email(profile["email"])
+            if not existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No account found with this GitHub email. Please sign up first.",
+                )
+            user, is_new_user = existing_user, False
+        else:
+            existing_user = await unified_user_service.get_user_by_email(profile["email"])
+            if existing_user:
+                update_data: dict = {}
+                if not getattr(existing_user, "github_id", None):
+                    update_data["github_id"] = profile["github_sub"]
+                if profile.get("avatar") and not getattr(existing_user, "profile_picture", None):
+                    update_data["profile_picture"] = profile["avatar"]
+                if update_data:
+                    await unified_user_service.update_profile(existing_user.email, update_data)
+                    refreshed = await unified_user_service.get_user_by_email(profile["email"])
+                    user = refreshed or existing_user
+                else:
+                    user = existing_user
+                is_new_user = False
+            else:
+                base = "".join(c for c in profile["login"] if c.isalnum() or c == "_").lower()[:20] or "user"
+                username = base
+                counter = 1
+                while await unified_user_service.get_user_by_username(username):
+                    username = f"{base}{counter}"
+                    counter += 1
+
+                now_iso = datetime.utcnow().isoformat()
+                new_user_data = {
+                    "email": profile["email"],
+                    "username": username,
+                    "name": profile["name"] or username,
+                    "display_name": profile["name"] or "",
+                    "github_id": profile["github_sub"],
+                    "profile_picture": profile.get("avatar"),
+                    "is_verified": True,
+                    "hashed_password": "",
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
+                    "last_login": now_iso,
+                    "is_active": True,
+                    "mfa_enabled": False,
+                    "mfa_secret": None,
+                    "recovery_codes": [],
+                    "trusted_devices": [],
+                    "mfa_setup_complete": False,
+                    "verification_token": None,
+                    "reset_token": None,
+                    "reset_token_expires": None,
+                    "subscription_id": None,
+                    "current_subscription_tier": "premium",
+                    "subscription_status": "active",
+                }
+                user_obj, _ = await unified_user_service.create_github_user(new_user_data)
+                if not user_obj:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create account. Please try again.",
+                    )
+                user = user_obj
+                is_new_user = True
+                try:
+                    db = await get_database()
+                    from app.utils.email_service import EmailService, EmailConfig
+                    if db is not None and EmailConfig.is_configured():
+                        email_service = EmailService(db)
+                        await email_service.send_welcome_email(user.email, user.name or user.username)
+                except Exception as email_error:
+                    _log.warning("Welcome email failed for GitHub user %s: %s", user.email, email_error)
+
+        _log.info(
+            "GitHub OAuth complete for %s — MFA enabled: %s",
+            user.email,
+            user.mfa_enabled,
+        )
+
+        if user.mfa_enabled and user.mfa_secret:
+            return {
+                "message": "MFA verification required",
+                "mfa_required": True,
+                "user_id": str(user.id),
+                "partial_token": create_access_token(
+                    data={"sub": user.email, "mfa_pending": True},
+                    expires_delta=timedelta(minutes=5),
+                ),
+            }
+
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.email}, expires_delta=access_token_expires
+        )
+        refresh_token = create_refresh_token(data={"sub": user.email})
+        await unified_user_service.update_user_last_login(user.email)
+
+        return {
+            "message": "GitHub sign-in successful",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "username": user.username,
+                "is_verified": user.is_verified,
+                "profile_picture": user.profile_picture,
+            },
+            "is_new_user": is_new_user,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"GitHub sign-in failed: {str(e)}",
         )
 
 

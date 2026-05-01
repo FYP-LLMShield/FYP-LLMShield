@@ -269,6 +269,7 @@ async def _verify_supabase_via_auth_user_endpoint(token: str) -> Optional[dict]:
             "phone": u.get("phone"),
             "user_metadata": u.get("user_metadata") or {},
             "email_confirmed_at": u.get("email_confirmed_at"),
+            "identities": u.get("identities") or [],
         }
     except Exception:
         return None

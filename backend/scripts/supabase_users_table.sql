@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   
   -- Google OAuth fields
   google_id VARCHAR(255) UNIQUE,
+  github_id VARCHAR(255) UNIQUE,
   profile_picture TEXT,
 
   -- User profile fields (editable)
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+CREATE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id);
 CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token);
 CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token);
 CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
@@ -108,4 +110,5 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
 COMMENT ON TABLE users IS 'User accounts for LLMShield - Primary database (Supabase)';
 COMMENT ON COLUMN users.hashed_password IS 'Bcrypt hashed password (NULL for Google OAuth users)';
 COMMENT ON COLUMN users.google_id IS 'Google OAuth subject ID';
+COMMENT ON COLUMN users.github_id IS 'GitHub OAuth subject ID (numeric as string)';
 COMMENT ON COLUMN users.recovery_codes IS 'Array of MFA recovery codes';

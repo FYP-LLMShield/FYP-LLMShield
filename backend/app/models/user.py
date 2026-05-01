@@ -171,6 +171,7 @@ class UserInDB(BaseModel):
     
     # Google OAuth fields
     google_id: Optional[str] = None
+    github_id: Optional[str] = None
     profile_picture: Optional[str] = None
     display_name: Optional[str] = ""
 

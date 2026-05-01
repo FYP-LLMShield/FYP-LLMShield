@@ -60,7 +60,8 @@ const apiClient = {
       token &&
       (String(path).startsWith("/auth/mfa") ||
         String(path).startsWith("/scan-history") ||
-        String(path) === "/auth/sync-public-user")
+        String(path) === "/auth/sync-public-user" ||
+        String(path) === "/auth/github/oauth-complete")
     ) {
       try {
         const { supabase } = await import("./supabase")
@@ -169,6 +170,9 @@ export const authAPI = {
   updateProfile: (payload: any) => apiClient.request("/auth/profile", { method: "PUT", body: payload }),
   googleSignIn: (payload: { id_token: string; mode?: "signup" | "signin" }) =>
     apiClient.request("/auth/google", { method: "POST", body: payload }),
+  /** After Supabase signInWithOAuth(github); send current Supabase session as Bearer. */
+  githubOAuthComplete: (payload?: { mode?: "signup" | "signin" }) =>
+    apiClient.request("/auth/github/oauth-complete", { method: "POST", body: payload ?? {} }),
   /** Upsert public.users from current Supabase session (after signUp / signInWithPassword). */
   syncPublicUser: () => apiClient.request("/auth/sync-public-user", { method: "POST" }),
   forgotPassword: (payload: any) => apiClient.request("/auth/forgot-password", { method: "POST", body: payload }),

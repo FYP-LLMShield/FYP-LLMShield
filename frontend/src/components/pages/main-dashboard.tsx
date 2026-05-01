@@ -148,15 +148,23 @@ export const MainDashboard = memo(() => {
     return !hasSeenWelcome;
   });
 
-  const [showMfaPrompt, setShowMfaPrompt] = useState(() => {
-    // Disable MFA prompt popup - always return false
-    return false;
-  });
+  const [showMfaPrompt, setShowMfaPrompt] = useState(false);
 
-  // Update MFA prompt visibility when welcome popup closes or MFA status changes
+  // After the welcome modal closes, nudge users who have not enabled MFA yet (separate small modal).
   useEffect(() => {
-    // Always keep MFA prompt disabled
-    setShowMfaPrompt(false);
+    if (showWelcomePopup) {
+      setShowMfaPrompt(false);
+      return;
+    }
+    if (mfaStatus?.enabled) {
+      setShowMfaPrompt(false);
+      return;
+    }
+    if (sessionStorage.getItem("mfaPromptDismissed") === "true") {
+      setShowMfaPrompt(false);
+      return;
+    }
+    setShowMfaPrompt(true);
   }, [showWelcomePopup, mfaStatus?.enabled]);
 
   const handleCloseWelcome = () => {
