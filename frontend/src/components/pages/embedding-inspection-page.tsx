@@ -332,7 +332,7 @@ export const EmbeddingInspectionPage: React.FC = () => {
               onClick={handleInspect}
               disabled={isLoading}
               size="lg"
-              className="bg-teal-600 px-8 py-6 text-base font-semibold text-white shadow-lg shadow-teal-900/15 ring-1 ring-teal-700/30 hover:bg-teal-500 disabled:opacity-60 [&_svg]:text-current"
+              className="bg-teal-600 px-8 py-6 text-base font-semibold text-black shadow-lg shadow-teal-900/15 ring-1 ring-teal-700/30 hover:bg-teal-500 dark:text-white disabled:opacity-60 [&_svg]:text-current"
             >
               {isLoading ? (
                 <>

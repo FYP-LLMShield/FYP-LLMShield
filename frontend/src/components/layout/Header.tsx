@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const StickyNavigation: React.FC = () => {
   const location = useLocation();
@@ -26,37 +28,37 @@ const StickyNavigation: React.FC = () => {
       <nav className="flex items-center justify-center rounded-full border border-white/15 backdrop-blur bg-black shadow-[0_0_30px_rgba(20,184,166,0.2)] px-4 py-2 space-x-6">
         <Link 
           to="/" 
-          className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+          className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
         >
           Home
         </Link>
         <Link 
           to="/services" 
-          className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/services') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+          className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/services') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
         >
           Services
         </Link>
         <Link 
           to="/use-cases" 
-          className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/use-cases') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+          className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/use-cases') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
         >
           Use Cases
         </Link>
         <Link 
           to="/pricing" 
-          className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/pricing') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+          className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/pricing') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
         >
           Pricing
         </Link>
         <Link 
           to="/about" 
-          className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/about') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+          className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/about') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
         >
           About Us
         </Link>
         <Link 
           to="/contact" 
-          className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/contact') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+          className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/contact') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
         >
           Contact Us
         </Link>
@@ -68,7 +70,8 @@ const StickyNavigation: React.FC = () => {
 const Header: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+  const { theme, toggleTheme } = useTheme();
+
   // Check if current route is active
   const isActive = (path: string) => location.pathname === path;
   
@@ -99,37 +102,37 @@ const Header: React.FC = () => {
           <nav className="hidden md:flex items-center justify-center rounded-full border border-white/15 backdrop-blur bg-black shadow-[0_0_30px_rgba(20,184,166,0.2)] px-4 py-2 space-x-6">
             <Link 
               to="/" 
-              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+              className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
             >
               Home
             </Link>
             <Link 
               to="/services" 
-              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/services') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+              className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/services') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
             >
               Services
             </Link>
             <Link 
               to="/use-cases" 
-              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/use-cases') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+              className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/use-cases') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
             >
               Use Cases
             </Link>
             <Link 
               to="/pricing" 
-              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/pricing') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+              className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/pricing') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
             >
               Pricing
             </Link>
             <Link 
               to="/about" 
-              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/about') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+              className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/about') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
             >
               About Us
             </Link>
             <Link 
               to="/contact" 
-              className={`text-gray-700 dark:text-gray-300 hover:text-accent-teal dark:hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/contact') ? 'text-accent-teal dark:text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
+              className={`text-gray-200 hover:text-accent-teal transition-colors duration-300 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-accent-teal ${isActive('/contact') ? 'text-accent-teal font-medium after:content-[""] after:block after:h-0.5 after:rounded-full after:bg-teal-400 after:mt-1' : ''}`}
             >
               Contact Us
             </Link>
@@ -137,7 +140,20 @@ const Header: React.FC = () => {
         </div>
 
         {/* Right side controls */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="rounded-full p-2.5 border border-white/25 bg-white/90 text-slate-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-white dark:border-white/10 dark:bg-slate-900/85 dark:text-gray-100 dark:hover:bg-slate-800"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5 text-amber-500" aria-hidden />
+            ) : (
+              <Moon className="h-5 w-5 text-slate-700" aria-hidden />
+            )}
+          </button>
+
           {/* Login button */}
           <Link
             to="/auth"
@@ -210,6 +226,27 @@ const Header: React.FC = () => {
             >
               Contact Us
             </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                toggleTheme();
+              }}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-100 dark:hover:bg-gray-800"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="h-5 w-5 text-amber-500" aria-hidden />
+                  Light mode
+                </>
+              ) : (
+                <>
+                  <Moon className="h-5 w-5 text-slate-600 dark:text-gray-300" aria-hidden />
+                  Dark mode
+                </>
+              )}
+            </button>
             
             {/* Mobile Auth Buttons */}
             <div className="flex flex-col space-y-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
