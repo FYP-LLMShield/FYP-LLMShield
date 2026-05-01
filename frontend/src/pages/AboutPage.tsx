@@ -106,6 +106,112 @@ const AboutPage: React.FC = () => {
               A unified threat detection platform for mitigating prompt injection, model poisoning, and RAG embedding risks in LLM and AI systems
             </p>
           </motion.div>
+
+          {/* Team — Supervisor & Developers */}
+          <motion.div
+            className="relative bg-gradient-to-br from-cyan-500/20 via-sky-500/15 to-indigo-500/10 backdrop-blur-lg rounded-2xl p-8 mb-12 border border-cyan-400/30 shadow-2xl overflow-hidden group"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.05 }}
+            whileHover={{
+              scale: 1.02,
+              boxShadow: '0 25px 50px -12px rgba(6, 182, 212, 0.25)',
+              transition: { duration: 0.3 },
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="relative z-10">
+              <motion.div
+                className="flex items-center mb-8"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-indigo-500 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+                  Team
+                </h2>
+              </motion.div>
+
+              <motion.h3
+                className="text-sm font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-300 mb-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+              >
+                Supervisor
+              </motion.h3>
+              <motion.div
+                className="rounded-3xl p-6 md:p-8 ring-1 ring-gray-200 dark:ring-gray-800 bg-gray-900/80 dark:bg-black/60 relative overflow-hidden group/supervisor transition-all duration-500 hover:ring-2 hover:ring-indigo-400/40 hover:shadow-2xl hover:shadow-indigo-500/10 mb-10"
+                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.2, type: 'spring', stiffness: 100 }}
+                whileHover={{ scale: 1.01 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/15 to-violet-500/10 opacity-0 group-hover/supervisor:opacity-100 transition-opacity duration-500" />
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 shrink-0 bg-gradient-to-br from-indigo-400 to-violet-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Dr. Muhammad Arif Butt</h4>
+                      <a
+                        href="mailto:arif@pucit.edu.pk"
+                        className="text-sm text-teal-600 dark:text-teal-300 hover:text-indigo-400 dark:hover:text-indigo-200 underline-offset-2 hover:underline transition-colors"
+                      >
+                        arif@pucit.edu.pk
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.h3
+                className="text-sm font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300 mb-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.45 }}
+              >
+                Developers
+              </motion.h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                {[
+                  { name: 'Alisha Shahid', email: 'alishashahidkhan77@gmail.com', gradient: 'from-cyan-400 to-teal-400' },
+                  { name: 'Um e Abeeha', email: 'umeabeeha4582@gmail.com', gradient: 'from-sky-400 to-blue-400' },
+                  { name: 'Khalood Sami', email: 'khaloodsami070@gmail.com', gradient: 'from-indigo-400 to-violet-400' },
+                ].map((dev, index) => (
+                  <motion.div
+                    key={dev.email}
+                    className="rounded-3xl p-6 ring-1 ring-gray-200 dark:ring-gray-800 bg-gray-900/80 dark:bg-black/60 relative flex flex-col transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:ring-2 hover:ring-cyan-400/40 hover:shadow-cyan-500/10 cursor-default group/person overflow-hidden"
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.55, delay: 0.5 + index * 0.1, type: 'spring', stiffness: 100 }}
+                    whileHover={{ y: -4, transition: { duration: 0.3 } }}
+                  >
+                    <div className={`absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b ${dev.gradient} rounded-l-xl group-hover/person:w-3 transition-all duration-300`} />
+                    <div className="pl-2 relative z-10">
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{dev.name}</h4>
+                      <a
+                        href={`mailto:${dev.email}`}
+                        className="text-sm text-teal-600 dark:text-teal-300 hover:text-cyan-400 dark:hover:text-cyan-200 break-all underline-offset-2 hover:underline transition-colors"
+                      >
+                        {dev.email}
+                      </a>
+                    </div>
+                    <div className="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full opacity-0 group-hover/person:opacity-100 group-hover/person:animate-ping transition-opacity duration-300" />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
           
           {/* Mission Section */}
           <motion.div 
