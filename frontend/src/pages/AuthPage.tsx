@@ -7,6 +7,7 @@ import { authAPI } from '../lib/api';
 import PasswordRequirements from '../components/auth/PasswordRequirements';
 import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
+import { linkGoogleIdTokenToSupabaseAuth } from '../lib/googleSupabaseLink';
 
 // Helper to turn unknown error shapes into user-friendly strings
 const formatErrorMessage = (err: any): string => {
@@ -49,6 +50,11 @@ const formatErrorMessage = (err: any): string => {
   const MAX_LEN = 200;
   return rawText.length > MAX_LEN ? `${rawText.slice(0, MAX_LEN)}...` : rawText;
 };
+
+/** Shown on sign-up after Google login when no account exists (survives redirect). */
+const SIGNUP_BANNER_KEY = 'llmshield_signup_banner';
+const SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE =
+  'Create an account first. Use this form or Continue with Google to register.';
 
 const AuthPage: React.FC = memo(() => {
   const location = useLocation();
@@ -129,12 +135,21 @@ const AuthPage: React.FC = memo(() => {
 
   const handleGoogleError = useCallback((error: any) => {
     console.error('Google Sign-In error:', error);
-    if (isSignUp) {
-      setSignupError('Google Sign-In failed. Please try again.');
-    } else {
-      setLoginError('Google Sign-In failed. Please try again.');
+    const msg = error?.message || String(error);
+    const noAccount = /no account found|sign up first/i.test(msg);
+    if (!isSignUp && noAccount) {
+      sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+      setLoginError('');
+      setSignupError(SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+      navigate('/auth?signup=true', { replace: true });
+      return;
     }
-  }, [isSignUp]);
+    if (isSignUp) {
+      setSignupError(msg || 'Google Sign-In failed. Please try again.');
+    } else {
+      setLoginError(msg || 'Google Sign-In failed. Please try again.');
+    }
+  }, [isSignUp, navigate]);
 
   const { openGoogleOAuthFlow, isLoading: googleLoading } = useGoogleAuth({
     onSuccess: handleGoogleSuccess,
@@ -154,11 +169,17 @@ const AuthPage: React.FC = memo(() => {
       if (idToken) {
         console.log('Found id_token in URL, authenticating...');
         try {
-          // Send token to backend for verification
-          const response = await authAPI.googleSignIn({ id_token: idToken });
+          const googleMode =
+            sessionStorage.getItem('llmshield_google_auth_mode') === 'signin' ? 'signin' : undefined;
+          await linkGoogleIdTokenToSupabaseAuth(idToken);
+          const response = await authAPI.googleSignIn({
+            id_token: idToken,
+            ...(googleMode ? { mode: googleMode } : {}),
+          });
           console.log('Full Google OAuth response:', JSON.stringify(response, null, 2));
 
           if (response.success && response.data) {
+            sessionStorage.removeItem('llmshield_google_auth_mode');
             // Check if MFA is required
             if (response.data.mfa_required) {
               console.log('MFA verification required for Google OAuth user');
@@ -204,16 +225,31 @@ const AuthPage: React.FC = memo(() => {
               }, 500);
             } else {
               console.error('Unexpected response format:', response.data);
+              sessionStorage.removeItem('llmshield_google_auth_mode');
+              window.history.replaceState({}, document.title, '/auth');
               setOauthRedirecting(false);
               setLoginError('Authentication response invalid. Please try again.');
             }
           } else {
             console.error('Google Sign-In failed:', response.error);
+            sessionStorage.removeItem('llmshield_google_auth_mode');
+            const errText = response.error || 'Google Sign-In failed';
+            const noAccount =
+              googleMode === 'signin' && /no account found|sign up first/i.test(errText);
+            window.history.replaceState({}, document.title, '/auth');
             setOauthRedirecting(false);
-            setLoginError(response.error || 'Google Sign-In failed');
+            if (noAccount) {
+              sessionStorage.setItem(SIGNUP_BANNER_KEY, SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+              setSignupError(SIGNUP_GOOGLE_NO_ACCOUNT_MESSAGE);
+              navigate('/auth?signup=true', { replace: true });
+            } else {
+              setLoginError(errText);
+            }
           }
         } catch (err: any) {
           console.error('OAuth callback error:', err);
+          sessionStorage.removeItem('llmshield_google_auth_mode');
+          window.history.replaceState({}, document.title, '/auth');
           setOauthRedirecting(false);
           setLoginError('Authentication failed. Please try again.');
         }
@@ -427,6 +463,11 @@ const AuthPage: React.FC = memo(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('signup') === 'true') {
       setIsSignUp(true);
+      const banner = sessionStorage.getItem(SIGNUP_BANNER_KEY);
+      if (banner) {
+        setSignupError(banner);
+        sessionStorage.removeItem(SIGNUP_BANNER_KEY);
+      }
     } else {
       setIsSignUp(false);
     }
@@ -629,7 +670,7 @@ const AuthPage: React.FC = memo(() => {
                           error={signupError}
                           successMessage={signupSuccess}
                           submitting={isInitialized && isLoading}
-                          onGoogleSignIn={openGoogleOAuthFlow}
+                          onGoogleSignIn={() => openGoogleOAuthFlow('signup')}
                           googleLoading={googleLoading}
                         />
                     ) : showMfaVerification ? (
@@ -657,7 +698,7 @@ const AuthPage: React.FC = memo(() => {
                         showResendButton={showResendButton}
                         resendCooldown={resendCooldown}
                         submitting={isInitialized && isLoading}
-                        onGoogleSignIn={openGoogleOAuthFlow}
+                        onGoogleSignIn={() => openGoogleOAuthFlow('signin')}
                         googleLoading={googleLoading}
                       />
                     )}

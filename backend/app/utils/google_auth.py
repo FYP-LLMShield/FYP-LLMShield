@@ -327,7 +327,12 @@ class GoogleAuthService:
                     )
                     # Refresh user data
                     existing_user = await unified_user_service.get_user_by_email(google_user.email)
-                
+
+                await unified_user_service.ensure_supabase_auth_for_google(
+                    google_user.email,
+                    google_user.name or google_user.given_name or "",
+                    google_user.sub,
+                )
                 return existing_user, False
             
             # Create new user
@@ -347,7 +352,8 @@ class GoogleAuthService:
                 "display_name": google_user.name or "",
                 "google_id": google_user.sub,
                 "profile_picture": google_user.picture,
-                "is_verified": True,  # Google accounts are pre-verified
+                # Same meaning as Supabase Auth email_confirmed_at after OAuth: provider verified email.
+                "is_verified": True,
                 "hashed_password": "",  # Empty password for Google users (no password login)
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat(),
@@ -381,7 +387,12 @@ class GoogleAuthService:
             except Exception as email_error:
                 # Log error but don't fail user creation if email fails
                 logger.warning(f"Failed to send welcome email to {user_obj.email}: {email_error}")
-            
+
+            await unified_user_service.ensure_supabase_auth_for_google(
+                google_user.email,
+                google_user.name or google_user.given_name or "",
+                google_user.sub,
+            )
             return user_obj, True
             
         except Exception as e:

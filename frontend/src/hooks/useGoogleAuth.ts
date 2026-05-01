@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { authAPI } from '../lib/api';
+import { linkGoogleIdTokenToSupabaseAuth } from '../lib/googleSupabaseLink';
 
 // Declare Google's global object
 declare global {
@@ -7,6 +8,8 @@ declare global {
     google?: any;
   }
 }
+
+const GOOGLE_MODE_KEY = 'llmshield_google_auth_mode';
 
 interface UseGoogleAuthProps {
   onSuccess?: (response: any) => void;
@@ -31,14 +34,22 @@ export const useGoogleAuth = ({
       try {
         console.log('Google credential received');
 
-        // Send to backend for verification and user creation/login
+        const storedMode = sessionStorage.getItem(GOOGLE_MODE_KEY);
+        const mode = storedMode === 'signin' ? ('signin' as const) : undefined;
+
+        // Supabase Auth: real Google identity (dashboard shows provider "google"). Falls back if not configured.
+        await linkGoogleIdTokenToSupabaseAuth(response.credential);
+
+        // Backend: app JWT, public.users profile, MFA
         const result = await authAPI.googleSignIn({
           id_token: response.credential,
+          ...(mode ? { mode } : {}),
         });
 
         console.log('Google Sign-In API response:', result);
 
         if (result.success && result.data) {
+          sessionStorage.removeItem(GOOGLE_MODE_KEY);
           onSuccess?.(result.data);
         } else {
           const errorMsg = result.error || 'Google Sign-In failed';
@@ -120,9 +131,10 @@ export const useGoogleAuth = ({
   }, []);
 
   // Full OAuth 2.0 redirect flow (opens complete Google login page)
-  const openGoogleOAuthFlow = useCallback(() => {
+  const openGoogleOAuthFlow = useCallback((flowMode: 'signup' | 'signin' = 'signup') => {
     try {
       console.log('Opening Google OAuth flow...');
+      sessionStorage.setItem(GOOGLE_MODE_KEY, flowMode);
       const scope = 'openid email profile';
       const responseType = 'id_token';
       const nonce = Math.random().toString(36).substring(2, 15);

@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Cookie, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,7 +10,14 @@ from app.models.password_reset import ForgotPasswordRequest, ResetPasswordReques
 from app.models.google_auth import GoogleSignInRequest, GoogleSignInResponse
 from app.utils.user_service import user_service as mongo_user_service
 from app.utils.unified_user_service import unified_user_service
-from app.utils.auth import create_access_token, create_refresh_token, verify_token, get_current_user as get_current_user_dep
+from app.utils.auth import (
+    create_access_token,
+    create_refresh_token,
+    verify_token,
+    get_current_user as get_current_user_dep,
+    _verify_supabase_jwt,
+    _verify_supabase_via_auth_user_endpoint,
+)
 from app.utils.mfa import mfa_utils
 from app.utils.password_reset_service import PasswordResetService
 from app.utils.google_auth import GoogleAuthService
@@ -32,7 +40,6 @@ async def register(user_data: UserRegistration):
     """
     try:
         # Create user in both databases (dual-write)
-        import logging
         _log = logging.getLogger(__name__)
         try:
             _log.info(f"Registration attempt for email: {user_data.email}")
@@ -48,10 +55,19 @@ async def register(user_data: UserRegistration):
                 detail="Failed to create account. Please try again later."
             )
 
+        if is_from_supabase:
+            try:
+                await unified_user_service.ensure_supabase_auth_for_backend_register(
+                    str(user_data.email),
+                    user_data.password,
+                    user_data.name,
+                    user_data.username,
+                )
+            except Exception as sync_err:
+                _log.warning("Could not mirror user to Supabase Auth (auth.users): %s", sync_err)
+
         # Send verification email (do not fail registration if email fails)
-        import logging
         from urllib.parse import urlencode
-        _log = logging.getLogger(__name__)
         verification_token = getattr(user, "verification_token", None)
         if verification_token and settings.FRONTEND_URL:
             # URL-encode the token to safely handle special characters
@@ -310,6 +326,63 @@ async def verify_email(token: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Email verification failed: {str(e)}"
         )
+
+
+@router.post("/sync-public-user", response_model=dict)
+async def sync_public_user_from_supabase_session(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Upsert public.users from the current Supabase Auth access token.
+    Call after supabase.auth.signUp / signInWithPassword so Table Editor stays in sync with Authentication.
+    """
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
+    token = credentials.credentials
+    payload = _verify_supabase_jwt(token) or {}
+    if not payload.get("sub"):
+        payload = await _verify_supabase_via_auth_user_endpoint(token) or {}
+    elif payload.get("email_confirmed_at") is None:
+        via = await _verify_supabase_via_auth_user_endpoint(token)
+        if via:
+            payload = {**payload, **via}
+    if not payload or not payload.get("sub") or not payload.get("email"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or non-Supabase session token",
+        )
+    meta = payload.get("user_metadata") or {}
+    email = str(payload["email"]).strip().lower()
+    name = (meta.get("full_name") or meta.get("name") or email.split("@")[0]).strip()
+    username = (meta.get("username") or email.split("@")[0]).strip().lower()
+    email_confirmed = bool(payload.get("email_confirmed_at"))
+
+    user = await unified_user_service.sync_public_user_from_supabase_auth(
+        auth_user_id=str(payload["sub"]),
+        email=email,
+        name=name,
+        username=username,
+        email_confirmed=email_confirmed,
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not sync user profile",
+        )
+    return {
+        "success": True,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "username": getattr(user, "username", None),
+            "name": user.name,
+            "is_verified": getattr(user, "is_verified", False),
+        },
+    }
+
 
 @router.get("/me", response_model=dict)
 async def get_current_user(current_user=Depends(get_current_user_dep)):

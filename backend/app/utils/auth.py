@@ -268,6 +268,7 @@ async def _verify_supabase_via_auth_user_endpoint(token: str) -> Optional[dict]:
             "email": u.get("email"),
             "phone": u.get("phone"),
             "user_metadata": u.get("user_metadata") or {},
+            "email_confirmed_at": u.get("email_confirmed_at"),
         }
     except Exception:
         return None
@@ -284,6 +285,9 @@ def _user_from_supabase_payload(payload: dict) -> UserInDB:
     metadata = payload.get("user_metadata") or {}
     name = metadata.get("full_name") or metadata.get("name") or email.split("@")[0]
     username = metadata.get("username") or email.split("@")[0]
+    # JWT may omit email_confirmed_at; treat unknown as verified so existing sessions keep working.
+    raw_conf = payload.get("email_confirmed_at")
+    is_verified_supabase = True if raw_conf is None else bool(raw_conf)
     # Deterministic ObjectId from sub so we have a consistent id
     oid = ObjectId(hashlib.md5(sub.encode()).hexdigest()[:24])
     return UserInDB(
@@ -292,7 +296,7 @@ def _user_from_supabase_payload(payload: dict) -> UserInDB:
         username=username,
         name=name,
         hashed_password=None,
-        is_verified=True,  # Supabase Auth handles verification
+        is_verified=is_verified_supabase,
         is_active=True,
         mfa_enabled=False,
     )

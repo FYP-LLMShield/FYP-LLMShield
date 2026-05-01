@@ -1,6 +1,7 @@
 """
 Unified User Service - Supabase only (no MongoDB fallback)
 """
+import asyncio
 import logging
 import secrets
 from typing import Optional, Tuple
@@ -108,6 +109,76 @@ class UnifiedUserService:
         except Exception as e:
             logger.error(f"Failed to create Google user in Supabase: {e}", exc_info=True)
         return None, False
+
+    async def ensure_supabase_auth_for_google(
+        self,
+        email: str,
+        name: str,
+        google_sub: Optional[str] = None,
+    ) -> None:
+        """Mirror Google sign-in into auth.users (non-fatal if it fails)."""
+        if not self.supabase_service.is_available():
+            return
+        try:
+            await asyncio.to_thread(
+                self.supabase_service.ensure_supabase_auth_user_for_google,
+                email,
+                name,
+                google_sub,
+            )
+        except Exception as e:
+            logger.warning("ensure_supabase_auth_for_google: %s", e)
+
+    async def ensure_supabase_auth_for_backend_register(
+        self,
+        email: str,
+        password: str,
+        name: str,
+        username: str,
+    ) -> None:
+        """Create auth.users with same id as public.users after /auth/register."""
+        if not self.supabase_service.is_available():
+            return
+        try:
+            uuid_str = await asyncio.to_thread(
+                self.supabase_service.get_public_user_id_string_by_email,
+                email,
+            )
+            if not uuid_str:
+                return
+            await asyncio.to_thread(
+                self.supabase_service.ensure_supabase_auth_user_backend_register,
+                uuid_str,
+                email,
+                password,
+                name,
+                username,
+            )
+        except Exception as e:
+            logger.warning("ensure_supabase_auth_for_backend_register: %s", e)
+
+    async def sync_public_user_from_supabase_auth(
+        self,
+        auth_user_id: str,
+        email: str,
+        name: str,
+        username: str,
+        email_confirmed: bool,
+    ) -> Optional[UserInDB]:
+        """Upsert public.users from Supabase Auth session."""
+        if not self.supabase_service.is_available():
+            return None
+        try:
+            return await self.supabase_service.sync_public_user_from_supabase_auth(
+                auth_user_id,
+                email,
+                name,
+                username,
+                email_confirmed,
+            )
+        except Exception as e:
+            logger.error("sync_public_user_from_supabase_auth: %s", e, exc_info=True)
+            return None
 
     async def update_google_user(self, email: str, update_data: dict) -> bool:
         """Update Google user in Supabase only."""

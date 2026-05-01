@@ -2,6 +2,7 @@
 Supabase User Service - Primary database for user authentication
 """
 import logging
+import secrets
 from typing import Optional
 from datetime import datetime
 from fastapi import HTTPException, status
@@ -30,6 +31,187 @@ class SupabaseUserService:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash."""
         return _verify_password(plain_password, hashed_password)
+
+    def ensure_supabase_auth_user_for_google(
+        self,
+        email: str,
+        name: str,
+        google_sub: Optional[str] = None,
+    ) -> None:
+        """
+        Create a matching row in auth.users (Supabase Auth) for Google GIS sign-in.
+
+        Google flow only inserts into public.users via the service client; it does not
+        call supabase.auth.signUp, so users otherwise never appear under Authentication
+        in the dashboard. This mirrors native OAuth behavior: email is treated as
+        confirmed (Google verified it), so no Supabase confirmation email is sent.
+        """
+        if not self.is_available() or not email:
+            return
+        try:
+            from gotrue.errors import AuthApiError
+        except ImportError:
+            AuthApiError = Exception  # type: ignore[misc,assignment]
+
+        attrs = {
+            "email": email.strip(),
+            "password": secrets.token_urlsafe(32),
+            "email_confirm": True,
+            "user_metadata": {
+                "full_name": name or "",
+                "signup_provider": "google_gis",
+                "google_sub": google_sub or "",
+            },
+        }
+        try:
+            self.client.auth.admin.create_user(attrs)  # type: ignore[arg-type]
+            logger.info("Supabase Auth (auth.users) row created for Google sign-in: %s", email)
+        except AuthApiError as e:
+            code = getattr(e, "code", None) or ""
+            msg = (getattr(e, "message", None) or str(e)).lower()
+            if code in ("email_exists", "user_already_exists", "phone_exists") or any(
+                s in msg for s in ("already been registered", "already registered", "duplicate", "exists")
+            ):
+                logger.debug("Supabase Auth user already present for %s; skipping create", email)
+                return
+            logger.warning("Supabase Auth create_user failed for %s: %s", email, e)
+        except Exception as e:
+            logger.warning("Supabase Auth create_user failed for %s: %s", email, e)
+
+    def get_public_user_id_string_by_email(self, email: str) -> Optional[str]:
+        """Return public.users.id (UUID string) for an email, if any."""
+        if not self.is_available() or not email:
+            return None
+        try:
+            result = self.client.table("users").select("id").eq("email", email.strip().lower()).limit(1).execute()
+            if result.data and len(result.data) > 0 and result.data[0].get("id"):
+                return str(result.data[0]["id"])
+        except Exception as e:
+            logger.warning("get_public_user_id_string_by_email failed: %s", e)
+        return None
+
+    def ensure_supabase_auth_user_backend_register(
+        self,
+        public_user_uuid: str,
+        email: str,
+        password: str,
+        name: str,
+        username: str,
+    ) -> None:
+        """
+        Create auth.users with the same UUID as public.users after backend (email) registration.
+        email_confirm=False aligns with public.is_verified until the app verification link is used.
+        """
+        if not self.is_available() or not email or not public_user_uuid:
+            return
+        try:
+            from gotrue.errors import AuthApiError
+        except ImportError:
+            AuthApiError = Exception  # type: ignore[misc,assignment]
+
+        attrs = {
+            "id": public_user_uuid,
+            "email": email.strip().lower(),
+            "password": password,
+            "email_confirm": False,
+            "user_metadata": {
+                "full_name": name or "",
+                "username": username,
+                "signup_provider": "backend_register",
+            },
+        }
+        try:
+            self.client.auth.admin.create_user(attrs)  # type: ignore[arg-type]
+            logger.info("Supabase Auth user created for backend register: %s", email)
+        except AuthApiError as e:
+            code = getattr(e, "code", None) or ""
+            msg = (getattr(e, "message", None) or str(e)).lower()
+            if code in ("email_exists", "user_already_exists", "phone_exists") or any(
+                s in msg for s in ("already been registered", "already registered", "duplicate", "exists")
+            ):
+                logger.info("Supabase Auth user already exists for %s; skipping create", email)
+                return
+            logger.warning("Supabase Auth create_user (backend register) failed for %s: %s", email, e)
+        except Exception as e:
+            logger.warning("Supabase Auth create_user (backend register) failed for %s: %s", email, e)
+
+    def confirm_auth_user_email_for_uuid(self, auth_user_id: str) -> None:
+        """Set email_confirm on auth.users after public.users email verification."""
+        if not self.is_available() or not auth_user_id:
+            return
+        try:
+            self.client.auth.admin.update_user_by_id(
+                auth_user_id,
+                {"email_confirm": True},
+            )
+            logger.info("Supabase Auth email confirmed for user id %s", auth_user_id)
+        except Exception as e:
+            logger.warning("Could not confirm Supabase Auth user %s: %s", auth_user_id, e)
+
+    async def sync_public_user_from_supabase_auth(
+        self,
+        auth_user_id: str,
+        email: str,
+        name: str,
+        username: str,
+        email_confirmed: bool,
+    ) -> Optional[UserInDB]:
+        """
+        Upsert public.users from a Supabase Auth session (email/password or OAuth via Auth).
+        Does not overwrite an existing password hash (backend-registered users).
+        """
+        if not self.is_available() or not email:
+            return None
+        email = email.strip().lower()
+        name = (name or email.split("@")[0]).strip() or email.split("@")[0]
+        username = (username or email.split("@")[0]).strip().lower() or email.split("@")[0]
+
+        try:
+            existing = self.client.table("users").select("*").eq("email", email).limit(1).execute()
+            row = existing.data[0] if existing.data else None
+            now_iso = datetime.utcnow().isoformat()
+
+            if row:
+                new_verified = bool(row.get("is_verified")) or bool(email_confirmed)
+                upd = {
+                    "name": name or row.get("name"),
+                    "username": username or row.get("username"),
+                    "display_name": name or row.get("display_name") or "",
+                    "is_verified": new_verified,
+                    "updated_at": now_iso,
+                }
+                self.client.table("users").update(upd).eq("email", email).execute()
+            else:
+                insert_payload = {
+                    "id": auth_user_id,
+                    "email": email,
+                    "username": username,
+                    "name": name,
+                    "display_name": name,
+                    "hashed_password": "",
+                    "is_verified": bool(email_confirmed),
+                    "is_active": True,
+                    "mfa_enabled": False,
+                    "mfa_setup_complete": False,
+                    "recovery_codes": [],
+                    "trusted_devices": [],
+                    "current_subscription_tier": "premium",
+                    "subscription_status": "active",
+                }
+                try:
+                    self.client.table("users").insert(insert_payload).execute()
+                except Exception as ins_err:
+                    err_l = str(ins_err).lower()
+                    if "unique" in err_l or "duplicate" in err_l:
+                        logger.info("sync_public_user: username conflict, retrying with suffix (%s)", email)
+                        insert_payload["username"] = f"{username}_{secrets.token_hex(3)}"
+                        self.client.table("users").insert(insert_payload).execute()
+                    else:
+                        raise
+            return await self.get_user_by_email(email)
+        except Exception as e:
+            logger.error("sync_public_user_from_supabase_auth failed for %s: %s", email, e, exc_info=True)
+            return None
     
     async def create_user(self, user_data: UserRegistration) -> Optional[UserInDB]:
         """Create a new user in Supabase"""
@@ -316,15 +498,27 @@ class SupabaseUserService:
                 all_tokens = self.client.table("users").select("email,verification_token").limit(5).execute()
                 logger.warning(f"Sample tokens in database: {[{'email': u.get('email'), 'token_present': bool(u.get('verification_token'))} for u in (all_tokens.data or [])]}")
 
-            result = self.client.table("users").update({
-                "is_verified": True,
-                "verification_token": None,
-                "updated_at": datetime.utcnow().isoformat()
-            }).eq("verification_token", token).execute()
+            result = (
+                self.client.table("users")
+                .update(
+                    {
+                        "is_verified": True,
+                        "verification_token": None,
+                        "updated_at": datetime.utcnow().isoformat(),
+                    }
+                )
+                .eq("verification_token", token)
+                .select("id,email")
+                .execute()
+            )
 
             success = result.data is not None and len(result.data) > 0
             if success:
-                logger.info(f"Email verification successful for: {result.data[0].get('email')}")
+                row0 = result.data[0]
+                logger.info(f"Email verification successful for: {row0.get('email')}")
+                uid = row0.get("id")
+                if uid:
+                    self.confirm_auth_user_email_for_uuid(str(uid))
             else:
                 logger.error(f"Email verification failed: UPDATE returned no data for token {token[:30]}...")
 

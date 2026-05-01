@@ -17,6 +17,17 @@ async function syncSupabaseSessionToApiClient() {
   }
 }
 
+/** Keep public.users in sync with auth.users after Supabase email/password auth. */
+async function trySyncPublicUserAfterSupabaseAuth() {
+  try {
+    await syncSupabaseSessionToApiClient()
+    const res = await authAPI.syncPublicUser()
+    if (!res?.success) console.warn('syncPublicUser:', res?.error || res)
+  } catch (e) {
+    console.warn('syncPublicUser failed:', e)
+  }
+}
+
 function profilePictureCacheKey(userIdOrEmail) {
   return userIdOrEmail ? `profile_picture_cache:${userIdOrEmail}` : null
 }
@@ -87,6 +98,7 @@ export const AuthProvider = ({ children }) => {
             }
             localStorage.setItem('access_token', session.access_token)
             authAPI.setToken(session.access_token)
+            await trySyncPublicUserAfterSupabaseAuth()
             setUser(userData)
             localStorage.setItem("user", JSON.stringify(userData))
             setIsLoading(false)
@@ -188,6 +200,12 @@ export const AuthProvider = ({ children }) => {
             }
           })
           if (!error) {
+            const sess = data?.session
+            if (sess?.access_token) {
+              localStorage.setItem('access_token', sess.access_token)
+              authAPI.setToken(sess.access_token)
+              await trySyncPublicUserAfterSupabaseAuth()
+            }
             // Supabase may require email confirmation; don't set user/token
             const userData = {
               id: data?.user?.id || null,
