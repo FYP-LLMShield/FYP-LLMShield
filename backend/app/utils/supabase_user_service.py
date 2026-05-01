@@ -691,7 +691,8 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    result = self.client.table("users").update(update_payload).eq("email", em).select("mfa_secret").execute()
+                    # postgrest-py: .update() returns FilterRequestBuilder — no .select(); PATCH uses return=representation by default.
+                    result = self.client.table("users").update(update_payload).eq("email", em).execute()
                 except Exception as upd_err:
                     logger.error(f"store_temp_mfa_secret update failed for {em!r}: {upd_err}")
                     continue
@@ -720,7 +721,7 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    result = self.client.table("users").update(update_payload).eq("email", em).select("mfa_enabled, mfa_setup_complete").execute()
+                    result = self.client.table("users").update(update_payload).eq("email", em).execute()
                 except Exception as upd_err:
                     logger.error(f"enable_mfa update failed for {em!r}: {upd_err}")
                     continue
@@ -758,7 +759,7 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    result = self.client.table("users").update(update_payload).eq("email", em).select("mfa_enabled, mfa_setup_complete, mfa_secret").execute()
+                    result = self.client.table("users").update(update_payload).eq("email", em).execute()
                 except Exception as upd_err:
                     logger.error(f"finalize_mfa_setup update failed for {em!r}: {upd_err}")
                     continue
@@ -801,7 +802,7 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    result = self.client.table("users").update(clear_payload).eq("email", em).select("mfa_enabled, mfa_secret").execute()
+                    result = self.client.table("users").update(clear_payload).eq("email", em).execute()
                 except Exception as upd_err:
                     logger.error(f"disable_mfa update failed for {em!r}: {upd_err}")
                     continue
