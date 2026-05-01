@@ -689,15 +689,19 @@ class SupabaseUserService:
                 "recovery_codes": hashed_recovery_codes,
                 "updated_at": datetime.utcnow().isoformat(),
             }
-            # PostgREST often returns empty `data` on UPDATE even when rows match — verify by re-fetch.
             for em in self._email_lookup_variants(email):
                 try:
-                    self.client.table("users").update(update_payload).eq("email", em).execute()
+                    result = self.client.table("users").update(update_payload).eq("email", em).select("mfa_secret").execute()
                 except Exception as upd_err:
                     logger.error(f"store_temp_mfa_secret update failed for {em!r}: {upd_err}")
                     continue
+                if result.data:
+                    stored = (result.data[0].get("mfa_secret") or "").strip()
+                    if stored == (secret or "").strip():
+                        return True
+                # Fallback: re-read when PostgREST returns no data.
                 check = await self.get_user_by_email(email)
-                if check and check.mfa_secret == secret:
+                if check and (check.mfa_secret or "").strip() == (secret or "").strip():
                     return True
             return False
         except Exception as e:
@@ -716,13 +720,22 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    self.client.table("users").update(update_payload).eq("email", em).execute()
+                    result = self.client.table("users").update(update_payload).eq("email", em).select("mfa_enabled, mfa_setup_complete").execute()
                 except Exception as upd_err:
                     logger.error(f"enable_mfa update failed for {em!r}: {upd_err}")
                     continue
-                check = await self.get_user_by_email(email)
-                if check and check.mfa_enabled and check.mfa_setup_complete:
-                    return True
+                # Primary check: use the row returned by PostgREST directly (no stale-read risk).
+                if result.data:
+                    row = result.data[0]
+                    if row.get("mfa_enabled") and row.get("mfa_setup_complete"):
+                        logger.info("enable_mfa SUCCESS via select result for %r", em)
+                        return True
+                    logger.warning("enable_mfa: update returned row but mfa_enabled=%s for %r", row.get("mfa_enabled"), em)
+                else:
+                    # PostgREST returned no rows — email variant didn't match any row; try next.
+                    logger.warning("enable_mfa: update matched 0 rows for email variant %r", em)
+                    continue
+            logger.error("enable_mfa: could not confirm mfa_enabled=True for %r after all variants", email)
             return False
         except Exception as e:
             logger.error(f"Error enabling MFA in Supabase: {e}")
@@ -745,18 +758,30 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    self.client.table("users").update(update_payload).eq("email", em).execute()
+                    result = self.client.table("users").update(update_payload).eq("email", em).select("mfa_enabled, mfa_setup_complete, mfa_secret").execute()
                 except Exception as upd_err:
                     logger.error(f"finalize_mfa_setup update failed for {em!r}: {upd_err}")
                     continue
-                check = await self.get_user_by_email(email)
-                if (
-                    check
-                    and check.mfa_enabled
-                    and check.mfa_setup_complete
-                    and (check.mfa_secret or "").strip() == (secret or "").strip()
-                ):
-                    return True
+                # Primary check: use the row returned by PostgREST directly.
+                if result.data:
+                    row = result.data[0]
+                    if row.get("mfa_enabled") and row.get("mfa_setup_complete"):
+                        logger.info("finalize_mfa_setup SUCCESS via select result for %r", em)
+                        return True
+                    logger.warning(
+                        "finalize_mfa_setup: update returned row but mfa_enabled=%s for %r",
+                        row.get("mfa_enabled"), em,
+                    )
+                else:
+                    # PostgREST returned no rows — email variant didn't match; try next.
+                    logger.warning("finalize_mfa_setup: update matched 0 rows for email variant %r", em)
+                    continue
+            # Final fallback: re-read the DB (handles supabase-py versions that don't return data on UPDATE).
+            check = await self.get_user_by_email(email)
+            if check and check.mfa_enabled and check.mfa_setup_complete:
+                logger.info("finalize_mfa_setup SUCCESS via fallback re-read for %r", email)
+                return True
+            logger.error("finalize_mfa_setup FAILED: mfa_enabled not confirmed for %r", email)
             return False
         except Exception as e:
             logger.error(f"Error finalize_mfa_setup in Supabase: {e}")
@@ -776,13 +801,25 @@ class SupabaseUserService:
             }
             for em in self._email_lookup_variants(email):
                 try:
-                    self.client.table("users").update(clear_payload).eq("email", em).execute()
+                    result = self.client.table("users").update(clear_payload).eq("email", em).select("mfa_enabled, mfa_secret").execute()
                 except Exception as upd_err:
                     logger.error(f"disable_mfa update failed for {em!r}: {upd_err}")
                     continue
-                check = await self.get_user_by_email(email)
-                if check and not check.mfa_enabled and not check.mfa_secret:
-                    return True
+                if result.data:
+                    row = result.data[0]
+                    if not row.get("mfa_enabled") and not row.get("mfa_secret"):
+                        logger.info("disable_mfa SUCCESS via select result for %r", em)
+                        return True
+                    logger.warning("disable_mfa: update returned row but mfa_enabled=%s for %r", row.get("mfa_enabled"), em)
+                else:
+                    logger.warning("disable_mfa: update matched 0 rows for email variant %r", em)
+                    continue
+            # Fallback re-read.
+            check = await self.get_user_by_email(email)
+            if check and not check.mfa_enabled and not check.mfa_secret:
+                logger.info("disable_mfa SUCCESS via fallback re-read for %r", email)
+                return True
+            logger.error("disable_mfa FAILED: mfa_enabled not confirmed False for %r", email)
             return False
         except Exception as e:
             logger.error(f"Error disabling MFA in Supabase: {e}")
