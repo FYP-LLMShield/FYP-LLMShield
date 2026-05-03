@@ -217,6 +217,12 @@ For support, visit: https://llmshield.com/support
     def _send_email_smtp(self, to_email: str, subject: str, message: str) -> bool:
         """Send email using SMTP"""
         try:
+            if not EmailConfig.is_configured():
+                logger.warning(
+                    "SMTP is not configured (set EMAIL_USERNAME and EMAIL_PASSWORD). Cannot send email to %s",
+                    to_email,
+                )
+                return False
             # Create message
             msg = MIMEMultipart()
             msg['From'] = EmailConfig.get_from_header()

@@ -33,6 +33,8 @@ export interface AuthContextValue {
   logout: () => void
   isLoading: boolean
   isInitialized: boolean
+  /** True after the first MFA status fetch finishes for this session (success or failure). */
+  mfaStatusHydrated: boolean
   mfaStatus: MfaStatus
   fetchMfaStatus: () => Promise<void>
   initiateMfaSetup: () => Promise<unknown>

@@ -9,6 +9,17 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _supabase_gotrue_origin() -> str:
+    """Project origin only (no /auth/v1 suffix) for GoTrue REST calls."""
+    raw = (settings.SUPABASE_PROJECT_URL or "").strip().rstrip("/")
+    if not raw:
+        return ""
+    for suffix in ("/auth/v1", "/rest/v1"):
+        if raw.endswith(suffix):
+            raw = raw[: -len(suffix)].rstrip("/")
+    return raw
+
 if TYPE_CHECKING:
     from supabase import Client
 
@@ -196,6 +207,51 @@ class SupabaseService:
     def get_client(self) -> Optional["Client"]:
         """Get Supabase client instance"""
         return self.client
+
+    async def send_password_recovery_email(self, email: str, redirect_to: str) -> bool:
+        """
+        Trigger Supabase GoTrue to send the official password recovery email.
+        Uses the project's Auth email settings (no app-level SMTP required).
+        """
+        origin = _supabase_gotrue_origin()
+        apikey = settings.SUPABASE_ANON_KEY or settings.SUPABASE_SERVICE_KEY
+        if not origin or not apikey:
+            logger.warning(
+                "Supabase recovery email skipped: set SUPABASE_PROJECT_URL and SUPABASE_ANON_KEY (or SERVICE_KEY)"
+            )
+            return False
+        url = f"{origin}/auth/v1/recover"
+        payload: Dict[str, Any] = {"email": (email or "").strip().lower()}
+        rt = (redirect_to or "").strip()
+        if rt:
+            payload["redirect_to"] = rt
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.post(
+                    url,
+                    headers={
+                        "apikey": apikey,
+                        "Authorization": f"Bearer {apikey}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+            if resp.status_code >= 400:
+                logger.warning(
+                    "GoTrue /recover returned %s for %s: %s",
+                    resp.status_code,
+                    payload["email"],
+                    (resp.text or "")[:400],
+                )
+                return False
+            logger.info("GoTrue recovery email requested for %s", payload["email"])
+            return True
+        except Exception as e:
+            logger.error("GoTrue /recover request failed: %s", e)
+            return False
+
 
 # Global instance
 supabase_service = SupabaseService()

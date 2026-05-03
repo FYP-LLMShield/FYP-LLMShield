@@ -121,8 +121,10 @@ const recentScans = [
   },
 ]
 
+const MFA_NUDGE_SESSION_KEY = "mfaNudgeAutoShownThisSession"
+
 export const MainDashboard = memo(() => {
-  const { user, mfaStatus } = useAuth();
+  const { user, mfaStatus, mfaStatusHydrated } = useAuth();
   const { theme } = useTheme();
 
   const chartTooltipStyle =
@@ -151,12 +153,19 @@ export const MainDashboard = memo(() => {
   const [showMfaPrompt, setShowMfaPrompt] = useState(false);
 
   // After the welcome modal closes, nudge users who have not enabled MFA yet (separate small modal).
+  // Wait for MFA status from API so we do not flash the nudge when MFA is already on (Supabase path).
+  // At most one auto-open per browser session (sessionStorage).
   useEffect(() => {
     if (showWelcomePopup) {
       setShowMfaPrompt(false);
       return;
     }
-    if (mfaStatus?.enabled) {
+    if (!mfaStatusHydrated) {
+      setShowMfaPrompt(false);
+      return;
+    }
+    const mfaOn = Boolean(mfaStatus?.enabled || user?.mfaEnabled);
+    if (mfaOn) {
       setShowMfaPrompt(false);
       return;
     }
@@ -164,8 +173,17 @@ export const MainDashboard = memo(() => {
       setShowMfaPrompt(false);
       return;
     }
+    if (sessionStorage.getItem(MFA_NUDGE_SESSION_KEY) === "true") {
+      setShowMfaPrompt(false);
+      return;
+    }
+    try {
+      sessionStorage.setItem(MFA_NUDGE_SESSION_KEY, "true");
+    } catch (_) {
+      /* ignore */
+    }
     setShowMfaPrompt(true);
-  }, [showWelcomePopup, mfaStatus?.enabled]);
+  }, [showWelcomePopup, mfaStatus?.enabled, mfaStatusHydrated, user?.mfaEnabled]);
 
   const handleCloseWelcome = () => {
     setShowWelcomePopup(false);

@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { authAPI } from '../../lib/api';
 import PasswordRequirements from './PasswordRequirements';
+import { supabase, isSupabaseAuthAvailable } from '../../lib/supabase';
+
+/** Backend-issued token in query string, or Supabase Auth recovery session (email link). */
+type ResetMode = 'backend_token' | 'supabase_recovery' | 'none';
 
 const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -18,6 +22,8 @@ const ResetPasswordPage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  const [resetMode, setResetMode] = useState<ResetMode>('none');
+  const supabaseRecoveryReadyRef = useRef(false);
 
   // Password validation
   const [passwordRequirements, setPasswordRequirements] = useState({
@@ -29,12 +35,69 @@ const ResetPasswordPage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (!token) {
-      setError('Invalid or missing reset token');
-      setTokenValid(false);
+    const qp = (token || '').trim();
+    if (qp) {
+      setResetMode('backend_token');
+      setTokenValid(true);
+      setError('');
       return;
     }
-    setTokenValid(true);
+
+    if (!isSupabaseAuthAvailable() || !supabase) {
+      setResetMode('none');
+      setTokenValid(false);
+      setError('Invalid or missing reset token');
+      return;
+    }
+
+    supabaseRecoveryReadyRef.current = false;
+    setResetMode('none');
+    setTokenValid(null);
+    setError('');
+
+    let recoveryTimeoutId = window.setTimeout(() => {
+      if (!supabaseRecoveryReadyRef.current) {
+        setTokenValid(false);
+        setError('This reset link is invalid or has expired. Please request a new password reset from the login page.');
+      }
+    }, 12000);
+
+    const markSupabaseReady = () => {
+      if (supabaseRecoveryReadyRef.current) return;
+      supabaseRecoveryReadyRef.current = true;
+      window.clearTimeout(recoveryTimeoutId);
+      setResetMode('supabase_recovery');
+      setTokenValid(true);
+    };
+
+    const tryHashRecovery = () => {
+      try {
+        const h = window.location.hash?.slice(1) || '';
+        const params = new URLSearchParams(h);
+        if (params.get('type') === 'recovery') {
+          markSupabaseReady();
+          return true;
+        }
+      } catch {
+        /* ignore */
+      }
+      return false;
+    };
+
+    tryHashRecovery();
+    const hashPollId = window.setTimeout(tryHashRecovery, 400);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        markSupabaseReady();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      window.clearTimeout(recoveryTimeoutId);
+      window.clearTimeout(hashPollId);
+    };
   }, [token]);
 
   useEffect(() => {
@@ -52,11 +115,6 @@ const ResetPasswordPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!token) {
-      setError('Invalid reset token');
-      return;
-    }
 
     if (!isPasswordValid) {
       setError('Please ensure your password meets all requirements');
@@ -72,8 +130,27 @@ const ResetPasswordPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      if (resetMode === 'supabase_recovery' && supabase) {
+        const { error: sbErr } = await supabase.auth.updateUser({ password });
+        if (sbErr) {
+          setError(sbErr.message || 'Failed to reset password. Please try again.');
+          return;
+        }
+        setSuccess(true);
+        setTimeout(() => {
+          navigate('/auth', { replace: true });
+        }, 2500);
+        return;
+      }
+
+      const t = (token || '').trim();
+      if (!t) {
+        setError('Invalid reset token');
+        return;
+      }
+
       const response = await authAPI.resetPassword({
-        token,
+        token: t,
         new_password: password,
       });
 
@@ -92,6 +169,21 @@ const ResetPasswordPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  if (tokenValid === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 p-8 text-center"
+        >
+          <div className="w-12 h-12 border-2 border-teal-400/30 border-t-teal-400 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-300">Verifying your reset link…</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (tokenValid === false) {
     return (

@@ -64,10 +64,12 @@ export const AuthProvider = ({ children }) => {
     setupComplete: false,
     recoveryCodesRemaining: 0
   })
+  const [mfaStatusHydrated, setMfaStatusHydrated] = useState(false)
 
   // Login: try Supabase Auth first; if Supabase is down, use backend (fallback)
   const login = async (email, password) => {
     setIsLoading(true)
+    setMfaStatusHydrated(false)
     try {
       // 1) Try Supabase Auth first (primary)
       if (isSupabaseAuthAvailable() && supabase) {
@@ -101,6 +103,11 @@ export const AuthProvider = ({ children }) => {
             await trySyncPublicUserAfterSupabaseAuth()
             setUser(userData)
             localStorage.setItem("user", JSON.stringify(userData))
+            try {
+              await fetchMfaStatus()
+            } catch (_) {
+              /* fetchMfaStatus sets hydrated in finally; ignore */
+            }
             setIsLoading(false)
             return userData
           }
@@ -160,17 +167,7 @@ export const AuthProvider = ({ children }) => {
         setUser(userData)
         localStorage.setItem("user", JSON.stringify(userData))
         try {
-          const mfaResponse = await mfaAPI.getStatus()
-          if (mfaResponse.success && mfaResponse.data) {
-            const updatedUserData = { ...userData, mfaEnabled: mfaResponse.data.mfa_enabled }
-            setUser(updatedUserData)
-            localStorage.setItem("user", JSON.stringify(updatedUserData))
-            setMfaStatus({
-              enabled: mfaResponse.data.mfa_enabled,
-              setupComplete: mfaResponse.data.setup_complete,
-              recoveryCodesRemaining: mfaResponse.data.recovery_codes_remaining
-            })
-          }
+          await fetchMfaStatus()
         } catch (mfaError) {
           console.warn('Failed to fetch MFA status:', mfaError)
         }
@@ -385,6 +382,13 @@ export const AuthProvider = ({ children }) => {
     authAPI.logout()
     setUser(null)
     setMfaStatus({ enabled: false, setupComplete: false, recoveryCodesRemaining: 0 })
+    setMfaStatusHydrated(false)
+    try {
+      sessionStorage.removeItem("mfaPromptDismissed")
+      sessionStorage.removeItem("mfaNudgeAutoShownThisSession")
+    } catch (_) {
+      /* ignore */
+    }
     localStorage.removeItem("user")
     localStorage.removeItem("access_token")
     localStorage.removeItem("refresh_token")
@@ -393,8 +397,8 @@ export const AuthProvider = ({ children }) => {
 
   // MFA-related functions
   const fetchMfaStatus = async () => {
-    await syncSupabaseSessionToApiClient()
     try {
+      await syncSupabaseSessionToApiClient()
       const response = await mfaAPI.getStatus()
       if (response.success && response.data) {
         setMfaStatus({
@@ -415,6 +419,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Failed to fetch MFA status:', error)
       throw error
+    } finally {
+      setMfaStatusHydrated(true)
     }
   }
 
@@ -602,6 +608,7 @@ export const AuthProvider = ({ children }) => {
                   job_role: u2.job_role ?? userData.job_role,
                   company: u2.company ?? userData.company,
                   bio: u2.bio ?? userData.bio,
+                  mfaEnabled: Boolean(u2.mfa_enabled),
                 }
                 if (!merged.profile_picture) {
                   merged.profile_picture = readCachedProfilePicture(merged.id || merged.email)
@@ -612,6 +619,12 @@ export const AuthProvider = ({ children }) => {
               }
             } catch (_) {
               /* ignore */
+            }
+
+            try {
+              await fetchMfaStatus()
+            } catch (_) {
+              /* hydrated in fetchMfaStatus finally */
             }
 
             setIsLoading(false)
@@ -635,7 +648,12 @@ export const AuthProvider = ({ children }) => {
           setUser(parsedUser)
           // Set token in API client
           authAPI.setToken(token)
-          
+          try {
+            await fetchMfaStatus()
+          } catch (_) {
+            /* hydrated in fetchMfaStatus finally */
+          }
+
           // Validate token in background (non-blocking)
           // This allows the user to stay logged in even if validation is slow
           validateToken().then((userData) => {
@@ -658,11 +676,6 @@ export const AuthProvider = ({ children }) => {
               }
               setUser(updatedUser)
               localStorage.setItem("user", JSON.stringify(updatedUser))
-              
-              // Fetch MFA status
-              fetchMfaStatus().catch(error => {
-                console.warn('Failed to fetch MFA status:', error)
-              })
             } else {
               // Token validation failed, try refresh token
               if (refreshToken) {
@@ -685,6 +698,7 @@ export const AuthProvider = ({ children }) => {
                     }
                     setUser(updatedUser)
                     localStorage.setItem("user", JSON.stringify(updatedUser))
+                    fetchMfaStatus().catch((err) => console.warn('Failed to fetch MFA status:', err))
                   } else {
                     // Both token and refresh failed, clear everything
                     console.warn('Token validation and refresh both failed, clearing session')
@@ -732,6 +746,11 @@ export const AuthProvider = ({ children }) => {
               }
               setUser(updatedUser)
               localStorage.setItem("user", JSON.stringify(updatedUser))
+              try {
+                await fetchMfaStatus()
+              } catch (_) {
+                /* hydrated in fetchMfaStatus finally */
+              }
             } else {
               logout()
             }
@@ -743,6 +762,10 @@ export const AuthProvider = ({ children }) => {
           // No token and no refresh token, clear everything
           logout()
         }
+      }
+
+      if (!localStorage.getItem("access_token")) {
+        setMfaStatusHydrated(true)
       }
       
       setIsLoading(false)
@@ -764,6 +787,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         isLoading,
         isInitialized,
+        mfaStatusHydrated,
         mfaStatus,
         fetchMfaStatus,
         initiateMfaSetup,

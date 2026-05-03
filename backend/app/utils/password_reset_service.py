@@ -149,26 +149,40 @@ class PasswordResetService:
                     logger.error(f"Password reset requested but email send failed for {email} (check EMAIL_USERNAME/EMAIL_PASSWORD and SMTP)")
                 return True
 
-            # 2. Check Supabase (user may exist only there)
+            # 2. Supabase Auth (user not in Mongo): GoTrue sends the recovery email using project Auth settings.
+            #    (Previously called a non-existent supabase_service.get_user_by_email — emails never sent.)
             try:
                 from app.utils.supabase_client import supabase_service
+                from app.utils.unified_user_service import unified_user_service
+
                 if supabase_service.is_available():
-                    user_supabase = await supabase_service.get_user_by_email(email)
+                    redirect_to = f"{(settings.FRONTEND_URL or 'http://localhost:3000').rstrip('/')}/reset-password"
+                    if await supabase_service.send_password_recovery_email(email, redirect_to):
+                        logger.info("Password reset: Supabase GoTrue recovery email triggered for %s", email)
+                        return True
+
+                    # Fallback: custom token + app SMTP (e.g. GoTrue misconfigured or redirect URL rejected)
+                    user_supabase = await unified_user_service.get_user_by_email(email.strip().lower())
                     if user_supabase and user_supabase.id:
                         reset_token = await self.create_reset_token(
-                            user_supabase.id, email, source="supabase"
+                            str(user_supabase.id), email, source="supabase"
                         )
                         if not reset_token:
-                            logger.error(f"Failed to create reset token for Supabase user {email}")
+                            logger.error("Failed to create reset token for Supabase user %s", email)
                             return True
                         email_sent = await self.send_reset_email(email, reset_token)
                         if email_sent:
-                            logger.info(f"Password reset email sent to {email} (Supabase user)")
+                            logger.info("Password reset email sent to %s (Supabase user, SMTP fallback)", email)
                         else:
-                            logger.error(f"Password reset requested but email send failed for {email} (check EMAIL_USERNAME/EMAIL_PASSWORD and SMTP)")
+                            logger.error(
+                                "Password reset: GoTrue failed and SMTP fallback failed for %s "
+                                "(check Supabase redirect URLs include %s; set EMAIL_* for SMTP fallback)",
+                                email,
+                                redirect_to,
+                            )
                         return True
             except Exception as e:
-                logger.warning(f"Supabase lookup for password reset failed: {e}")
+                logger.warning("Supabase password reset path failed: %s", e)
 
             # No user in MongoDB or Supabase
             logger.info(f"Password reset requested for non-existent email: {email}")

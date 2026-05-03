@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { authAPI } from '../../lib/api';
+import { supabase, isSupabaseAuthAvailable, isSupabaseUnavailableError } from '../../lib/supabase';
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -10,12 +11,65 @@ interface ForgotPasswordModalProps {
   prefillEmail?: string;
 }
 
+function passwordResetRedirectBase(): string {
+  const fromEnv = (process.env.REACT_APP_APP_URL || '').trim().replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  if (typeof window !== 'undefined') return window.location.origin.replace(/\/$/, '');
+  return '';
+}
+
+/**
+ * Prefer Supabase Auth's reset email when the app uses Supabase (same keys as sign-in).
+ * Falls back to backend /auth/forgot-password for Mongo-only auth or when Supabase is down.
+ */
+async function requestPasswordResetEmail(emailRaw: string): Promise<{ ok: boolean; message?: string }> {
+  const email = emailRaw.trim().toLowerCase();
+  if (!email) return { ok: false, message: 'Please enter your email address.' };
+
+  if (isSupabaseAuthAvailable() && supabase) {
+    try {
+      const base = passwordResetRedirectBase();
+      const redirectTo = base ? `${base}/reset-password` : undefined;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        ...(redirectTo ? { redirectTo } : {}),
+      });
+      if (!error) {
+        return { ok: true };
+      }
+      if (isSupabaseUnavailableError(error)) {
+        const res = await authAPI.forgotPassword({ email });
+        return res.success ? { ok: true } : { ok: false, message: res.error || 'Failed to send reset email.' };
+      }
+      return { ok: false, message: error.message || 'Failed to send reset email.' };
+    } catch (e) {
+      console.warn('Supabase resetPasswordForEmail failed, trying backend:', e);
+      const res = await authAPI.forgotPassword({ email });
+      return res.success ? { ok: true } : { ok: false, message: res.error || 'Failed to send reset email.' };
+    }
+  }
+
+  const res = await authAPI.forgotPassword({ email });
+  return res.success ? { ok: true } : { ok: false, message: res.error || 'Failed to send reset email.' };
+}
+
 const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose, prefillEmail = '' }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState<'email' | 'success'>('email');
+
+  const runResetRequest = useCallback(async (emailToSend: string): Promise<boolean> => {
+    const result = await requestPasswordResetEmail(emailToSend);
+    if (result.ok) {
+      setSuccess(true);
+      setError('');
+      return true;
+    }
+    setSuccess(false);
+    setError(result.message || 'Failed to send reset email. Please try again.');
+    return false;
+  }, []);
 
   // When modal opens with prefillEmail, use that email and send reset link immediately (no "enter email" form)
   useEffect(() => {
@@ -27,25 +81,21 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
       setSuccess(false);
       setError('');
       setIsLoading(true);
-      authAPI.forgotPassword({ email: toUse }).then((response) => {
-        setIsLoading(false);
-        if (response.success) {
-          setSuccess(true);
-        } else {
-          setError(response.error || 'Failed to send reset email. Please try again.');
-        }
-      }).catch((err) => {
-        console.error('Forgot password error:', err);
-        setIsLoading(false);
-        setError('An error occurred. Please try again.');
-      });
+      runResetRequest(toUse)
+        .catch((err) => {
+          console.error('Forgot password error:', err);
+          setError('An error occurred. Please try again.');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     } else {
       setEmail('');
       setStep('email');
       setSuccess(false);
       setError('');
     }
-  }, [isOpen, prefillEmail]);
+  }, [isOpen, prefillEmail, runResetRequest]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,14 +103,8 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
     setIsLoading(true);
 
     try {
-      const response = await authAPI.forgotPassword({ email });
-      
-      if (response.success) {
-        setStep('success');
-        setSuccess(true);
-      } else {
-        setError(response.error || 'Failed to send reset email. Please try again.');
-      }
+      const ok = await runResetRequest(email);
+      if (ok) setStep('success');
     } catch (error) {
       console.error('Forgot password error:', error);
       setError('An error occurred. Please try again.');

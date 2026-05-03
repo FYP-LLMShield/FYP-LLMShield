@@ -33,14 +33,22 @@ const MfaPromptPopup: React.FC<MfaPromptPopupProps> = ({ isOpen, onClose, userNa
   }
 
   const handleEnableNow = () => {
+    try {
+      sessionStorage.setItem("mfaPromptDismissed", "true");
+    } catch (_) {
+      /* ignore */
+    }
     onClose();
     navigate('/dashboard/mfa');
   };
 
   const handleLater = () => {
+    try {
+      sessionStorage.setItem("mfaPromptDismissed", "true");
+    } catch (_) {
+      /* ignore */
+    }
     onClose();
-    // Set session storage to prevent showing again until MFA is enabled
-    sessionStorage.setItem('mfaPromptDismissed', 'true');
   };
 
   // Wrap the entire JSX in createPortal
