@@ -32,6 +32,8 @@ interface RequestOptions {
   method?: HttpMethod
   body?: any
   headers?: Record<string, string>
+  /** When set, aborts the request after this many ms (avoids infinite spinner on hung API/DB). */
+  timeoutMs?: number
 }
 
 const apiClient = {
@@ -47,7 +49,8 @@ const apiClient = {
     localStorage.removeItem("access_token")
   },
 
-  async request(path: string, { method = "GET", body, headers = {} }: RequestOptions = {}, retryOnAuth = true): Promise<any> {
+  async request(path: string, opts: RequestOptions = {}, retryOnAuth = true): Promise<any> {
+    const { method = "GET", body, headers = {}, timeoutMs } = opts
     let token = this.token || localStorage.getItem("access_token")
     const mergedHeaders: Record<string, string> = {
       "Content-Type": "application/json",
@@ -80,11 +83,34 @@ const apiClient = {
       }
     }
 
-    const response = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers: mergedHeaders,
-      body: body ? JSON.stringify(body) : undefined,
-    })
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    if (controller && typeof timeoutMs === "number" && timeoutMs > 0) {
+      timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    }
+
+    let response: Response
+    try {
+      response = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: mergedHeaders,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller?.signal,
+      })
+    } catch (e: unknown) {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      const aborted =
+        (typeof DOMException !== "undefined" && e instanceof DOMException && e.name === "AbortError") ||
+        (e instanceof Error && e.name === "AbortError")
+      if (aborted && timeoutMs && timeoutMs > 0) {
+        return {
+          success: false,
+          error: `Request timed out after ${Math.round(timeoutMs / 1000)}s. If this is production, confirm REACT_APP_API_URL points to your live API and the backend can reach MongoDB.`,
+        }
+      }
+      throw e
+    }
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
 
     // Handle 401 Unauthorized - try to refresh token
     if (response.status === 401 && retryOnAuth) {
@@ -105,7 +131,7 @@ const apiClient = {
               localStorage.setItem('access_token', refreshData.access_token)
               this.setToken(refreshData.access_token)
               // Retry the original request with new token
-              return this.request(path, { method, body, headers }, false) // Don't retry again
+              return this.request(path, { method, body, headers, timeoutMs }, false) // Don't retry again
             }
           }
         } catch (refreshError) {
@@ -122,7 +148,7 @@ const apiClient = {
             if (!sbErr && sbData?.session?.access_token) {
               localStorage.setItem("access_token", sbData.session.access_token)
               this.setToken(sbData.session.access_token)
-              return this.request(path, { method, body, headers }, false)
+              return this.request(path, { method, body, headers, timeoutMs }, false)
             }
           }
         } catch (sbRefresh) {
@@ -179,13 +205,20 @@ export const authAPI = {
   resetPassword: (payload: any) => apiClient.request("/auth/reset-password", { method: "POST", body: payload }),
 }
 
+/** MFA calls hit production API + DB; 90s allows cold starts while still ending a hung connection. */
+const MFA_REQUEST_TIMEOUT_MS = 90_000
+
 // -------- MFA APIs --------
 export const mfaAPI = {
-  getStatus: () => apiClient.request("/auth/mfa/status"),
-  initiateSetup: () => apiClient.request("/auth/mfa/setup/initiate", { method: "POST" }),
-  completeSetup: (payload: any) => apiClient.request("/auth/mfa/setup/complete", { method: "POST", body: payload }),
-  regenerateRecoveryCodes: () => apiClient.request("/auth/mfa/recovery/regenerate", { method: "POST" }),
-  disable: (payload: any) => apiClient.request("/auth/mfa/disable", { method: "POST", body: payload }),
+  getStatus: () => apiClient.request("/auth/mfa/status", { timeoutMs: MFA_REQUEST_TIMEOUT_MS }),
+  initiateSetup: () =>
+    apiClient.request("/auth/mfa/setup/initiate", { method: "POST", timeoutMs: MFA_REQUEST_TIMEOUT_MS }),
+  completeSetup: (payload: any) =>
+    apiClient.request("/auth/mfa/setup/complete", { method: "POST", body: payload, timeoutMs: MFA_REQUEST_TIMEOUT_MS }),
+  regenerateRecoveryCodes: () =>
+    apiClient.request("/auth/mfa/recovery/regenerate", { method: "POST", timeoutMs: MFA_REQUEST_TIMEOUT_MS }),
+  disable: (payload: any) =>
+    apiClient.request("/auth/mfa/disable", { method: "POST", body: payload, timeoutMs: MFA_REQUEST_TIMEOUT_MS }),
 }
 
 // -------- Scanner APIs --------
