@@ -164,8 +164,13 @@ export const MainDashboard = memo(() => {
       setShowMfaPrompt(false);
       return;
     }
-    const mfaOn = Boolean(mfaStatus?.enabled || user?.mfaEnabled);
+    const mfaOn = Boolean(mfaStatus?.enabled || user?.mfaEnabled || (user as any)?.mfa_enabled);
     if (mfaOn) {
+      setShowMfaPrompt(false);
+      return;
+    }
+    // If we failed to fetch the status from the server, avoid erroneously showing the prompt
+    if (mfaStatus && 'fetchSuccess' in mfaStatus && !mfaStatus.fetchSuccess) {
       setShowMfaPrompt(false);
       return;
     }
@@ -183,7 +188,7 @@ export const MainDashboard = memo(() => {
       /* ignore */
     }
     setShowMfaPrompt(true);
-  }, [showWelcomePopup, mfaStatus?.enabled, mfaStatusHydrated, user?.mfaEnabled]);
+  }, [showWelcomePopup, mfaStatus, mfaStatusHydrated, user]);
 
   const handleCloseWelcome = () => {
     setShowWelcomePopup(false);

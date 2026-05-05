@@ -62,7 +62,8 @@ export const AuthProvider = ({ children }) => {
   const [mfaStatus, setMfaStatus] = useState({
     enabled: false,
     setupComplete: false,
-    recoveryCodesRemaining: 0
+    recoveryCodesRemaining: 0,
+    fetchSuccess: false
   })
   const [mfaStatusHydrated, setMfaStatusHydrated] = useState(false)
 
@@ -162,7 +163,7 @@ export const AuthProvider = ({ children }) => {
           bio: response.data.user.bio || null,
           plan: "free",
           isVerified: response.data.user.is_verified || false,
-          mfaEnabled: false
+          mfaEnabled: Boolean(response.data.user.mfa_enabled)
         }
         setUser(userData)
         localStorage.setItem("user", JSON.stringify(userData))
@@ -404,7 +405,8 @@ export const AuthProvider = ({ children }) => {
         setMfaStatus({
           enabled: response.data.mfa_enabled,
           setupComplete: response.data.setup_complete,
-          recoveryCodesRemaining: response.data.recovery_codes_remaining
+          recoveryCodesRemaining: response.data.recovery_codes_remaining,
+          fetchSuccess: true
         })
         
         // Update user object with MFA status
