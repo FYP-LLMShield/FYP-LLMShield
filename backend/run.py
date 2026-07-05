@@ -1,5 +1,6 @@
 import os
 
+# Backend entrypoint — Azure deploy runs via GitHub Actions on push to main (backend/**).
 # Clear proxy env vars before any app imports (Azure sets these and Supabase/httpx break with "proxy" argument)
 for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
     os.environ.pop(_k, None)
