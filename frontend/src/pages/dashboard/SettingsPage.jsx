@@ -31,13 +31,13 @@ const SettingsPage = () => {
     },
     {
       name: "Plus",
-      price: "$15",
+      price: "$19",
       features: ["More scans", "Chatbot access", "Priority support"],
       current: false,
     },
     {
       name: "Pro",
-      price: "$20",
+      price: "$29",
       features: ["Unlimited scans", "Advanced analytics", "API integration"],
       current: false,
     },
